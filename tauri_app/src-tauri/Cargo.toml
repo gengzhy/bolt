@@ -1,0 +1,31 @@
+[package]
+name = "lt-tauri"
+version = "0.1.0"
+description = "LocalTransfer Windows 桌面端（Tauri v2）"
+edition = "2021"
+
+[features]
+# 生产模式：内嵌前端资产。缺了它裸 cargo build 会走 devUrl（localhost:1420），
+# 窗口显示"拒绝连接"。`tauri dev` 会自动 --no-default-features。
+default = ["custom-protocol"]
+custom-protocol = ["tauri/custom-protocol"]
+
+# 独立于根 workspace（根 workspace 只含 Rust 核心 crate）
+[workspace]
+
+[lib]
+name = "lt_tauri_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+# 核心引擎经 lt-ffi 调用（与 Android 共用同一 C ABI）
+lt-ffi = { path = "../../crates/lt-ffi" }
+# 待发送清单统计（文件/文件夹大小数量）直接复用遍历器
+lt-file = { path = "../../crates/lt-file" }

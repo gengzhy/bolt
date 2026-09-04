@@ -1,0 +1,421 @@
+# LocalTransfer 本地离线高速跨端文件传输助手
+## 可行性实施方案（V1：Windows + Android 双端）
+文档编号：LT-RUST-IMPL-20260828
+上游文档：《需求分析报告》（LT-RUST-REQ-20260827）、《可行性分析报告》（LT-RUST-REVIEW-20260827）
+文档性质：V1版本开发实施唯一基准，覆盖范围裁剪、架构、协议、安全、接口、工程、测试、里程碑
+更名说明：项目原名 LocalFastTransfer（local_fast_transfer），自2026-08-28起更名为
+          LocalTransfer（local_transfer），仅为低调处理，产品定位与技术路线不变。
+          项目尚未启动、无历史包袱，全部标识已同步彻底更名：
+          产品名 LocalTransfer；仓库/目录 local_transfer；crate 前缀 lt-
+          （lt-utils、lt-crypto、lt-discovery、lt-file、lt-transfer、lt-task、lt-ffi）；
+          FFI 接口与库名 lt_（lt_init、liblt_ffi.so、lt_api.h、工具 lt-cli）；
+          文档编号 LT-RUST-*；Android 包名 com.lt；mDNS 服务类型 _lt._udp.local.；
+          旧名 LocalFastTransfer / local_fast_transfer / lft* / LFT* 全部弃用。
+
+## 一、方案概述
+
+### 1.1 项目定位（不变）
+完全不依赖公网、无服务器中转、纯局域网点对点的高速文件/文件夹传输工具。
+Rust 实现唯一一套网络、分片、校验、设备发现底层，各端仅保留轻量 UI 层。
+
+### 1.2 V1 范围裁剪（本版核心决策）
+| 平台 | V1 | 说明 |
+|---|---|---|
+| Windows（Tauri v2） | 支持 | 桌面首发端，约束最少，承担协议引擎首发验证 |
+| Android（Kotlin 原生） | 支持 | 移动首发端，验证 FFI/JNI 与移动端平台适配 |
+| macOS / Linux | 延后至 V1.1 | Tauri 天然支持，届时仅增加构建目标与签名/打包配置，Rust 核心零改动，成本极低 |
+| iOS | 延后至 V2 | 需处理后台限制、Bonjour、沙盒文件交互等平台深水区，单独立项 |
+| BLE 辅助发现 | 延后至 V2 | 一期以"mDNS + UDP广播探测 + 手动IP"三通道覆盖全部场景 |
+| WiFi Direct | 移出路线图 | 与架构模型冲突、iOS 无能力，收益低成本高；热点场景由手动IP+UDP探测覆盖 |
+
+裁剪理由：五端齐发风险极高；Windows+Android 已覆盖"手机↔PC"这一最高频核心场景，
+先做窄做深，功能成熟稳定后再水平扩展。
+
+### 1.3 对需求分析报告的修订采纳（可行性报告16项修订全部落实）
+1. 取消"QUIC明文模式"——全链路强制 TLS 1.3 加密，千兆下硬件加速损失<5%；
+2. 协议报文结构重构——补分片序号、任务/会话ID、相对路径，拆分控制面/数据面指令；
+3. 新增安全信任模型——本地证书管理、配对验证码、接收方确认、TOFU 信任；
+4. 移除 WiFi Direct，BLE 降级二期；
+5. Android 前台服务适配 Android 14/15 新规（dataSync 类型、6小时时限应对）；
+6. 构建工具链纠正——Android 使用 cargo-ndk（不再使用 cross）；
+7. 停等ACK改为周期性累积确认；
+8. MD5 替换为 BLAKE3，取消传输前全量预哈希，边传边算；
+9. mDNS 平台适配——Android 走系统 NsdManager，Windows 走 Rust mdns-sd，另加 UDP 广播兜底；
+10. 性能指标改为"典型值+峰值目标"双轨，CPU指标定义基准机型；
+11. 补齐文件引擎边界：同名策略、符号链接、长路径、启动前磁盘预检；
+12. 移除 prost 依赖（协议为自定义二进制格式）；
+13. 新增隐身模式（暂停广播）；
+14. 新增完整测试策略与分阶段里程碑。
+
+### 1.4 前置约束（继承需求文档）
+1. 所有数据仅在局域网内点对点流动，无外网请求、无埋点、无日志上传；
+2. 网络/分片/校验/发现逻辑仅一套 Rust 代码，双端共用；
+3. UI 层零业务逻辑：仅渲染、权限申请、文件选择、进度展示、事件透传。
+
+## 二、总体可行性结论
+
+1. 技术可行：QUIC/TCP 传输、mDNS/UDP 发现、FFI 双端集成均有成熟开源先例
+   （LocalSend、LANDrop 等已验证同类路线）；
+2. 范围可行：裁剪至双端后，核心风险收敛为"协议引擎质量"与"Android 平台适配"两项，
+   均可通过里程碑分阶段验证；
+3. 工作量可控：1~2 名有 Rust 网络编程经验的工程师，预估 3.5~4.5 个月交付 V1 稳定版；
+4. 扩展路径清晰：macOS/Linux 为低成本水平扩展；iOS 待 V1 稳定后按可行性报告
+   第五节路径单独立项。
+
+## 三、技术架构
+
+### 3.1 分层架构（三层，V1 双端）
+第一层 平台UI适配层：
+    Windows：Tauri v2 前端（Vue3 + TypeScript + Vite），经 Tauri Command 转发至 Rust；
+    Android：Kotlin 加载 liblt_ffi.so，JNI 调用 C 风格 FFI；
+    职责：渲染、系统权限、文件选择（SAF/系统对话框）、进度展示、事件透传。
+第二层 Rust 核心业务层（唯一业务实现，双端共用同一套二进制库）：
+    lt-utils    通用工具、错误码、IP/端口检测
+    lt-crypto   证书管理、TLS1.3 配置、BLAKE3 哈希、配对验证码派生
+    lt-discovery 发现层（可插拔传输）：mDNS、UDP广播探测、设备列表维护
+    lt-file     文件遍历、分片读取（mmap）、断点缓存、写入合并
+    lt-transfer QUIC/TCP 引擎、协议编解码、连接池、心跳、累积确认
+    lt-task     任务队列、调度、进度计算
+    lt-ffi      统一 C 风格对外接口（cbindgen 生成头文件）
+    异步运行时：Tokio；CPU密集任务（哈希、遍历）统一走 spawn_blocking。
+第三层 系统适配层：
+    Windows：Rust 直接实现（mdns-sd 组播、防火墙检测提示）；
+    Android：JNI 桥接层（NsdManager 发现、前台服务指令由 Kotlin 侧执行，
+             发现结果经回调注入 Rust 设备列表）。
+
+### 3.2 Rust 核心依赖（强制选型）
+tokio = "1"（features = ["full"]）
+quinn = "0.11"（QUIC 传输）
+rustls = "0.23" + ring（TLS 1.3，AES-128-GCM / AES-256-GCM 硬件加速）
+rcgen（首次启动自签证书生成）
+mdns-sd（Windows 侧 mDNS 实现）
+blake3（完整性哈希，多线程）
+bytes、memmap2、tracing、tracing-subscriber（本地滚动日志）
+crossbeam-channel（FFI 事件分发）
+cbindgen（build.rs 自动生成 lt_api.h）
+（移除需求文档中的 prost、mdns-rs、cross）
+
+### 3.3 Android 集成方式
+1. cargo-ndk -t arm64-v8a -t x86_64 -o android_app/app/src/main/jniLibs 编译 .so；
+2. JNI 封装类统一加载 System.loadLibrary("lt_ffi")；
+3. Rust 回调线程经 JNI AttachCurrentThread 后回调 Kotlin，Kotlin 侧统一切主线程；
+4. cbindgen 生成的 lt_api.h 存入 android_app/app/src/main/cpp/ 供查阅对照。
+
+## 四、私有通信协议规范 V2（重构版）
+
+### 4.1 通用报文头
+[4字节 大端序 包长度]   = 其后所有字节数（不含自身），上限 4GB
+[1字节 指令码]
+[8字节 会话/任务ID u64]  控制面消息可为 0
+[载荷]                    按指令码分别定义
+传输通道：QUIC 时每条文件数据流使用独立 QUIC stream；TCP 时 4 路并发连接。
+分片大小：默认 1MB；连接 RTT 异常升高时降至 256KB（底层自适应，UI 无感知）。
+
+### 4.2 指令码定义
+控制面（0x01~0x0F）：
+0x01 HELLO          握手：协议版本、能力位、设备UUID/名称/类型、证书指纹
+0x02 PAIR_REQ       配对请求（首次连接，发起方携带配对会话随机数）
+0x03 PAIR_RESP      配对响应（接受/拒绝；接受时双方展示一致的6位验证码）
+0x04 TRANSFER_REQ   传输请求：文件数、总大小、发起方信息
+0x05 TRANSFER_RESP  接收方用户决定：接受（附保存目录能力）/拒绝
+0x06 FILE_META      单文件元数据：文件序号、总大小、修改时间、相对路径、
+                    分片大小、哈希算法标识
+0x07 FILE_META_ACK  元数据确认：接受 / 断点续传协商结果（已收区间列表）
+0x08 CANCEL         取消当前任务（附原因码）
+0x09 ERROR          错误通知（附统一错误码）
+0x0A PING           心跳请求（30s 周期）
+0x0B PONG           心跳响应
+0x0C BYE            优雅关闭连接
+数据面（0x20~0x2F）：
+0x20 DATA           文件分片：[4字节文件序号][8字节分片序号][分片二进制]
+0x21 ACK            周期性累积确认：[4字节文件序号][8字节已连续确认字节偏移]
+                    （接收端每 200ms 或每 8MB 回报一次，取先到者）
+0x22 FILE_DONE      文件发送完毕：[4字节文件序号][32字节 全文件BLAKE3]
+0x23 FILE_DONE_ACK  校验结果：通过 / 失败重传
+
+### 4.3 关键规则
+1. 未知指令码：接收方回 ERROR(-13 协议不兼容) 并保持连接，为版本演进预留；
+2. 相对路径统一使用 '/' 分隔符，接收端按本地文件系统转换；
+3. 文件身份标识 = 相对路径 + 文件大小 + 修改时间，用于断点续传匹配；
+4. 心跳 30s，连续 3 次无响应判定断开，触发自动重连与断点续传；
+5. 所有多字节整数大端序；字符串均为 UTF-8，长度前置（路径/名称用 2 字节长度）。
+
+## 五、安全设计（V1 强制）
+
+### 5.1 证书与设备身份
+1. 首次启动生成本地 Ed25519 密钥对 + 自签证书（rcgen），有效期 10 年，
+   存储于应用私有目录（权限仅应用自身可读）；
+2. 设备 UUID 与证书一同持久化，重装应用视为新设备；
+3. 设置页展示本机证书指纹（BLAKE3，冒号分隔），供人工比对。
+
+### 5.2 配对与信任（防中间人）
+1. 首次连接陌生设备触发配对：双方 UI 同时展示由握手转录派生的 6 位验证码，
+   两侧用户确认一致后互存对方证书指纹（TOFU）；
+2. 后续连接自动校验已存指纹：不一致立即断开并报 -14（疑似中间人），禁止继续；
+3. 配对记录支持在设置页手动清除（清除后下次连接重新配对）。
+
+### 5.3 接收方确认
+1. 任何 TRANSFER_REQ 必须经接收方用户点击"接受"才允许写入文件；
+2. 提供"信任该设备，自动接收"选项（仅限已配对设备，可随时关闭）；
+3. 拒绝时回 0x05 拒绝，发送方任务标记"被对方拒绝"（错误码 -12）。
+
+### 5.4 传输加密与隐私
+1. 全链路 TLS 1.3（QUIC 内嵌 / TCP 上 rustls），V1 不提供明文模式；
+2. 隐身模式：设置开关，开启后暂停 mDNS 广播与 UDP 探测应答（仍可主动发现他人）；
+3. 本地日志仅写应用私有目录滚动文件，不含文件内容、不含对端证书私钥材料。
+
+## 六、设备发现模块（三通道）
+
+### 6.1 mDNS 通道（主）
+服务类型：_lt._udp.local.
+TXT 记录字段：uuid、设备类型、显示名称、QUIC端口、TCP端口、协议版本、隐身标志。
+实现：
+    Windows：Rust mdns-sd，直接组播 224.0.0.251:5353；
+    Android：Kotlin 调用系统 NsdManager（免 MulticastLock 问题），发现/丢失事件
+             经 JNI 回调注入 Rust 设备列表。
+广播周期 3s；10s 未刷新自动移除；基于 UUID 去重。
+
+### 6.2 UDP 广播探测通道（兜底，Rust 双端统一实现）
+1. 主动端向 255.255.255.255:8899 发送 PROBE 包（含自身服务信息）；
+2. 监听端收到后单播回复自身服务信息；
+3. 覆盖企业网/路由器禁用组播的场景，配合 8900~8950 端口池逐端口探测。
+
+### 6.3 手动 IP 直连
+设置页输入 目标IP[:端口]，直接发起 QUIC 握手（失败降级 TCP），
+覆盖所有发现机制全部失效的极端场景。
+
+### 6.4 端口策略
+默认监听 8899（UDP+TCP）；占用时自动递增尝试 8900~8950；
+实际监听端口写入 mDNS TXT 与设备列表。
+
+## 七、传输引擎
+
+### 7.1 双协议自适应
+1. 优先 QUIC（quinn）：多流并发，1 条连接承载多文件双向传输；
+2. QUIC 握手失败/UDP 被防火墙拦截：自动降级 TCP + TLS 1.3，4 路并发连接；
+3. TCP 优化：NODELAY、收发缓冲动态调优（按带宽时延积）、滑动窗口自适应；
+4. 每远端设备一条持久连接，状态机：空闲/传输中/断开；30s 心跳。
+
+### 7.2 可靠性与断点续传
+1. 数据可靠性由 QUIC stream / TCP 保证；应用层 ACK（0x21）仅作进度记账；
+2. 发送端按已确认偏移更新任务进度；接收端持久化各文件已收区间（本地缓存）；
+3. 断线后 3s 间隔自动重连；重连成功发 FILE_META 时，接收端在 FILE_META_ACK
+   回传已收区间，发送端跳过已完成分片续传；
+4. 文件身份（路径+大小+修改时间）不匹配时判定源文件已变更，提示用户全量重传；
+5. 暂停/恢复：暂停即停止调度该任务并落盘进度，恢复走同一续传路径。
+
+### 7.3 完整性校验
+1. 算法：BLAKE3（放弃 MD5）；
+2. 发送端边读边算（随分片读取流式计算），不做传输前全量预哈希，100GB 文件
+   即时可发；
+3. 接收端边写边算；FILE_DONE 时双方比对全文件哈希，失败删除临时文件并允许重传；
+4. 弱网/断线场景以分片区间为准，不做整文件重传。
+
+## 八、文件处理引擎
+
+### 8.1 读取
+1. memmap2 内存映射读取，支持 100GB 级单文件，杜绝整文件加载；
+2. 文件夹递归遍历：自动展开子目录、统计总大小、生成带相对路径的任务列表；
+3. 符号链接/管道/设备文件：默认跳过，计入"跳过清单"，任务完成时汇总通知 UI；
+4. Windows 长路径：Rust std 原生 \\?\ 语义处理，遍历层不做截断；
+   接收端对超出文件系统限制的路径做扁平化降级并告警。
+
+### 8.2 写入与合并
+1. 分片按序号写入应用私有临时目录 .tmp 文件（支持乱序到达、区间空洞）；
+2. 校验通过后移动/重命名至用户保存目录；
+3. 同名文件策略：默认自动重命名（追加 (1)、(2)…），设置可切换为"覆盖"；
+4. 任务失败/取消：按设置保留或清理临时文件；缓存清理接口随时可用。
+
+### 8.3 磁盘空间预检
+1. 任务启动前：目标盘剩余空间 ≥ 任务总大小 × 1.05 + 512MB，否则拒绝启动（-5）；
+2. 接收端每完成一个文件复检一次，不足时暂停任务并推送告警，而非直接失败。
+
+## 九、任务调度与进度
+
+1. 任务状态机：待连接 → 等待对方接受 → 传输中 → 已完成/已暂停/失败/已取消；
+2. 多任务并行：同一连接多文件流并发（默认 4 文件并发，可配）；
+   上传/下载双向同时进行互不阻塞；
+3. 进度事件：单文件与总任务的已传字节/总字节/瞬时速率(MB/s与Mbps)/预计剩余时间，
+   统一事件回调推送，UI 节流渲染（建议 4~10Hz）；
+4. 控制接口：启动、暂停、恢复、取消单任务、清空队列。
+
+## 十、FFI 接口清单（cbindgen 生成头文件，lt_ 前缀，int 返回 0/负错误码）
+
+生命周期与配置：
+  lt_init(config_json) / lt_shutdown()
+  lt_set_event_callback(callback, user_data)     统一事件回调（见11节事件表）
+  lt_set_config(key, value_json) / lt_get_config(key)
+      key：device_name、save_dir、stealth_mode、auto_accept_trusted、concurrency
+  lt_get_local_fingerprint(out_buf, len)         本机证书指纹（配对展示用）
+  lt_version()
+
+发现与连接：
+  lt_start_discovery() / lt_stop_discovery()
+  lt_probe_network()                              触发一次 UDP 广播探测
+  lt_get_devices(out_json)                        当前设备列表快照
+  lt_connect(target, port)                        target 为 UUID 或 IP；异步，结果走事件回调，返回连接ID
+  lt_disconnect(conn_id)
+
+配对与接收：
+  lt_respond_pair(pair_req_id, accept)            配对验证码确认
+  lt_respond_transfer(transfer_req_id, accept)    接收方接受/拒绝传输请求
+
+传输与任务：
+  lt_send_files(conn_id, paths_json)              发起传输，返回任务ID
+  lt_pause_task(task_id) / lt_resume_task(task_id) / lt_cancel_task(task_id)
+  lt_get_tasks(out_json)                          任务列表快照
+  lt_clear_records() / lt_clear_temp_cache()     清记录 / 清临时缓存
+
+FFI 规范：扁平 C 函数；字符串 char* 安全拷贝；批量/异步数据一律回调推送；
+Android/iOS(未来) 共用同一份 lt_api.h。
+
+## 十一、统一事件回调（Rust → UI）
+
+EVT_DEVICE_LIST      设备列表变更（全量JSON，含 uuid/名称/类型/IP/端口/可达性）
+EVT_CONN_STATE       连接状态变化（连接中/已连接/断开/重连中）
+EVT_PAIR_REQUEST     配对请求（pair_req_id + 6位验证码）
+EVT_TRANSFER_REQUEST 接收请求（transfer_req_id + 发起方 + 文件数 + 总大小）
+EVT_TASK_STATE       任务状态机迁移
+EVT_TASK_PROGRESS    进度（任务/文件粒度，字节、速率、剩余时间）
+EVT_TASK_SUMMARY     任务结束汇总（成功数/失败数/跳过清单）
+EVT_ERROR            异常（错误码 + 上下文任务ID）
+
+## 十二、统一错误码
+
+0    成功
+-1   参数非法
+-2   端口被占用/端口池耗尽
+-3   连接超时/远端离线
+-4   文件不存在或无读取权限
+-5   磁盘剩余空间不足
+-6   文件校验失败（BLAKE3 不匹配）
+-7   发现服务不可用（组播被拦截，已提示用户尝试兜底通道）
+-8   内存映射文件失败
+-9   任务已被用户取消
+-10  系统权限不足（文件/网络/通知）
+-11  配对失败（对方拒绝或验证码不一致）
+-12  传输被对方拒绝
+-13  协议版本不兼容
+-14  对端证书指纹变更（疑似中间人，连接已阻止）
+-15  内部错误（详见本地日志）
+规则：底层异常全部转错误码，不崩溃进程；网络类自动重试，-6/-12 提供"重新传输"；
+UI 仅按错误码展示文案，不得自行处理底层异常。
+
+## 十三、各端 UI 需求（V1）
+
+### 13.1 Windows 端（Tauri v2 + Vue3 + TS + Vite）
+页面：设备列表首页 / 传输面板（拖拽发送、接收请求弹窗、实时进度）/
+      设置页（设备名、保存目录、明文→已移除、隐身模式、手动IP、配对管理、清缓存）
+系统适配：
+    首次启动检测 QUIC/TCP 监听端口连通性，防火墙拦截时展示引导
+    （提供一键复制的 netsh 放行命令，需管理员执行；应用不静默改系统配置）；
+    WebView2 使用系统内置运行时（Win10 1803+/Win11 预装）。
+打包：NSIS 安装包 + 便携版 exe，体积 ≤15MB。
+
+### 13.2 Android 端（Kotlin 原生，minSdk 29 / targetSdk 35）
+权限：INTERNET、ACCESS_NETWORK_STATE、ACCESS_WIFI_STATE、POST_NOTIFICATIONS(13+)、
+      FOREGROUND_SERVICE、FOREGROUND_SERVICE_DATA_SYNC；
+      文件选择使用系统 SAF（无需存储权限）。
+后台与保活：
+    传输期间运行 dataSync 类型前台服务 + 通知栏进度（支持一键取消）；
+    Android 15 的 6 小时 dataSync 时限应对：超限前保存断点并通知用户
+    "传输已暂停，打开应用自动续传"，回到前台即恢复，不承诺无限后台。
+交互：
+    首页设备列表（系统主题适配）、发送（SAF 多选文件/文件夹）、
+    接收请求通知/弹窗、配对验证码对话框、传输详情、设置页；
+    锁屏策略：传输中持有 WifiLock，任务依赖断点续传兜底。
+打包：APK ≤20MB（arm64-v8a + x86_64 双 ABI）。
+
+## 十四、性能与验收指标（双轨制）
+
+| 场景 | 典型值（验收线） | 峰值目标（实验室） |
+|---|---|---|
+| 千兆有线（Windows↔Windows，V1.1纳入） | ≥700Mbps | ≥900Mbps |
+| WiFi6 单文件（Android↔Windows，160MHz） | ≥400Mbps | ≥800Mbps |
+| WiFi5/普通路由 单文件 | ≥150Mbps | ≥350Mbps |
+| 100GB 单文件 | 全程无卡顿、内存平稳 | 发起至首片 ≤2s（无预哈希阻塞） |
+| 断点续传恢复 | 重连至恢复传输 ≤3s | - |
+| 设备发现 | 已缓存刷新 ≤500ms；冷启动首次发现 ≤2s | - |
+| 连接握手 | ≤100ms（同网段） | - |
+| CPU（Windows，基准：8核主流台式机） | 传输峰值 ≤15% | - |
+| CPU（Android，基准：骁龙7系代表机） | 实测记录，单核占用 ≤40% | - |
+| 内存 | 空闲 <150MB，传输 <400MB，72h 无持续增长 | - |
+稳定性验收：
+    Windows：72 小时循环传输（含断网恢复注入）无崩溃、无文件损坏；
+    Android：6 小时前台连续传输 + 前后台切换/锁屏/切WiFi 场景断点续传专项。
+
+## 十五、工程搭建规范
+
+### 15.1 目录结构（基于既有结构文档裁剪）
+local_transfer/
+├── crates/（lt-utils / lt-crypto / lt-discovery / lt-file /
+│            lt-transfer / lt-task / lt-ffi）
+│   其中 lt-discovery：mdns.rs / udp_probe.rs / nsd_bridge.rs(JNI回调接入) /
+│                        device_list.rs（ble_helper.rs 移至 V2 分支预留）
+├── tools/
+│   └── lt-cli/        无UI命令行测试端（M1阶段协议联调利器，双机对传）
+├── tauri_app/          Windows 客户端（macOS/Linux 目标 V1.1 再加）
+├── android_app/        Android 客户端（Gradle Kotlin DSL，jniLibs 双ABI）
+├── scripts/            build_rust_lib.bat / build_android_lib.bat(cargo-ndk) / clean_all
+├── tests/              协议单测、fuzz 语料、弱网模拟脚本
+└── docs/               本报告、protocol_spec、ffi_api、dev_guide
+（移除 ios_app 及 copy_ios_lib.sh；scripts 全部 Windows 可执行优先）
+
+### 15.2 工具链基线（立项时以当期 stable 为准）
+Rust ≥1.80（edition 2021）；cargo-ndk ≥0.16；cbindgen ≥0.27；
+Tauri ≥2.x；Node ≥20；Gradle ≥8.x + Kotlin ≥2.x；
+Android NDK r26+；compileSdk 35 / minSdk 29。
+
+### 15.3 CI 最小集
+1. cargo fmt + clippy（-D warnings）+ 全 crate 单测；
+2. 协议编解码往返测试 + fuzz（cargo-fuzz 对 codec 与元数据解析）；
+3. Windows 构建（tauri build）+ Android 构建（cargo-ndk + assembleDebug）；
+4. lt-cli 双进程本机回环冒烟（QUIC/TCP 各一次）。
+
+## 十六、测试策略
+
+1. 单元测试：协议编解码（含边界/畸形包）、断点区间合并、文件身份匹配、错误码映射；
+2. 模糊测试：所有入网报文解析入口纳入 cargo-fuzz，持续运行纳入 CI 夜间任务;
+3. 弱网测试：基于代理注入丢包(1%/5%/10%)、延迟(50/200ms)、限速、随机断网，
+   验收断点续传与 QUIC 恢复能力；
+4. 安全测试：伪造证书指纹/篡改配对码/未配对直发文件/隐身模式不被发现 四类用例；
+5. 兼容性矩阵：Windows 10/11 ×（有线、WiFi5、WiFi6）× Android 10~15 代表机≥3台；
+6. 稳定性：72h 循环大文件（10GB×N + 100GB×1）+ 断网注入脚本；
+7. 性能基准：固定测试环境（同一台路由器、固定距离），每里程碑回归一次并留档。
+
+## 十七、里程碑计划（总工期预估 14~18 周）
+
+M0 项目初始化（第1周）
+   脚手架、CI、cbindgen 头文件流水线、cargo-ndk 流水线；交付：双端可编译空壳。
+M1 协议与传输引擎（第2~5周）
+   QUIC/TCP 引擎、协议 V2 编解码、单文件双向传输、BLAKE3 流式校验；
+   交付：lt-cli 双机互传 10GB 文件，性能达典型值验收线。
+M2 发现与断点续传（第6~8周）
+   mDNS/UDP探测/手动IP 三通道、配对与接收确认、断点续传、任务队列；
+   交付：lt-cli 全流程（发现→配对→确认→传输→断网恢复）自动化脚本通过。
+M3 Windows 客户端（第8~10周，与M2尾部并行）
+   Tauri 全部页面、防火墙引导、隐身模式、打包 NSIS。
+M4 Android 客户端（第10~14周）
+   JNI 桥、NsdManager 接入、SAF、前台服务与通知、Android 15 时限应对。
+M5 联调、加固与发布（第15~18周）
+   双端互传全矩阵、弱网/安全/稳定性专项、性能调优、发布 V1.0。
+
+## 十八、风险与应对
+
+| 风险 | 等级 | 应对 |
+|---|---|---|
+| QUIC 在部分企业网/路由器被 UDP 限速或丢弃 | 高 | TCP+TLS 自动降级为一等公民，全功能对等验证 |
+| Android 各厂后台策略差异导致保活不稳定 | 高 | 不承诺无限后台；断点续传 + 前台恢复为设计基线 |
+| NsdManager 个别机型行为异常 | 中 | UDP 广播探测兜底 + 手动 IP 终极兜底 |
+| 100GB 文件边界问题（磁盘/断电/空间不足） | 中 | 预检 + 区间续传 + 每文件复检磁盘 |
+| 配对/确认流程增加操作步骤引发体验抱怨 | 低 | 信任设备自动接收开关，仅首次连接走完整流程 |
+| 单人/双人团队跨 Rust+前端+Android 技能要求高 | 中 | M1 先用 lt-cli 验证核心，UI 问题不阻塞引擎迭代 |
+
+## 十九、结论
+
+本方案在继承需求分析报告总体架构的前提下，完成了范围收敛（V1 双端）、
+协议重构（V2）、安全模型补齐与平台事实性错误纠正，全部 16 项评审修订已落实。
+方案可直接作为技术评审、脚手架搭建、编码开发、测试验收的唯一实施基准。
+
+后续扩展路径：V1.1 增加 macOS/Linux（仅 Tauri 构建目标，预计 1~2 周）；
+V2 立项 iOS 与 BLE 辅助发现（按可行性分析报告路径执行）。

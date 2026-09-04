@@ -1,0 +1,24 @@
+[package]
+name = "lt-cli"
+description = "LocalTransfer 命令行测试端（M1 协议联调，双机对传）"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[[bin]]
+name = "lt-cli"
+path = "src/main.rs"
+
+[dependencies]
+lt-utils = { workspace = true }
+lt-crypto = { workspace = true }
+lt-discovery = { workspace = true }
+lt-file = { workspace = true }
+lt-transfer = { workspace = true }
+lt-task = { workspace = true }
+tokio = { workspace = true }
+serde_json = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+anyhow = "1"

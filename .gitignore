@@ -1,0 +1,30 @@
+# Rust
+/target
+**/*.rs.bk
+
+# Node / Tauri
+node_modules/
+dist/
+tauri_app/src-tauri/target/
+tauri_app/src-tauri/gen/
+
+# Android / Gradle
+android_app/.gradle/
+android_app/build/
+android_app/app/build/
+android_app/local.properties
+*.iml
+.idea/
+.github/
+
+# 构建产物（jniLibs / win64 由脚本生成）
+/lib/
+*.so
+*.dll
+*.pdb
+
+# IDE
+.vscode/
+
+# logs
+*.log
