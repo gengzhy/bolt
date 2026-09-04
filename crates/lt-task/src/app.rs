@@ -484,8 +484,21 @@ impl App {
             .unwrap_or_default();
 
         let total: u64 = items.items.iter().map(|i| i.size).sum();
+
+        // 【关键架构设计】：生成 128 位全局唯一的 task_uid（标准 UUIDv4）
+        // 独立于 IP、端口和会话生命周期，在断点重连、暂停继续全生命周期中保持恒定不变
+        let mut raw_uid = [0u8; 16];
+        {
+            use rand::RngExt;
+            rand::rng().fill(&mut raw_uid);
+        }
+        raw_uid[6] = (raw_uid[6] & 0x0f) | 0x40; // UUIDv4 版本位
+        raw_uid[8] = (raw_uid[8] & 0x3f) | 0x80; // Variant 1 变体位
+        let task_uid_hex: String = raw_uid.iter().map(|b| format!("{:02x}", b)).collect();
+
         let record = TaskRecord::new_send(
             task_id,
+            task_uid_hex,
             uuid.to_string(),
             peer_name,
             items.items.len() as u32,
@@ -502,7 +515,7 @@ impl App {
 
         // 已连接：直接发
         if let Some(session) = engine.session_by_uuid(uuid) {
-            self.spawn_send(task_id, session, items.items);
+            self.spawn_send(task_id, raw_uid, session, items.items);
             return Ok(task_id);
         }
 
@@ -515,7 +528,7 @@ impl App {
             match engine.connect_with(target, force_tcp).await {
                 Ok(session) => {
                     // 会话注册与 EVT_CONN_STATE 已由 handler_connected 完成
-                    app.spawn_send(task_id, session, items.items);
+                    app.spawn_send(task_id, raw_uid, session, items.items);
                 }
                 Err(e) => {
                     let mut tasks = app.tasks.lock().unwrap();
@@ -537,6 +550,7 @@ impl App {
     fn spawn_send(
         self: &Arc<App>,
         task_id: u64,
+        task_uid: [u8; 16],
         session: Arc<Session>,
         items: Vec<lt_file::traverse::TransferItem>,
     ) {
@@ -558,7 +572,7 @@ impl App {
         });
         let peer_uuid = session.info().peer_uuid;
         self.rt.spawn(async move {
-            let result = lt_transfer::send::send_files(session, task_id, items, sink, cancel).await;
+            let result = lt_transfer::send::send_files(session, task_id, task_uid, items, sink, cancel).await;
             let Some(app) = weak.upgrade() else { return };
             let mut tasks = app.tasks.lock().unwrap();
             let Some(t) = tasks.get_mut(&task_id) else {
@@ -643,7 +657,7 @@ impl App {
     /// 续传/重传（仅发送端）：重跑 send_files，接收端按已收区间自动跳过。
     /// 暂停后可续传；出错（含对端断开导致的失败）后可重传。
     pub fn resume_task(self: &Arc<App>, task_id: u64) -> LtResult<()> {
-        let (peer_uuid, paths) = {
+        let (peer_uuid, paths, raw_uid) = {
             let mut tasks = self.tasks.lock().unwrap();
             let task = tasks.get_mut(&task_id).ok_or(LtError::InvalidArgument)?;
             if !matches!(task.state, TaskState::Paused | TaskState::Error | TaskState::Cancelled) {
@@ -656,7 +670,22 @@ impl App {
             task.done_bytes = 0;
             task.ok_files = 0;
             task.failed_files = 0;
-            (task.peer_uuid.clone(), task.source_paths.clone())
+            // 【关键机制】：续传时严格沿用原有的 task_uid，对端能够 100% 精准识别
+            let mut uid = [0u8; 16];
+            if task.task_uid.len() == 32 {
+                for i in 0..16 {
+                    if let Ok(b) = u8::from_str_radix(&task.task_uid[i * 2..i * 2 + 2], 16) {
+                        uid[i] = b;
+                    }
+                }
+            } else {
+                use rand::RngExt;
+                rand::rng().fill(&mut uid);
+                uid[6] = (uid[6] & 0x0f) | 0x40;
+                uid[8] = (uid[8] & 0x3f) | 0x80;
+                task.task_uid = uid.iter().map(|b| format!("{:02x}", b)).collect();
+            }
+            (task.peer_uuid.clone(), task.source_paths.clone(), uid)
         };
         let items =
             lt_file::traverse::traverse(&paths.iter().map(PathBuf::from).collect::<Vec<_>>())?;
@@ -667,7 +696,7 @@ impl App {
         let session = engine
             .session_by_uuid(&peer_uuid)
             .ok_or(LtError::ConnectTimeout)?;
-        self.spawn_send(task_id, session, items.items);
+        self.spawn_send(task_id, raw_uid, session, items.items);
         Ok(())
     }
 
@@ -904,7 +933,7 @@ impl App {
                     // 接收任务兜底建档（正常路径在 transfer_incoming 已建）
                     tasks.insert(
                         task_id,
-                        TaskRecord::new_recv(task_id, String::new(), String::new(), 0, 0),
+                        TaskRecord::new_recv(task_id, String::new(), String::new(), String::new(), 0, 0),
                     );
                 }
                 drop(tasks);
@@ -1115,31 +1144,34 @@ impl App {
         let auto =
             self.cfg.lock().unwrap().auto_accept_trusted && self.trust.is_paired(&req.sender_uuid);
         
-        // 1. 查找是否为历史任务的续传（断网重连复用）
+        let req_uid_hex: String = req.task_uid.iter().map(|b| format!("{:02x}", b)).collect();
+
+        // 1. 根据全局唯一 task_uid 精确查找是否为历史任务的续传（断网重连复用）
+        // 【逻辑说明】：
+        // 彻底淘汰旧有的 peer_uuid + file_count + total_size 模糊猜测，
+        // 100% 精确通过全局唯一 task_uid 定位，避免误判与任务互相覆盖。
         let mut local_id = None;
         {
             let mut tasks = self.tasks.lock().unwrap();
-            // 倒序查找，优先复用最近的匹配任务
-            let mut keys: Vec<u64> = tasks.keys().cloned().collect();
-            keys.sort_unstable_by(|a, b| b.cmp(a));
-            for id in keys {
-                let t = tasks.get_mut(&id).unwrap();
-                if t.direction == Direction::Recv
-                    && t.peer_uuid == req.sender_uuid
-                    && t.file_count == req.file_count
-                    && t.total_size == req.total_size
-                {
-                    if t.state == TaskState::Transferring {
-                        // 并发重传竞态拦截 (Concurrent Race Condition Blocking)
-                        // 已有一个活着的相同特征任务，拒绝本次重复的握手请求
-                        session.respond_transfer(req.req_id, false);
-                        return;
-                    }
-                    if matches!(t.state, TaskState::Paused | TaskState::Error) {
+            for (&id, t) in tasks.iter_mut() {
+                if t.direction == Direction::Recv && t.task_uid == req_uid_hex {
+                    // 若前次任务由于网络闪断仍停留在 Transferring 态，或者处于 Paused/Error 态，
+                    // 均允许复用并平滑接管，绝不直接调用 respond_transfer(false) 造成对端被秒拒
+                    if matches!(t.state, TaskState::Transferring | TaskState::Paused | TaskState::Error) {
                         local_id = Some(id);
-                        // 立即抢占状态，防止后续并发进入
+                        // 状态扭转为目标态
                         t.state = if auto { TaskState::Transferring } else { TaskState::WaitingAccept }; 
                         t.transport = transport_str(&session.info());
+                        // 【关键修复：进度对齐】：
+                        // 重置已传输字节数、完成计数等统计指标。
+                        // 真实已接收的断点区间将在后续 FILE_META 握手时由 FileWriter 从本地断点记录加载，
+                        // 从而保证发送端与接收端卡片上显示的进度严格一致，不再残留上次失败的脏数据。
+                        t.done_bytes = 0;
+                        t.ok_files = 0;
+                        t.failed_files = 0;
+                        t.rate_bps = 0;
+                        t.eta_secs = 0;
+                        t.current_file = String::new();
                         break;
                     }
                 }
@@ -1160,6 +1192,7 @@ impl App {
                 .insert((req.conn_id, req.req_id), id);
             let mut record = TaskRecord::new_recv(
                 id,
+                req_uid_hex,
                 req.sender_uuid.clone(),
                 req.sender_name.clone(),
                 req.file_count,

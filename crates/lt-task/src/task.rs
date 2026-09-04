@@ -57,6 +57,9 @@ impl TaskState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskRecord {
     pub task_id: u64,
+    /// 全局唯一任务 ID（UUIDv4 32位十六进制字符串），贯穿跨网络、跨断点全生命周期
+    #[serde(default)]
+    pub task_uid: String,
     pub direction: Direction,
     pub peer_uuid: String,
     pub peer_name: String,
@@ -84,6 +87,7 @@ pub struct TaskRecord {
 impl TaskRecord {
     pub fn new_send(
         task_id: u64,
+        task_uid: String,
         peer_uuid: String,
         peer_name: String,
         file_count: u32,
@@ -92,6 +96,7 @@ impl TaskRecord {
     ) -> TaskRecord {
         TaskRecord {
             task_id,
+            task_uid,
             direction: Direction::Send,
             peer_uuid,
             peer_name,
@@ -112,6 +117,7 @@ impl TaskRecord {
 
     pub fn new_recv(
         task_id: u64,
+        task_uid: String,
         peer_uuid: String,
         peer_name: String,
         file_count: u32,
@@ -119,6 +125,7 @@ impl TaskRecord {
     ) -> TaskRecord {
         TaskRecord {
             task_id,
+            task_uid,
             direction: Direction::Recv,
             peer_uuid,
             peer_name,
@@ -161,10 +168,19 @@ mod tests {
 
     #[test]
     fn record_json() {
-        let r = TaskRecord::new_send(1, "u".into(), "pc".into(), 2, 100, vec!["a".into()]);
+        let r = TaskRecord::new_send(
+            1,
+            "0123456789abcdef0123456789abcdef".into(),
+            "u".into(),
+            "pc".into(),
+            2,
+            100,
+            vec!["a".into()],
+        );
         let j = serde_json::to_string(&r).unwrap();
         let back: TaskRecord = serde_json::from_str(&j).unwrap();
         assert_eq!(back.task_id, 1);
+        assert_eq!(back.task_uid, "0123456789abcdef0123456789abcdef");
         assert!(matches!(back.direction, Direction::Send));
     }
 }

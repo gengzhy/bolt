@@ -70,7 +70,6 @@ fn make_item(path: &std::path::Path, name: &str) -> lt_file::traverse::TransferI
         rel_path: name.to_string(),
         size: meta.len(),
         mtime_unix: 0,
-        head_hash: [0; 16],
     }
 }
 
@@ -147,6 +146,7 @@ async fn bidi_transfer_on_same_session() {
     let sum = lt_transfer::send::send_files(
         sess_b.clone(),
         1,
+        [1u8; 16],
         vec![make_item(&f1, "f1.bin")],
         noop_sink.clone(),
         cancel.clone(),
@@ -164,6 +164,7 @@ async fn bidi_transfer_on_same_session() {
     let sum = lt_transfer::send::send_files(
         sess_a.clone(),
         2,
+        [2u8; 16],
         vec![make_item(&f2, "f2.bin")],
         noop_sink.clone(),
         cancel.clone(),
@@ -181,6 +182,7 @@ async fn bidi_transfer_on_same_session() {
     let sum = lt_transfer::send::send_files(
         sess_b.clone(),
         3,
+        [3u8; 16],
         vec![make_item(&f1, "f1.bin")],
         noop_sink,
         cancel,
@@ -252,6 +254,7 @@ async fn concurrent_two_tasks_on_same_session() {
         lt_transfer::send::send_files(
             s1,
             1,
+            [4u8; 16],
             vec![make_item(&f1, "f1.bin")],
             sink1,
             Arc::new(AtomicBool::new(false)),
@@ -264,6 +267,7 @@ async fn concurrent_two_tasks_on_same_session() {
         lt_transfer::send::send_files(
             s2,
             2,
+            [5u8; 16],
             vec![make_item(&f2, "f2.bin")],
             noop_sink,
             Arc::new(AtomicBool::new(false)),

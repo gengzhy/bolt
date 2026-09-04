@@ -26,6 +26,7 @@ pub struct SendSummary {
 pub async fn send_files(
     session: Arc<Session>,
     task_id: u64,
+    task_uid: [u8; 16],
     items: Vec<TransferItem>,
     sink: EventSink,
     cancel: Arc<AtomicBool>,
@@ -47,10 +48,11 @@ pub async fn send_files(
         state: "waiting_accept".into(),
     });
 
-    // 1) TRANSFER_REQ，等待接收方用户决定
+    // 1) TRANSFER_REQ，等待接收方用户决定（携带全局唯一 task_uid）
     session.send_control(
         task_id,
         Message::TransferReq {
+            task_uid,
             file_count,
             total_size,
             sender_name: session.identity.device_name(),
@@ -62,7 +64,7 @@ pub async fn send_files(
         .map_err(|_| LtError::ConnectTimeout)?
         .map_err(|_| LtError::ConnectTimeout)?;
     match resp {
-        Message::TransferResp { accept: true } => {}
+        Message::TransferResp { accept: true, .. } => {}
         _ => {
             sink(EngineEvent::State {
                 conn_id: session.id,
@@ -217,7 +219,8 @@ async fn send_one_file_on_pipe(
     sink: &EventSink,
 ) -> LtResult<bool> {
     let file_start = Instant::now();
-    // 发送元数据
+    // 1) 发送文件元数据帧（标准向前兼容格式）
+    // 包含文件序号、大小、修改时间戳、相对路径以及推荐分片大小与校验算法
     session.send_file(
         pipe_id,
         task_id,
@@ -228,7 +231,6 @@ async fn send_one_file_on_pipe(
             rel_path: item.rel_path.clone(),
             chunk_size: chunk_size as u32,
             hash_algo: HASH_BLAKE3,
-            head_hash: item.head_hash,
         },
     )?;
 
@@ -291,6 +293,20 @@ async fn send_one_file_on_pipe(
         rate_last = done;
         rate_time = now;
     };
+
+    // 若存在断点已收前缀，立刻触发一次初始进度事件，使发送端 UI 与对端立即对齐
+    if covered_bytes > 0 {
+        sink(EngineEvent::Progress {
+            conn_id: session.id,
+            task_id,
+            incoming: false,
+            rel_path: Some(item.rel_path.clone()),
+            done: acked.max(covered_bytes),
+            total: item.size,
+            rate_bps: 0,
+            eta_secs: 0,
+        });
+    }
 
     // 在途（已发未确认）字节窗口。文件管道队列无背压，若不限制，读循环会在
     // 极短时间内把整个文件读进内存队列，进度门只在开头触发一次（UI 卡 0%），

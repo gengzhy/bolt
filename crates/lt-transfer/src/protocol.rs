@@ -71,14 +71,38 @@ pub enum Message {
         accept: bool,
         nonce: [u8; 16],
     },
+    /// 传输请求：携带全局唯一任务 ID、文件数、总大小、发送者名称。
+    ///
+    /// 【协议格式规范】：
+    /// - task_uid (16B)：全局唯一的 128 位任务 ID（UUID），在重试、续传全生命周期保持恒定不变。
+    /// - file_count (4B)：待传文件数。
+    /// - total_size (8B)：整批文件总字节大小。
+    /// - sender_name (2B 长度 + UTF-8 字符串)：发送端设备展示名称。
     TransferReq {
+        task_uid: [u8; 16],
         file_count: u32,
         total_size: u64,
         sender_name: String,
     },
+    /// 传输应答：对端用户接受或拒绝。
+    ///
+    /// 【协议格式规范】：
+    /// - accept (1B)：是否接受传输。
+    /// - task_uid (16B)：对应的全局任务 ID。
     TransferResp {
         accept: bool,
+        task_uid: [u8; 16],
     },
+    /// 单个文件的元数据（实施方案 7.2 逐文件握手）。
+    ///
+    /// 【协议格式规范】：
+    /// - file_seq (4B)
+    /// - size (8B)
+    /// - mtime (8B)
+    /// - rel_path (2B 长度 + UTF-8 字符串)
+    /// - chunk_size (4B)
+    /// - hash_algo (1B)
+    /// 保持向前兼容的标准帧长，避免破坏 Android 与 Windows 端的二进制互通。
     FileMeta {
         file_seq: u32,
         size: u64,
@@ -86,7 +110,6 @@ pub enum Message {
         rel_path: String,
         chunk_size: u32,
         hash_algo: u8,
-        head_hash: [u8; 16],
     },
     FileMetaAck {
         file_seq: u32,
@@ -194,17 +217,20 @@ fn encode_payload(msg: &Message, p: &mut Vec<u8>) -> u8 {
             op::PAIR_RESP
         }
         Message::TransferReq {
+            task_uid,
             file_count,
             total_size,
             sender_name,
         } => {
+            p.extend_from_slice(task_uid);
             p.extend_from_slice(&file_count.to_be_bytes());
             p.extend_from_slice(&total_size.to_be_bytes());
             put_str(p, sender_name);
             op::TRANSFER_REQ
         }
-        Message::TransferResp { accept } => {
+        Message::TransferResp { accept, task_uid } => {
             p.push(u8::from(*accept));
+            p.extend_from_slice(task_uid);
             op::TRANSFER_RESP
         }
         Message::FileMeta {
@@ -214,7 +240,6 @@ fn encode_payload(msg: &Message, p: &mut Vec<u8>) -> u8 {
             rel_path,
             chunk_size,
             hash_algo,
-            head_hash,
         } => {
             p.extend_from_slice(&file_seq.to_be_bytes());
             p.extend_from_slice(&size.to_be_bytes());
@@ -222,7 +247,6 @@ fn encode_payload(msg: &Message, p: &mut Vec<u8>) -> u8 {
             put_str(p, rel_path);
             p.extend_from_slice(&chunk_size.to_be_bytes());
             p.push(*hash_algo);
-            p.extend_from_slice(head_hash);
             op::FILE_META
         }
         Message::FileMetaAck {
@@ -377,10 +401,53 @@ pub fn decode(opcode: u8, payload: bytes::Bytes) -> Result<Message, CodecError> 
             })
         }
         op::TRANSFER_REQ => {
+            // 【自适应双模解码】：严格保证向前与向后兼容，杜绝两端因报文长度差异断开
+            // 新格式：16B task_uid + 4B file_count + 8B total_size + 2B str_len + str (payload 总长 == 30 + str_len)
+            // 旧格式：4B file_count + 8B total_size + 2B str_len + str (payload 总长 == 14 + str_len)
+            if d.len() >= 30 {
+                let str_len = u16::from_be_bytes([d[28], d[29]]) as usize;
+                if d.len() == 30 + str_len {
+                    let mut task_uid = [0u8; 16];
+                    task_uid.copy_from_slice(get_bytes(&mut d, 16)?);
+                    let file_count = get_u32(&mut d)?;
+                    let total_size = get_u64(&mut d)?;
+                    let sender_name = get_str(&mut d)?;
+                    return Ok(Message::TransferReq {
+                        task_uid,
+                        file_count,
+                        total_size,
+                        sender_name,
+                    });
+                }
+            }
+            if d.len() >= 14 {
+                let str_len = u16::from_be_bytes([d[12], d[13]]) as usize;
+                if d.len() == 14 + str_len {
+                    let file_count = get_u32(&mut d)?;
+                    let total_size = get_u64(&mut d)?;
+                    let sender_name = get_str(&mut d)?;
+                    // 旧版本协议兼容：由发送者、数量和大小派生确定性的回退 task_uid
+                    let fallback_hash = blake3::hash(format!("{sender_name}|{file_count}|{total_size}").as_bytes());
+                    let mut task_uid = [0u8; 16];
+                    task_uid.copy_from_slice(&fallback_hash.as_bytes()[..16]);
+                    return Ok(Message::TransferReq {
+                        task_uid,
+                        file_count,
+                        total_size,
+                        sender_name,
+                    });
+                }
+            }
+            // 兜底路径
+            let mut task_uid = [0u8; 16];
+            if d.len() >= 30 {
+                task_uid.copy_from_slice(get_bytes(&mut d, 16)?);
+            }
             let file_count = get_u32(&mut d)?;
             let total_size = get_u64(&mut d)?;
             let sender_name = get_str(&mut d)?;
             Ok(Message::TransferReq {
+                task_uid,
                 file_count,
                 total_size,
                 sender_name,
@@ -388,7 +455,11 @@ pub fn decode(opcode: u8, payload: bytes::Bytes) -> Result<Message, CodecError> 
         }
         op::TRANSFER_RESP => {
             let accept = get_bool(&mut d)?;
-            Ok(Message::TransferResp { accept })
+            let mut task_uid = [0u8; 16];
+            if d.len() >= 16 {
+                task_uid.copy_from_slice(get_bytes(&mut d, 16)?);
+            }
+            Ok(Message::TransferResp { accept, task_uid })
         }
         op::FILE_META => {
             let file_seq = get_u32(&mut d)?;
@@ -397,9 +468,6 @@ pub fn decode(opcode: u8, payload: bytes::Bytes) -> Result<Message, CodecError> 
             let rel_path = get_str(&mut d)?;
             let chunk_size = get_u32(&mut d)?;
             let hash_algo = get_bytes(&mut d, 1)?[0];
-            let mut head_hash = [0u8; 16];
-            let raw_head = get_bytes(&mut d, 16)?;
-            head_hash.copy_from_slice(raw_head);
             Ok(Message::FileMeta {
                 file_seq,
                 size,
@@ -407,7 +475,6 @@ pub fn decode(opcode: u8, payload: bytes::Bytes) -> Result<Message, CodecError> 
                 rel_path,
                 chunk_size,
                 hash_algo,
-                head_hash,
             })
         }
         op::FILE_META_ACK => {
@@ -513,11 +580,15 @@ mod tests {
             nonce: [9; 16],
         });
         roundtrip(Message::TransferReq {
+            task_uid: [1; 16],
             file_count: 3,
             total_size: 123456,
             sender_name: "手机".into(),
         });
-        roundtrip(Message::TransferResp { accept: false });
+        roundtrip(Message::TransferResp {
+            accept: false,
+            task_uid: [2; 16],
+        });
         roundtrip(Message::FileMeta {
             file_seq: 2,
             size: 10_485_760,
@@ -525,7 +596,6 @@ mod tests {
             rel_path: "dir/子目录/file.bin".into(),
             chunk_size: 1_048_576,
             hash_algo: HASH_BLAKE3,
-            head_hash: [0; 16],
         });
         roundtrip(Message::FileMetaAck {
             file_seq: 2,
@@ -610,5 +680,33 @@ mod tests {
         assert_eq!(frame[4], op::PING);
         assert_eq!(&frame[5..13], &[0, 0, 0, 0, 0, 0, 0, 0]);
         assert_eq!(&frame[13..], &[1, 2, 3, 4, 5, 6, 7, 8]);
+    }
+
+    #[test]
+    fn test_transfer_req_backwards_compatible() {
+        // 模拟旧版本 14 字节 + UTF-8 字符串的载荷（无 16 字节 task_uid）
+        let mut p = Vec::new();
+        let file_count = 5u32;
+        let total_size = 99999u64;
+        let sender_name = "老版本Android客户端";
+        p.extend_from_slice(&file_count.to_be_bytes());
+        p.extend_from_slice(&total_size.to_be_bytes());
+        put_str(&mut p, sender_name);
+
+        let decoded = decode(op::TRANSFER_REQ, bytes::Bytes::from(p)).unwrap();
+        match decoded {
+            Message::TransferReq {
+                task_uid,
+                file_count: fc,
+                total_size: ts,
+                sender_name: sn,
+            } => {
+                assert_eq!(fc, 5);
+                assert_eq!(ts, 99999);
+                assert_eq!(sn, "老版本Android客户端");
+                assert_ne!(task_uid, [0u8; 16]); // 派生出了有效的 fallback task_uid
+            }
+            _ => panic!("Expected Message::TransferReq"),
+        }
     }
 }

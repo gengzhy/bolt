@@ -763,11 +763,13 @@ dependencies = [
 name = "lt-task"
 version = "0.1.0"
 dependencies = [
+ "blake3",
  "lt-crypto",
  "lt-discovery",
  "lt-file",
  "lt-transfer",
  "lt-utils",
+ "rand",
  "serde",
  "serde_json",
  "thiserror",
@@ -780,6 +782,7 @@ name = "lt-transfer"
 version = "0.1.0"
 dependencies = [
  "async-trait",
+ "blake3",
  "bytes",
  "lt-crypto",
  "lt-file",

@@ -9,6 +9,8 @@ use std::path::{Path, PathBuf};
 use lt_utils::{LtError, LtResult};
 
 /// 单个待传输文件项。
+///
+/// 【设计说明】：记录待发文件的本地绝对路径以及网络协商使用的相对路径、大小与修改时间。
 #[derive(Debug, Clone)]
 pub struct TransferItem {
     /// 绝对路径
@@ -19,8 +21,6 @@ pub struct TransferItem {
     pub size: u64,
     /// 修改时间（unix 秒）
     pub mtime_unix: i64,
-    /// 头部数据哈希
-    pub head_hash: [u8; 16],
 }
 
 /// 被跳过的条目（任务完成时汇总通知 UI）。
@@ -140,7 +140,6 @@ fn push_item(result: &mut TraverseResult, abs_path: PathBuf, rel_path: &str) -> 
         rel_path: ident.rel_path,
         size: ident.size,
         mtime_unix: ident.mtime_unix,
-        head_hash: ident.head_hash,
     });
     Ok(())
 }

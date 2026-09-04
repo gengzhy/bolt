@@ -48,6 +48,8 @@ pub struct SessionInfo {
 /// 入站传输请求（交由上层用户决定）。
 #[derive(Debug, Clone)]
 pub struct IncomingTransfer {
+    /// 全局唯一的 128 位任务 ID（UUID）
+    pub task_uid: [u8; 16],
     pub req_id: u64,
     pub conn_id: u64,
     pub sender_uuid: String,
@@ -1056,12 +1058,14 @@ fn handle_frame(
             session.resolve_waiter(&WaitKey::PairResp, msg);
         }
         Message::TransferReq {
+            task_uid,
             file_count,
             total_size,
             ..
         } => {
             let info = session.info();
             let req = IncomingTransfer {
+                task_uid,
                 req_id: task_session,
                 conn_id: session.id,
                 sender_uuid: info.peer_uuid.clone(),
@@ -1079,7 +1083,13 @@ fn handle_frame(
             let req2 = req.clone();
             tokio::spawn(async move {
                 let accept = rxdec.await.unwrap_or(false);
-                let _ = sess.send_control(req2.req_id, Message::TransferResp { accept });
+                let _ = sess.send_control(
+                    req2.req_id,
+                    Message::TransferResp {
+                        accept,
+                        task_uid: req2.task_uid,
+                    },
+                );
                 if accept {
                     let _ = sess.disp_tx.send(Disp::StartRecv {
                         task_session: req2.req_id,
@@ -1092,13 +1102,13 @@ fn handle_frame(
         Message::TransferResp { .. } => {
             session.resolve_waiter(&WaitKey::TransferResp(task_session), msg);
         }
+        // 收到文件元数据（FILE_META）：转交接收子系统建档和断点协商
         Message::FileMeta {
             file_seq,
             size,
             mtime,
             rel_path,
             chunk_size,
-            head_hash,
             ..
         } => {
             crate::recv::on_file_meta(
@@ -1111,7 +1121,6 @@ fn handle_frame(
                 mtime,
                 rel_path,
                 chunk_size,
-                head_hash,
             );
         }
         Message::FileMetaAck { file_seq, .. } => {

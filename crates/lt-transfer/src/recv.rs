@@ -81,6 +81,14 @@ pub struct RecvFile {
 }
 
 #[allow(clippy::too_many_arguments)]
+/// 收到对端发送的文件元数据（FILE_META）时的处理回调。
+///
+/// 【逻辑说明】：
+/// 1. 查找对应的入站接收任务；
+/// 2. 使用「相对路径 + 文件大小 + 修改时间戳」查询断点存储库；
+/// 3. 若存在断点记录则尝试增量恢复临时写入器，并回传已接收区间（ranges）；
+/// 4. 若不存在则创建全新的临时写入器，并回传空区间；
+/// 5. 发送 FILE_META_ACK(accept: true) 启动后续数据分片传输。
 pub fn on_file_meta(
     session: &std::sync::Arc<Session>,
     recv_tasks: &mut HashMap<u64, RecvTask>,
@@ -91,7 +99,6 @@ pub fn on_file_meta(
     mtime: i64,
     rel_path: String,
     chunk_size: u32,
-    head_hash: [u8; 16],
 ) {
     let Some(task) = recv_tasks.get_mut(&task_session) else {
         let _ = session.send_file(
@@ -122,12 +129,15 @@ pub fn on_file_meta(
         rel_path: rel_path.clone(),
         size,
         mtime_unix: mtime,
-        head_hash,
     };
     let store = lt_file::resume_store::ResumeStore::new(&session.cfg.data_dir);
     let key = ident.cache_key();
     let resumed = store.load(&key);
-    let task_tmp = session.cfg.tmp_dir.join(format!("task_{task_session}"));
+    // 【关键优化：全局唯一临时目录】：
+    // 将临时目录全面锚定全局唯一的 task_uid，杜绝因对端 task_session 编号漂移而脱节，
+    // 同时也杜绝多设备并发向本端传文件时临时文件冲突覆盖。
+    let uid_hex: String = task.req.task_uid.iter().map(|b| format!("{:02x}", b)).collect();
+    let task_tmp = session.cfg.tmp_dir.join(format!("task_{uid_hex}"));
     let writer = match &resumed {
         Some(r) => FileWriter::resume(&task_tmp, &format!("f{file_seq}"), size, r.clone()),
         None => FileWriter::create(&task_tmp, &format!("f{file_seq}"), size),
@@ -158,6 +168,22 @@ pub fn on_file_meta(
 
     let ranges_out = writer.received().intervals().to_vec();
     let received = writer.received().total_received();
+
+    // 【关键优化：断点续传初始进度对齐】：
+    // 若从断点缓存中恢复出历史已接收数据，立即向会话发射初始进度事件，
+    // 使接收端 UI 立即显示真实的断点已收进度，不再残留 0% 或脱节。
+    if received > 0 {
+        session.emit(EngineEvent::Progress {
+            conn_id: session.id,
+            task_id: task_session,
+            incoming: true,
+            rel_path: Some(rel_path.clone()),
+            done: received,
+            total: size,
+            rate_bps: 0,
+            eta_secs: 0,
+        });
+    }
     let rf = RecvFile {
         ident,
         chunk_size,
