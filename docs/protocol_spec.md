@@ -26,8 +26,8 @@
 | 0x04 | TRANSFER_REQ | S→R | file_count、total_size、sender_name；入站任务 ID = 本帧会话 ID |
 | 0x05 | TRANSFER_RESP | R→S | accept(bool) |
 | 0x06 | FILE_META | S→R | file_seq、size、mtime_unix、rel_path、chunk_size、hash_algo |
-| 0x07 | FILE_META_ACK | R→S | file_seq、accept(bool)、ranges（已收区间 `[[off,len]…]`，续传协商） |
-| 0x08 | CANCEL | 双向 | reason；临时文件保留可续传 |
+| 0x07 | FILE_META_ACK | R→S | file_seq、accept(bool) |
+| 0x08 | CANCEL | 双向 | reason（`1`=用户取消，`2`=错误中断） |
 | 0x09 | ERROR | 双向 | code(i32) + detail(UTF-8) |
 | 0x0A | PING | 双向 | seq |
 | 0x0B | PONG | 双向 | seq（对 PING 的应答） |
@@ -37,8 +37,8 @@
 
 | 码 | 名称 | 方向 | 说明 |
 |----|------|------|------|
-| 0x20 | DATA | S→R | file_seq、chunk_seq、payload（≤chunk_size，默认 1MB） |
-| 0x21 | ACK | R→S | file_seq、acked_offset：**累积确认**（200ms 节流 / 8MB 先到） |
+| 0x20 | DATA | S→R | file_seq、chunk_seq、payload（≤chunk_size，默认 **256KB**） |
+| 0x21 | ACK | R→S | file_seq、acked_offset：**累积确认**（256KB 阈值即时回传 / 200ms 保底） |
 | 0x22 | FILE_DONE | S→R | file_seq、hash（32B BLAKE3 全文件哈希） |
 | 0x23 | FILE_DONE_ACK | R→S | file_seq、ok(bool)；hash 校验 + 落盘完成后发送 |
 
@@ -66,26 +66,24 @@
 
 ## 5. 传输流程（发送 → 接收）
 
-1. 发送端：`TRANSFER_REQ` → 等待 `TRANSFER_RESP`（600s 超时）。
+1. 发送端：`TRANSFER_REQ` → 等待 `TRANSFER_RESP`（60s 超时）。
 2. 每文件独立管道（QUIC：新双向流；TCP：复用控制连接，pipe 0）。
-3. `FILE_META` → 接收端按 `rel_path+size+mtime` 查断点缓存：
-   - 命中 → 打开/续建临时文件（`tmp/task_{id}/f{seq}.tmp`，不截断），
-     `FILE_META_ACK` 回传已收区间，日志 `resume negotiated`。
-   - 未命中 → 新建临时文件，`FILE_META_ACK{accept:true, ranges:[]}`。
-4. 发送端逐分片发 DATA（跳过已覆盖区间），边读边算 BLAKE3。
-5. 接收端按偏移乱序安全写入，每 200ms 或每 8MB 刷 `ACK{acked_offset}`
-   （连续前缀），同时按相同节流持久化断点缓存。
+3. `FILE_META` → 接收端校验后回 `FILE_META_ACK{accept:true}`。
+4. 发送端逐分片发 DATA（256KB/片），边读边算 BLAKE3。
+   - 在途窗口 4MB（`IN_FLIGHT_WINDOW_BYTES`），超限时等待 ACK 回传后继续。
+   - 背压等待单次超时 200ms（`TIMEOUT_BACKPRESSURE_ACK`）。
+5. 接收端按偏移写入，每累积 256KB（`ACK_THRESHOLD_BYTES`）或 200ms 保底，
+   刷 `ACK{acked_offset}`（连续前缀）。
 6. 文件发完 → `FILE_DONE{hash}`。接收端：
    - 不完整 → `FILE_DONE_ACK{ok:false}`。
-   - 完整 → 落盘校验 BLAKE3，一致 → `FILE_DONE_ACK{ok:true}` + 断点记录删除；
+   - 完整 → 落盘校验 BLAKE3，一致 → `FILE_DONE_ACK{ok:true}`；
      不一致 → `FILE_DONE_ACK{ok:false}`，临时文件删除，`-6`。
 7. 全部文件结束 → 双方各发 Summary（ok/failed 计数），清理任务临时目录。
 
-## 6. 取消 / 暂停 / 续传
+## 6. 取消
 
-- CANCEL：接收端保留临时文件并持久化断点缓存（续传基础）；
-  发送端停止读文件，任务状态 `cancelled`。
-- 续传按 §5.3 协商：发送端跳过已覆盖分片，仅发缺失部分。
+- CANCEL{reason=1}（用户取消）：双方停止传输，清理临时文件。
+- CANCEL{reason=2}（错误中断）：记录错误，清理状态。
 - 重复 DATA 分片幂等（按偏移覆写）。
 
 ## 7. 错误码
@@ -102,7 +100,22 @@
 | -7 | 发现服务不可用 | | |
 | -8 | mmap 失败 | | |
 
-## 8. 发现（mDNS + UDP 探测）
+## 8. 全局常量（`lt-utils/src/constants.rs`）
+
+| 常量 | 值 | 说明 |
+|------|----|------|
+| `IN_FLIGHT_WINDOW_BYTES` | 4 MB | 发送端在途（已发未确认）字节窗口 |
+| `ACK_THRESHOLD_BYTES` | 256 KB | 接收端累积 ACK 触发阈值 |
+| `DEFAULT_CHUNK_SIZE` | 256 KB | 文件分片大小 |
+| `DEFAULT_CONCURRENCY` | 4 | 默认并行文件传输流数 |
+| `QUIC_STREAM_FLOW_CONTROL_WINDOW` | 1 MB | 单流流控窗口（Quinn MAX_CHUNKS 安全限制） |
+| `QUIC_CONN_FLOW_CONTROL_WINDOW` | 64 MB | 连接级流控窗口 |
+| `TIMEOUT_FILE_DONE_ACK` | 300s | 文件校验等待超时 |
+| `TIMEOUT_TRANSFER_REQ` | 60s | 传输请求应答超时 |
+| `TIMEOUT_CONNECT` | 10s | 网络连接握手超时 |
+| `INTERVAL_PROGRESS_EMIT` | 250ms | UI 进度更新节流间隔 |
+
+## 9. 发现（mDNS + UDP 探测）
 
 - 服务类型 `_lt._udp.local.`，实例 `lt-{uuid}`，TXT 属性：
   `uuid/name/dt/qport/tport/ver/stealth`。
@@ -112,7 +125,7 @@
 - 存在活跃连接的设备在列表中被钉住，TTL 清扫不移除；连接 HELLO 以真实 uuid 校正手动连接占位条目。
 - 隐身模式：停广播与应答，仅被动发现他人。
 
-## 9. 安全模型
+## 10. 安全模型
 
 - TLS 1.3 强制（rustls+ring），Ed25519 自签证书（10 年），无明文模式。
 - 设备身份 = 证书 BLAKE3 指纹（冒号分隔）；HELLO 交换指纹。

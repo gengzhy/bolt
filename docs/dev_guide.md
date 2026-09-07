@@ -4,11 +4,11 @@
 
 ```
 crates/
-  lt-utils      公共设施：错误码、配置、UUID、网络、常量
+  lt-utils      公共设施：错误码、配置、UUID、网络、全局常量（constants.rs）
   lt-crypto     设备身份（Ed25519 自签证书）、指纹、配对码、信任库、TLS 配置
-  lt-file       遍历/读取/写入（BLAKE3 校验+落盘）、区间集、断点缓存、磁盘预检
+  lt-file       遍历/读取/写入（BLAKE3 校验+落盘）、磁盘预检
   lt-discovery  设备模型、mDNS（mdns-sd 0.21）、UDP 探测、NSD 桥、发现管理器
-  lt-transfer   传输引擎：QUIC(quinn)+TCP 双栈、会话状态机、收发流水线、协议编解码
+  lt-transfer   传输引擎：QUIC(quinn 0.11)+TCP 双栈、会话状态机、收发流水线、协议编解码
   lt-task       应用门面 App：事件、任务记录、配置、发现/引擎编排
   lt-ffi        C ABI（lt_* 前缀，cbindgen 生成 include/lt_api.h）
 tools/lt-cli    命令行联调端（serve/discover/send）
@@ -28,15 +28,13 @@ docs/           方案与规范文档
 
 ```bash
 cargo build --workspace          # 全量编译
-cargo test --workspace           # 全量测试（46+ 用例）
+cargo test --workspace           # 全量测试
 cargo clippy --workspace --all-targets -- -D warnings   # 门禁级 lint
 cargo fmt --all                  # 格式化
 
 cargo run -p lt-cli -- serve --port 8899 --data-dir target/cli_a   # 接收端
 cargo run -p lt-cli -- send --data-dir target/cli_b 127.0.0.1:8899 ./some/file
 cargo run -p lt-cli -- discover
-
-bash scripts/smoke_loopback.sh   # 环回冒烟（QUIC+TCP+续传，CI 同一脚本）
 ```
 
 环境变量：
@@ -54,9 +52,27 @@ bash scripts/smoke_loopback.sh   # 环回冒烟（QUIC+TCP+续传，CI 同一脚
 3. **接收端状态** 全部活在调度器协程内（`recv_tasks`/`seq_index`），
    不跨协程共享，故无锁；对上层只发事件。
 4. **事件流**：引擎 → `EngineEvent` → App 记账 → `LtEvent` → 事件槽
-   （CLI 用 std mpsc / FFI 用 crossbeam 队列+专用线程）。
+   （CLI 用 std mpsc / FFI 用 crossbeam_channel 队列+专用线程）。
 5. **发现**：mDNS（非 Android 平台）+ UDP 广播探测双通道，`DeviceList`
    去重聚合，10s 过期；Android 由 Kotlin NSD 桥注入。
+
+## 全局常量管理
+
+所有传输相关的硬编码常量统一定义在 `crates/lt-utils/src/constants.rs`，
+各模块通过 `use lt_utils::constants::*` 引用，修改一处全局生效：
+
+| 常量 | 值 | 用途 |
+|------|----|------|
+| `DEFAULT_CHUNK_SIZE` | 256KB | 文件分片大小 |
+| `IN_FLIGHT_WINDOW_BYTES` | 4MB | 发送端在途窗口 |
+| `ACK_THRESHOLD_BYTES` | 256KB | 接收端累积确认阈值 |
+| `QUIC_STREAM_FLOW_CONTROL_WINDOW` | 1MB | QUIC 单流流控窗口 |
+| `DEFAULT_CONCURRENCY` | 4 | 默认并行文件传输流数 |
+
+> **⚠️ 重要**：`QUIC_STREAM_FLOW_CONTROL_WINDOW` 不可随意增大。Quinn 内部
+> `Assembler` 硬限制 `MAX_CHUNKS=1024`，大窗口 + 丢包场景会导致乱序碎片数
+> 超限，触发 `INTERNAL_ERROR` 强制断连。当前 1MB 窗口 + 256KB 分片是经过
+> 生产验证的安全组合。
 
 ## 新增功能检查单
 
@@ -66,7 +82,6 @@ bash scripts/smoke_loopback.sh   # 环回冒烟（QUIC+TCP+续传，CI 同一脚
 - [ ] FFI：`lt-ffi/src/lib.rs`（cbindgen 自动更新 `include/lt_api.h`）
 - [ ] CLI 联调：`tools/lt-cli/src/main.rs`
 - [ ] `cargo fmt` + `cargo clippy -D warnings` + `cargo test --workspace`
-- [ ] `bash scripts/smoke_loopback.sh`
 
 ## Windows 桌面端（tauri_app）
 
@@ -79,6 +94,9 @@ npm run tauri build    # 安装包（NSIS）
 
 Rust 侧在 `src-tauri` 内以 `#[tauri::command]` 封装 `lt-ffi`，
 经 `Emitter` 把 `lt_set_event_callback` 的事件转发给前端。
+
+**UI 说明**：当前版本传输任务卡片只有「取消」按钮，
+不提供暂停/恢复功能（已移除）。
 
 ## Android 端（android_app）
 
@@ -99,8 +117,6 @@ cd android_app
 - Gradle wrapper 锁定 **8.7**（AGP 8.5 与 Gradle 9 不兼容；wrapper 已随仓库提交，
   无 wrapper 时可用系统 Gradle 在空目录 `gradle wrapper --gradle-version 8.7` 生成）。
 - `android_app/local.properties` 指向本机 SDK（已 gitignore）。
-- VS Code 已配 `.vscode/tasks.json`：`assembleDebug` / `installDebug` / `构建 jniLibs`
-  三个任务，`Ctrl+Shift+B` 直接构建；推荐扩展 Kotlin（fwcd）+ Gradle（Microsoft）。
 - 首次构建需联网下载 Gradle 发行版与 AGP 依赖，之后全离线。
 
 注意：Android 上 Rust 侧不启用 mDNS（`use_mdns=false`），Kotlin 用
@@ -110,6 +126,12 @@ cd android_app
 
 - 单元测试自隔离：临时目录名含 `std::process::id()` **且按用例区分**
   （曾发生 fixture 并行互删导致 flaky）。
-- 环回冒烟是 M1/M2 的验收门禁：QUIC 通道、强制 TCP 通道、TOFU 免二次配对、
-  断点续传、字节级内容一致，全部断言通过才算过。
+- 环回冒烟是验收门禁：QUIC 通道、强制 TCP 通道、TOFU 免二次配对、
+  字节级内容一致，全部断言通过才算过。
 - 安全红线：无外部网络请求、无遥测；日志不得含文件内容与密钥材料。
+
+## 已知限制
+
+- 暂停/恢复功能已移除，传输一旦开始只能取消或等待完成。
+- Wi-Fi 环境下丢包率较高时，吞吐会因 QUIC 重传而下降，但不会断连。
+- 单流窗口限制为 1MB，在极低延迟（<0.1ms）的有线局域网中可能无法完全跑满带宽。
