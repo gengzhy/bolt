@@ -12,15 +12,68 @@ use tauri::{AppHandle, Emitter, Manager};
 /// 全局 AppHandle（事件转发用）。lt-ffi 单实例，进程生命周期内有效。
 static APP: Mutex<Option<AppHandle>> = Mutex::new(None);
 
-// ---------------- 初始化 ----------------
+// 全局实例锁句柄，进程生命周期内保持独占
+static INSTANCE_LOCK: Mutex<Option<std::fs::File>> = Mutex::new(None);
+
+fn get_isolated_data_dir(base_dir: std::path::PathBuf) -> std::path::PathBuf {
+    // 优先检查命令行参数中是否显式指定了 --data-dir
+    for arg in std::env::args() {
+        if let Some(rest) = arg.strip_prefix("--data-dir=") {
+            return std::path::PathBuf::from(rest);
+        }
+    }
+    std::fs::create_dir_all(&base_dir).ok();
+
+    // 在 Windows 下通过独占锁检测已有实例，实现本地多开测试时的完美隔离
+    #[cfg(windows)]
+    {
+        use std::os::windows::fs::OpenOptionsExt;
+        let lock_path = base_dir.join(".instance.lock");
+        // share_mode(0) 表示禁止其他进程共享读写，主实例持有该句柄直到进程退出
+        match std::fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .share_mode(0)
+            .open(&lock_path)
+        {
+            Ok(file) => {
+                *INSTANCE_LOCK.lock().unwrap() = Some(file);
+                base_dir
+            }
+            Err(_) => {
+                // 主目录已被首个客户端实例占用：自动为第 2 实例分配独立的持久化目录
+                let parent = base_dir.parent().unwrap_or(&base_dir);
+                let inst2_dir = parent.join("com.lt.desktop_inst2");
+                std::fs::create_dir_all(&inst2_dir).ok();
+                let lock_path2 = inst2_dir.join(".instance.lock");
+                if let Ok(file2) = std::fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .create(true)
+                    .share_mode(0)
+                    .open(&lock_path2)
+                {
+                    *INSTANCE_LOCK.lock().unwrap() = Some(file2);
+                }
+                inst2_dir
+            }
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        base_dir
+    }
+}
 
 pub fn init(app: AppHandle) -> Result<(), String> {
     let data_dir = app
         .path()
         .app_data_dir()
         .map_err(|e| format!("app_data_dir: {e}"))?;
-    let data_dir = data_dir.to_string_lossy().to_string();
-    let code = lt_ffi::lt_init(cstring(&data_dir).as_ptr());
+    let isolated_dir = get_isolated_data_dir(data_dir);
+    let data_dir_str = isolated_dir.to_string_lossy().to_string();
+    let code = lt_ffi::lt_init(cstring(&data_dir_str).as_ptr());
     if code != 0 {
         return Err(format!("lt_init failed: {code}"));
     }
@@ -207,21 +260,72 @@ pub fn clear_temp_cache() -> Result<(), i32> {
 }
 
 /// 在资源管理器中定位并高亮显示接收到的文件（接收任务「打开文件夹」）。
-/// 文件不存在（被移动/删除）时退化为打开所在目录。
+/// 1. 若目标路径存在且为文件，则使用 explorer /select,"path" 精确高亮选中；
+/// 2. 若目标路径存在且为目录，则直接打开该目录（严禁携带 /select，避免 Windows 异常回退至文档目录）；
+/// 3. 若目标路径不存在（例如自动重命名修改了文件名），优先尝试打开其有效的父目录；
+/// 4. 若父目录仍不存在，从当前引擎配置获取 save_dir；若仍无则回落到用户系统 Downloads 目录。
 #[tauri::command]
 pub fn reveal_path(path: String) -> Result<(), String> {
-    let pb = std::path::PathBuf::from(&path);
-    if pb.exists() {
-        std::process::Command::new("explorer")
-            .arg(format!("/select,{}", path))
-            .spawn()
-            .map_err(|e| e.to_string())?;
-    } else if let Some(parent) = pb.parent() {
-        std::process::Command::new("explorer")
-            .arg(parent.as_os_str())
-            .spawn()
-            .map_err(|e| e.to_string())?;
+    let target = std::path::PathBuf::from(&path);
+
+    #[cfg(target_os = "windows")]
+    {
+        use std::os::windows::process::CommandExt;
+
+        // 1. 文件存在且为普通文件：高亮选中（Windows 规范：/select,"path"，引号仅包裹路径本身）
+        if target.is_file() {
+            let mut cmd = std::process::Command::new("explorer");
+            cmd.raw_arg(format!("/select,\"{}\"", target.display()));
+            cmd.spawn().map_err(|e| e.to_string())?;
+            return Ok(());
+        }
+
+        // 2. 确定要直接打开的目标目录
+        let dir_to_open = if target.is_dir() {
+            Some(target)
+        } else if let Some(parent) = target.parent().filter(|p| p.is_dir()) {
+            Some(parent.to_path_buf())
+        } else {
+            // 从配置读取 save_dir
+            let cfg_val = get_config();
+            if let Some(s) = cfg_val.get("save_dir").and_then(|v| v.as_str()) {
+                let p = std::path::PathBuf::from(s);
+                if p.is_dir() {
+                    Some(p)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        // 3. 回退系统下载目录：%USERPROFILE%\Downloads
+        let fallback_dir = dir_to_open.or_else(|| {
+            std::env::var_os("USERPROFILE").map(|u| std::path::PathBuf::from(u).join("Downloads"))
+        });
+
+        if let Some(dir) = fallback_dir {
+            let mut cmd = std::process::Command::new("explorer");
+            cmd.arg(&dir);
+            cmd.spawn().map_err(|e| e.to_string())?;
+        }
     }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let to_open = if target.exists() {
+            target
+        } else if let Some(parent) = target.parent().filter(|p| p.exists()) {
+            parent.to_path_buf()
+        } else {
+            std::path::PathBuf::from(".")
+        };
+        let _ = std::process::Command::new("xdg-open")
+            .arg(to_open)
+            .spawn();
+    }
+
     Ok(())
 }
 

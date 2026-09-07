@@ -18,8 +18,6 @@ pub enum TaskState {
     WaitingAccept,
     /// 传输中
     Transferring,
-    /// 暂停（可续传）
-    Paused,
     /// 全部完成
     Done,
     /// 用户取消
@@ -28,26 +26,26 @@ pub enum TaskState {
     Error,
 }
 
+use lt_utils::constants::*;
+
 impl TaskState {
     pub fn as_str(&self) -> &'static str {
         match self {
-            TaskState::WaitingAccept => "waiting_accept",
-            TaskState::Transferring => "transferring",
-            TaskState::Paused => "paused",
-            TaskState::Done => "done",
-            TaskState::Cancelled => "cancelled",
-            TaskState::Error => "error",
+            TaskState::WaitingAccept => TASK_STATE_WAITING_ACCEPT,
+            TaskState::Transferring => TASK_STATE_TRANSFERRING,
+            TaskState::Done => TASK_STATE_DONE,
+            TaskState::Cancelled => TASK_STATE_CANCELLED,
+            TaskState::Error => TASK_STATE_ERROR,
         }
     }
 
     /// 从引擎字符串状态解析。
     pub fn from_engine(s: &str) -> TaskState {
         match s {
-            "waiting_accept" => TaskState::WaitingAccept,
-            "transferring" => TaskState::Transferring,
-            "paused" => TaskState::Paused,
-            "done" => TaskState::Done,
-            "cancelled" => TaskState::Cancelled,
+            TASK_STATE_WAITING_ACCEPT => TaskState::WaitingAccept,
+            TASK_STATE_TRANSFERRING => TaskState::Transferring,
+            TASK_STATE_DONE => TaskState::Done,
+            TASK_STATE_CANCELLED | TASK_STATE_PAUSED => TaskState::Cancelled,
             _ => TaskState::Error,
         }
     }
@@ -82,6 +80,9 @@ pub struct TaskRecord {
     pub transport: String,
     /// 创建时间（unix 秒）
     pub created_unix: u64,
+    /// 生命周期世代版本号（续传自增，防止过期协程退出时交叉背刺篡改状态）
+    #[serde(default)]
+    pub generation: u64,
 }
 
 impl TaskRecord {
@@ -112,6 +113,7 @@ impl TaskRecord {
             source_paths,
             transport: String::new(),
             created_unix: now_unix(),
+            generation: 1,
         }
     }
 
@@ -141,6 +143,7 @@ impl TaskRecord {
             source_paths: vec![],
             transport: String::new(),
             created_unix: now_unix(),
+            generation: 1,
         }
     }
 }
@@ -163,7 +166,8 @@ mod tests {
             TaskState::Transferring
         );
         assert_eq!(TaskState::from_engine("done"), TaskState::Done);
-        assert_eq!(TaskState::Paused.as_str(), "paused");
+        assert_eq!(TaskState::from_engine("paused"), TaskState::Cancelled);
+        assert_eq!(TaskState::Cancelled.as_str(), "cancelled");
     }
 
     #[test]

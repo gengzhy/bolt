@@ -26,12 +26,17 @@ pub async fn read_frame<R: AsyncRead + Unpin + ?Sized>(r: &mut R) -> LtResult<Op
     if !(9..=MAX_FRAME_LEN).contains(&len) {
         return Err(LtError::ProtocolIncompatible);
     }
-    let mut body = vec![0u8; len as usize];
-    r.read_exact(&mut body).await.map_err(LtError::from)?;
+    let mut body = bytes::BytesMut::with_capacity(len as usize);
+    while body.len() < len as usize {
+        if r.read_buf(&mut body).await.map_err(LtError::from)? == 0 {
+            return Ok(None);
+        }
+    }
+    let body = body.freeze();
 
     let opcode = body[0];
     let session = u64::from_be_bytes(body[1..9].try_into().unwrap());
-    let payload = bytes::Bytes::from(body).slice(9..);
+    let payload = body.slice(9..);
     match protocol::decode(opcode, payload) {
         Ok(msg) => Ok(Some(Incoming::Msg { session, msg })),
         Err(err) => Ok(Some(Incoming::Bad { session, err })),

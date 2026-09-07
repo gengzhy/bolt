@@ -25,6 +25,10 @@ android_app/local.properties
 
 # IDE
 .vscode/
+.agents/
+
+# Temp scripts
+scripts/patch_dist.py
 
 # logs
 *.log

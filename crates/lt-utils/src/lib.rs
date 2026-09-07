@@ -4,11 +4,13 @@
 //! 设备 UUID 生成与端口池探测等基础能力。所有上层 crate 均依赖本层。
 
 pub mod config;
+pub mod constants;
 pub mod error;
 pub mod id;
 pub mod net;
 
 pub use config::AppConfig;
+pub use constants::*;
 pub use error::{LtError, LtResult};
 
 /// 默认监听端口（UDP + TCP），占用时自动向上尝试到 8950。

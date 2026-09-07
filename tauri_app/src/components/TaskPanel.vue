@@ -26,14 +26,13 @@ function pct(done: number, total: number): string {
 function barClass(state: string): string {
   if (state === "done") return "ok";
   if (state === "error") return "err";
-  if (state === "paused") return "warn";
+  if (state === "cancelled") return "warn";
   return "run";
 }
 function stateText(t: { state: string; done_bytes: number; total_size: number }): string {
   switch (t.state) {
     case "done": return "完成";
     case "error": return "失败";
-    case "paused": return "已暂停";
     case "cancelled": return "已取消";
     case "waiting_accept": return "等待接受";
     default: {
@@ -109,16 +108,14 @@ function menuAction(fn: () => void) {
         <div class="task-actions">
           <span>{{ human(t.done_bytes) }} / {{ human(t.total_size) }} · 成功 {{ t.ok_files }} 失败 {{ t.failed_files }}</span>
           <span class="spacer"></span>
-          <button v-if="t.state === 'transferring'" class="btn sm" @click="pauseTask(t.task_id)">暂停</button>
-          <button v-if="t.state === 'paused' && t.direction === 'send'" class="btn sm" @click="resumeTask(t.task_id)">续传</button>
           <button
-            v-if="['transferring', 'waiting_accept', 'paused'].includes(t.state)"
+            v-if="['transferring', 'waiting_accept'].includes(t.state)"
             class="btn sm danger"
             @click="cancelTask(t.task_id)"
           >
             取消
           </button>
-          <button v-if="(t.state === 'error' || t.state === 'cancelled') && t.direction === 'send'" class="btn sm primary" @click="resumeTask(t.task_id)">重传</button>
+          <button v-if="(t.state === 'error' || t.state === 'cancelled') && t.direction === 'send'" class="btn sm primary" @click="resumeTask(t.task_id)">重试</button>
           <button
             v-if="t.direction === 'recv' && t.state === 'done'"
             class="btn sm"

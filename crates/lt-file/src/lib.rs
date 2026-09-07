@@ -10,12 +10,9 @@
 
 pub mod disk;
 pub mod identity;
-pub mod ranges;
 pub mod reader;
-pub mod resume_store;
 pub mod traverse;
 pub mod writer;
 
 pub use identity::FileIdentity;
-pub use ranges::RangeSet;
 pub use traverse::{SkippedEntry, TransferItem, TraverseResult};

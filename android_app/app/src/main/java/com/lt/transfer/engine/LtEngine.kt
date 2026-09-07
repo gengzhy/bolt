@@ -164,10 +164,10 @@ object LtEngine {
         val map = HashMap<Long, TaskUi>()
         for (i in 0 until arr.length()) {
             val t = parseTask(arr.getJSONObject(i)) ?: continue
-            // 保留事件已推进的进度（快照可能略滞后）
+            // 保留正在传输中事件已推进的进度；若任务已暂停或终态，则以引擎确定的快照为准对齐
             val old = _uiState.value.tasks[t.taskId]
             map[t.taskId] = if (old != null && old.doneBytes > t.doneBytes &&
-                old.state == t.state
+                old.state == t.state && old.state != TaskStates.PAUSED
             ) old else t
         }
         updateState { it.copy(tasks = map) }
@@ -275,7 +275,11 @@ object LtEngine {
                 updateState { s ->
                     val t = s.tasks[taskId]
                         ?: TaskUi(taskId = taskId, incoming = incoming)
-                    s.copy(tasks = s.tasks + (taskId to t.copy(state = state)))
+                    s.copy(tasks = s.tasks + (taskId to t.copy(
+                        state = state,
+                        rateBps = if (state == TaskStates.PAUSED) 0 else t.rateBps,
+                        etaSecs = if (state == TaskStates.PAUSED) 0 else t.etaSecs,
+                    )))
                 }
                 if (state == TaskStates.REJECTED) {
                     postOneShot(OneShotEvent.Info("对方拒绝了本次传输"))
@@ -299,8 +303,8 @@ object LtEngine {
                         tasks = s.tasks + (taskId to t.copy(
                             doneBytes = p.optLong("done"),
                             currentFile = p.optString("rel_path", t.currentFile),
-                            rateBps = p.optLong("rate_bps"),
-                            etaSecs = p.optLong("eta_secs"),
+                            rateBps = if (t.state == TaskStates.PAUSED) 0 else p.optLong("rate_bps"),
+                            etaSecs = if (t.state == TaskStates.PAUSED) 0 else p.optLong("eta_secs"),
                             totalSize = p.optLong("total", t.totalSize),
                         )),
                     )

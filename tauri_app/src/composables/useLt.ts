@@ -139,6 +139,20 @@ export function useLt() {
       case 7: // EVT_TASK_SUMMARY
         if (ev.id === 7 || (p.state as string) === "done") {
           delete progress[p.task_id as number];
+        } else if ((p.state as string) === "paused") {
+          // 【核心修复：暂停时立即归零速率与预估时间】：
+          // 彻底消除卡片停留在上一个采样周期的瞬时速率与残留 ETA
+          const id = p.task_id as number;
+          if (progress[id]) {
+            progress[id].rate_bps = 0;
+            progress[id].eta_secs = 0;
+          }
+          const t = tasks.value.find((x) => x.task_id === id);
+          if (t) {
+            t.state = "paused";
+            t.rate_bps = 0;
+            t.eta_secs = 0;
+          }
         }
         void refreshTasks();
         break;
@@ -157,7 +171,17 @@ export function useLt() {
           t.current_file = progress[id].rel_path;
           // 进度条/百分比直接由进度事件驱动（与后端记录同语义），实时可见
           t.done_bytes = progress[id].done;
-          if (t.state !== "transferring") t.state = "transferring";
+          // 【核心修复：严格守护非传输态】：
+          // 暂停（paused）、已完成（done）、出错（error）、取消（cancelled）等终态/挂起态
+          // 严禁被滞后的进度事件覆写为 transferring！仅当处于 waiting_accept 时才允许扭转
+          if (t.state === "paused") {
+            progress[id].rate_bps = 0;
+            progress[id].eta_secs = 0;
+            t.rate_bps = 0;
+            t.eta_secs = 0;
+          } else if (t.state === "waiting_accept") {
+            t.state = "transferring";
+          }
         } else {
           // 任务行尚未入列（错过建档事件）→ 拉一次全量补齐
           void refreshTasks();

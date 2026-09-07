@@ -179,6 +179,11 @@ class TransferService : Service() {
 
     private fun notifyFinished(task: TaskUi) {
         lastNotifiedAt.remove(task.taskId)
+        if (task.state == TaskStates.PAUSED) {
+            // 【核心修复】：暂停属于中间挂起态，绝非终态失败，取消正在进行的通知，绝不弹出“接收出错”误导用户
+            getSystemService(NotificationManager::class.java).cancel(notifId(task.taskId))
+            return
+        }
         val direction = if (task.incoming) "接收" else "发送"
         val peer = task.peerName.ifEmpty { task.peerUuid }
         val text = when (task.state) {

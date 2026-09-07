@@ -67,7 +67,7 @@ fn default_port() -> u16 {
     DEFAULT_PORT
 }
 fn default_chunk_size() -> usize {
-    1024 * 1024
+    crate::constants::DEFAULT_CHUNK_SIZE
 }
 fn default_save_dir() -> PathBuf {
     // Android：公共下载目录 /Download/LocalTransfer（需「所有文件访问」权限）；

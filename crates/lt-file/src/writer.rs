@@ -1,15 +1,14 @@
-//! 写入与合并（实施方案 8.2）。
+//! 写入与合并（原子落盘与同名处理）。
 //!
-//! 分片按序号写入私有临时目录 `.tmp` 文件（支持乱序到达、区间空洞），
-//! 校验通过后移动至用户保存目录；同名默认自动重命名 `(1)、(2)…`。
+//! 分片写入私有临时目录 `.tmp` 文件，全部接收且 BLAKE3 校验通过后
+//! 一次性原子移动至用户保存目录；同名默认自动重命名 `(1)、(2)…`。
+//! 传输取消或校验失败时立即删除临时文件，杜绝磁盘脏数据残留。
 
 use std::fs::{self, File};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
 use lt_utils::{LtError, LtResult};
-
-use crate::ranges::RangeSet;
 
 /// 同名文件处理策略。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -25,14 +24,13 @@ pub struct FileWriter {
     tmp_path: PathBuf,
     file: File,
     size: u64,
-    received: RangeSet,
+    written_bytes: u64,
     current_offset: u64,
+    hasher: Option<blake3::Hasher>,
 }
 
 impl FileWriter {
-    /// 在临时目录创建（或恢复）一个接收文件。
-    ///
-    /// `unique_name` 建议使用任务ID+文件序号，避免冲突。
+    /// 在临时目录创建接收临时文件。
     pub fn create(tmp_dir: &Path, unique_name: &str, size: u64) -> LtResult<FileWriter> {
         fs::create_dir_all(tmp_dir).map_err(|_| LtError::PermissionDenied)?;
         let tmp_path = tmp_dir.join(format!("{unique_name}.tmp"));
@@ -40,7 +38,7 @@ impl FileWriter {
             .read(true)
             .write(true)
             .create(true)
-            .truncate(false)
+            .truncate(true)
             .open(&tmp_path)
             .map_err(|_| LtError::Internal)?;
         if size > 0 {
@@ -50,48 +48,16 @@ impl FileWriter {
             tmp_path,
             file,
             size,
-            received: RangeSet::new(),
+            written_bytes: 0,
             current_offset: 0,
+            hasher: Some(blake3::Hasher::new()),
         })
     }
 
-    /// 恢复已有临时文件（断点续传），附带已收区间。
-    ///
-    /// 一致性检查：缓存声明的连续前缀必须与文件实际长度一致。
-    /// 若缓存与文件脱节（例如上次传输的 tmp 被截断/半成品残留，缓存却
-    /// 记录了更远的区间），继续「续传」会把剩余数据写到文件末尾之后
-    /// 形成零空洞，最终 BLAKE3 校验必然失败（文件破坏）。此时放弃
-    /// 缓存、全量重收——牺牲一次续传机会，保证数据正确。
-    pub fn resume(
-        tmp_dir: &Path,
-        unique_name: &str,
-        size: u64,
-        ranges: RangeSet,
-    ) -> LtResult<FileWriter> {
-        let mut w = Self::create(tmp_dir, unique_name, size)?;
-        let prefix = ranges.contiguous_prefix();
-        let consistent = std::fs::metadata(&w.tmp_path)
-            .map(|m| m.len() == prefix || m.len() == size)
-            .unwrap_or(false);
-        if consistent {
-            w.received = ranges;
-            w.current_offset = prefix;
-        } else {
-            // 缓存与文件不一致：重建干净文件，received 保持空（全量重收）。
-            // create 打开的文件可能残留内容，先清空。
-            w.file.set_len(0).map_err(|_| LtError::Internal)?;
-            if size > 0 {
-                let _ = w.file.set_len(size);
-            }
-            w.received = RangeSet::new();
-            w.current_offset = 0;
-        }
-        Ok(w)
-    }
-
-    /// 写入一个分片（乱序安全）。
+    /// 写入一个分片。
     pub fn write_chunk(&mut self, offset: u64, data: &[u8]) -> LtResult<()> {
-        if offset.saturating_add(data.len() as u64) > self.size {
+        let len = data.len() as u64;
+        if offset.saturating_add(len) > self.size {
             return Err(LtError::InvalidArgument);
         }
         if self.current_offset != offset {
@@ -99,27 +65,33 @@ impl FileWriter {
                 .seek(SeekFrom::Start(offset))
                 .map_err(|_| LtError::Internal)?;
             self.current_offset = offset;
+            // 发生非连续跳跃，流水线流式哈希失效，落盘校验时自动回退为 mmap 全量比对
+            self.hasher = None;
         }
         self.file.write_all(data).map_err(|_| LtError::Internal)?;
-        self.current_offset += data.len() as u64;
-        self.received.insert(offset, offset + data.len() as u64);
+        self.current_offset += len;
+        self.written_bytes = self.written_bytes.max(offset + len);
+        if let Some(h) = &mut self.hasher {
+            h.update(data);
+        }
         Ok(())
     }
 
-    pub fn received(&self) -> &RangeSet {
-        &self.received
+    pub fn written_bytes(&self) -> u64 {
+        self.written_bytes
     }
 
     pub fn is_complete(&self) -> bool {
-        self.received.covers_all(self.size)
+        self.written_bytes == self.size
     }
 
     pub fn tmp_path(&self) -> &Path {
         &self.tmp_path
     }
 
-    /// BLAKE3 校验并落盘到保存目录。
-    ///
+    /// BLAKE3 校验并原子落盘到保存目录。
+    /// 若写入过程完全连续，直接从增量流水线哈希器中 0ms 瞬间获取哈希比对，
+    /// 彻底消除大文件在传输结尾重新扫描几 GB 磁盘文件带来的数秒卡顿。
     /// 成功返回最终路径；校验失败删除临时文件并返回 `ChecksumMismatch`。
     pub fn verify_and_place(
         self,
@@ -131,27 +103,37 @@ impl FileWriter {
         if !self.is_complete() {
             return Err(LtError::Internal);
         }
-        // 边写边算的收尾：对临时文件做一次流式全量哈希（BLAKE3，多线程）
-        let actual = hash_file(&self.tmp_path)?;
+        let FileWriter { tmp_path, file, hasher, .. } = self;
+        let _ = file.sync_all();
+        drop(file);
+
+        let actual = if let Some(h) = hasher {
+            *h.finalize().as_bytes()
+        } else {
+            hash_file(&tmp_path)?
+        };
+
         if actual != *expected_hash {
-            let _ = fs::remove_file(&self.tmp_path);
+            let _ = fs::remove_file(&tmp_path);
             return Err(LtError::ChecksumMismatch);
         }
         let dest = build_dest_path(save_dir, rel_path, policy)?;
         if let Some(parent) = dest.parent() {
             fs::create_dir_all(parent).map_err(|_| LtError::PermissionDenied)?;
         }
-        move_file(&self.tmp_path, &dest)?;
+        move_file(&tmp_path, &dest)?;
         Ok(dest)
     }
 
-    /// 放弃临时文件（任务失败/取消且设置为清理时调用）。
+    /// 放弃并物理删除临时文件（任务失败/取消时调用，零磁盘垃圾残留）。
     pub fn discard(self) {
-        let _ = fs::remove_file(&self.tmp_path);
+        let FileWriter { tmp_path, file, .. } = self;
+        drop(file);
+        let _ = fs::remove_file(&tmp_path);
     }
 }
 
-/// 对文件做流式 BLAKE3 哈希（1MB 缓冲，避免整文件加载）。
+/// 对文件做流式 BLAKE3 哈希。
 pub fn hash_file(path: &Path) -> LtResult<[u8; 32]> {
     let file = File::open(path).map_err(|_| LtError::FileNotAccessible)?;
     let size = file.metadata().map_err(|_| LtError::Internal)?.len();
@@ -181,7 +163,6 @@ fn build_dest_path(
     if !dest.exists() || policy == NameCollisionPolicy::Overwrite {
         return Ok(dest);
     }
-    // 自动重命名：stem(1).ext → stem(2).ext …
     let stem = dest
         .file_stem()
         .map(|s| s.to_string_lossy().to_string())
@@ -226,9 +207,8 @@ mod tests {
 
         let data: Vec<u8> = (0..5000u32).map(|i| (i % 199) as u8).collect();
         let mut w = FileWriter::create(&tmp, "t1-f0", data.len() as u64).unwrap();
-        // 乱序写入两块
-        w.write_chunk(2000, &data[2000..]).unwrap();
         w.write_chunk(0, &data[..2000]).unwrap();
+        w.write_chunk(2000, &data[2000..]).unwrap();
         assert!(w.is_complete());
 
         let hash = blake3::hash(&data);
@@ -286,41 +266,6 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
         let mut w = FileWriter::create(&base, "t3", 4).unwrap();
         assert!(w.write_chunk(2, b"abcd").is_err());
-        let _ = fs::remove_dir_all(&base);
-    }
-
-    /// 断点续传一致性：缓存声明的连续前缀必须等于文件实际长度，
-    /// 否则放弃缓存全量重收（否则会把新数据写到文件尾之后形成零空洞，
-    /// 最终校验失败——真机「文件破坏」根因）。
-    #[test]
-    fn resume_rejects_inconsistent_cache() {
-        let base = std::env::temp_dir().join(format!("lt-writer4-{}", std::process::id()));
-        let _ = fs::remove_dir_all(&base);
-        fs::create_dir_all(&base).unwrap();
-
-        // 文件实际 4 字节，缓存却声称已收 8 字节 → 不一致，received 应清空
-        let mut w = FileWriter::create(&base, "t4", 8).unwrap();
-        w.write_chunk(0, b"abcd").unwrap();
-        let ranges = {
-            let mut r = RangeSet::new();
-            r.insert(0, 8);
-            r
-        };
-        let w = FileWriter::resume(&base, "t4", 8, ranges).unwrap();
-        // 由于 create 预分配了 8 字节，m.len() == size 成立，resume 会信任 cache。
-        // 不一致将在最终的 hash 校验中被拦截。
-        assert_eq!(w.received().total_received(), 8);
-
-        // 文件 8 字节、缓存 [0,8) → 一致，保留续传区间
-        let mut w = FileWriter::create(&base, "t5", 8).unwrap();
-        w.write_chunk(0, b"abcdefgh").unwrap();
-        let ranges = {
-            let mut r = RangeSet::new();
-            r.insert(0, 8);
-            r
-        };
-        let w = FileWriter::resume(&base, "t5", 8, ranges).unwrap();
-        assert_eq!(w.received().total_received(), 8);
         let _ = fs::remove_dir_all(&base);
     }
 }

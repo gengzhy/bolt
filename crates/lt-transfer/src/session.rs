@@ -20,6 +20,7 @@ use tokio::time::timeout;
 
 use lt_crypto::trust::{TrustStatus, TrustStore};
 use lt_crypto::{pairing, DeviceIdentity};
+use lt_utils::constants::*;
 use lt_utils::{LtError, LtResult, PROTOCOL_VERSION};
 
 use crate::conn::{self, Incoming, Pipe};
@@ -122,7 +123,7 @@ pub struct SessionConfig {
 impl Default for SessionConfig {
     fn default() -> Self {
         Self {
-            chunk_size: 1024 * 1024,
+            chunk_size: lt_utils::constants::DEFAULT_CHUNK_SIZE,
             concurrency: 4,
             save_dir: PathBuf::from("received"),
             tmp_dir: PathBuf::from("tmp"),
@@ -186,7 +187,6 @@ pub(crate) enum Disp {
         task_session: u64,
         file_seq: u32,
         result: LtResult<PathBuf>,
-        resume_key: String,
         rel_path: String,
     },
     /// 管道读循环结束（EOF/传输错误）。控制管道（0）下来 = 对端断开，
@@ -199,14 +199,12 @@ pub(crate) fn disp_file_verified(
     task_session: u64,
     file_seq: u32,
     result: LtResult<PathBuf>,
-    resume_key: String,
     rel_path: String,
 ) -> Disp {
     Disp::FileVerified {
         task_session,
         file_seq,
         result,
-        resume_key,
         rel_path,
     }
 }
@@ -311,7 +309,8 @@ impl Session {
         let mut writer = pipe.writer;
         tokio::spawn(async move {
             while let Some((sess, msg)) = rx.recv().await {
-                if conn::write_frame(&mut writer, sess, &msg).await.is_err() {
+                if let Err(e) = conn::write_frame(&mut writer, sess, &msg).await {
+                    tracing::error!(pipe_id, error = ?e, "file pipe write_frame error");
                     break;
                 }
             }
@@ -346,8 +345,14 @@ impl Session {
                             break;
                         }
                     }
-                    Ok(None) => break, // EOF
-                    Err(_) => break,
+                    Ok(None) => {
+                        tracing::debug!(pipe_id, "file pipe read_frame returned EOF");
+                        break;
+                    }
+                    Err(e) => {
+                        tracing::error!(pipe_id, error = ?e, "file pipe read_frame returned Err");
+                        break;
+                    }
                 }
             }
             // 读循环结束 = 管道死亡；控制管道（0）死亡即对端断开
@@ -370,7 +375,15 @@ impl Session {
         if let Some(f) = self.task_cancels.lock().unwrap().get(&task_id) {
             f.store(true, Ordering::SeqCst);
         }
+        // 1. 向网络对端发送控制帧
         let _ = self.send_control(task_id, Message::Cancel { reason });
+        // 2. 【核心修复】：同时向本地调度器投递 Cancel 帧，确保本地接收任务（若存在）
+        // 也能第一时间执行 on_cancel，将已安全写入的连续前缀落盘持久化到 resume_store！
+        let _ = self.disp_tx.send(Disp::Frame {
+            pipe_id: 0,
+            task_session: task_id,
+            frame: Ok(Message::Cancel { reason }),
+        });
     }
 
     /// 等待某一应答消息（调度器收到后投递）。
@@ -788,8 +801,10 @@ fn finish_handshake(
 ) {
     // 控制管道的读任务（把帧泵入调度器）
     let disp_tx = session.disp_tx.clone();
+    let sess_pipe0 = session.clone();
     tokio::spawn(async move {
         let mut reader = reader;
+        let conn_opt = sess_pipe0.quic_conn.clone();
         loop {
             match conn::read_frame(&mut reader).await {
                 Ok(Some(Incoming::Msg { session: s, msg })) => {
@@ -816,7 +831,16 @@ fn finish_handshake(
                         break;
                     }
                 }
-                Ok(None) | Err(_) => break,
+                Ok(None) => {
+                    let reason = conn_opt.as_ref().and_then(|c| c.close_reason());
+                    tracing::warn!(conn_id = sess_pipe0.id, ?reason, "pipe 0 read_frame returned EOF");
+                    break;
+                }
+                Err(e) => {
+                    let reason = conn_opt.as_ref().and_then(|c| c.close_reason());
+                    tracing::error!(conn_id = sess_pipe0.id, error = ?e, ?reason, "pipe 0 read_frame returned Err");
+                    break;
+                }
             }
         }
         // 控制管道读循环结束 = 传输死亡（或调度器已先行退出）：
@@ -855,7 +879,8 @@ fn spawn_writer(
 ) {
     tokio::spawn(async move {
         while let Some((sess, msg)) = rx.recv().await {
-            if conn::write_frame(&mut writer, sess, &msg).await.is_err() {
+            if let Err(e) = conn::write_frame(&mut writer, sess, &msg).await {
+                tracing::error!(error = ?e, "pipe 0 write_frame error");
                 break;
             }
         }
@@ -952,10 +977,10 @@ async fn dispatcher(session: Arc<Session>, mut rx: mpsc::UnboundedReceiver<Disp>
                             state: "transferring".into(),
                         });
                     }
-                    Disp::FileVerified { task_session, file_seq, result, resume_key, rel_path } => {
+                    Disp::FileVerified { task_session, file_seq, result, rel_path } => {
                         recv::on_file_verified(
                             &session, &mut recv_tasks,
-                            task_session, file_seq, result, &resume_key, &rel_path,
+                            task_session, file_seq, result, &rel_path,
                         );
                     }
                     Disp::TransportDown { pipe_id } => {
@@ -1043,12 +1068,11 @@ fn handle_frame(
             }
             crate::recv::on_cancel(session, recv_tasks, task_session, reason);
             let is_incoming = !session.task_cancels.lock().unwrap().contains_key(&task_session);
-            let state_str = if reason == 9 { "paused" } else { "cancelled" };
             session.emit(EngineEvent::State {
                 conn_id: session.id,
                 task_id: task_session,
                 incoming: is_incoming,
-                state: state_str.into(),
+                state: TASK_STATE_CANCELLED.into(),
             });
         }
         Message::PairReq { .. } => {
@@ -1140,6 +1164,7 @@ fn handle_frame(
             crate::recv::on_data(
                 session,
                 recv_tasks,
+                pipe_id,
                 task_session,
                 file_seq,
                 chunk_seq,
@@ -1150,6 +1175,7 @@ fn handle_frame(
             file_seq,
             acked_offset,
         } => {
+            tracing::debug!(task_session, file_seq, acked_offset, "received Message::Ack");
             if let Some(tx) = session
                 .ack_subs
                 .lock()
@@ -1160,7 +1186,7 @@ fn handle_frame(
             }
         }
         Message::FileDone { file_seq, hash } => {
-            crate::recv::on_file_done(session, recv_tasks, task_session, file_seq, hash);
+            crate::recv::on_file_done(session, recv_tasks, pipe_id, task_session, file_seq, hash);
         }
         Message::FileDoneAck { file_seq, .. } => {
             session.resolve_waiter(

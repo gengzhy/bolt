@@ -21,6 +21,7 @@ use lt_transfer::session::{
     EngineEvent, IncomingTransfer, Session, SessionConfig, SessionHandler, SessionInfo,
     TransportKind,
 };
+use lt_utils::constants::*;
 use lt_utils::{AppConfig, LtError, LtResult};
 
 use crate::events::LtEvent;
@@ -129,12 +130,23 @@ impl App {
         app.start_engine()?;
         app.restart_discovery();
 
-        // 异步执行 TTL 垃圾回收 (15 天)
+        // 异步执行临时目录 TTL 垃圾回收 (15 天)
         let ttl_data_dir = cfg_data_dir;
         std::thread::spawn(move || {
             let tmp_dir = ttl_data_dir.join("tmp");
-            let store = lt_file::resume_store::ResumeStore::new(&ttl_data_dir);
-            store.cleanup_stale_cache(&tmp_dir, 15);
+            if let Ok(entries) = std::fs::read_dir(&tmp_dir) {
+                let now = std::time::SystemTime::now();
+                let max_age = std::time::Duration::from_secs(15 * 86400);
+                for entry in entries.flatten() {
+                    if let Ok(meta) = entry.metadata() {
+                        if let Ok(mtime) = meta.modified() {
+                            if now.duration_since(mtime).map(|d| d > max_age).unwrap_or(false) {
+                                let _ = std::fs::remove_file(entry.path());
+                            }
+                        }
+                    }
+                }
+            }
         });
 
         Ok(app)
@@ -216,7 +228,7 @@ impl App {
         self.tasks.lock().unwrap().values().any(|t| {
             matches!(
                 t.state,
-                TaskState::WaitingAccept | TaskState::Transferring | TaskState::Paused
+                TaskState::WaitingAccept | TaskState::Transferring
             )
         })
     }
@@ -505,6 +517,7 @@ impl App {
             total,
             paths.to_vec(),
         );
+        let gen = record.generation;
         self.tasks.lock().unwrap().insert(task_id, record);
         // 立即通知上层建档（否则 UI 要等首个状态事件才能看到任务行）
         self.emit(LtEvent::TaskState {
@@ -515,7 +528,7 @@ impl App {
 
         // 已连接：直接发
         if let Some(session) = engine.session_by_uuid(uuid) {
-            self.spawn_send(task_id, raw_uid, session, items.items);
+            self.spawn_send(task_id, gen, raw_uid, session, items.items);
             return Ok(task_id);
         }
 
@@ -528,7 +541,7 @@ impl App {
             match engine.connect_with(target, force_tcp).await {
                 Ok(session) => {
                     // 会话注册与 EVT_CONN_STATE 已由 handler_connected 完成
-                    app.spawn_send(task_id, raw_uid, session, items.items);
+                    app.spawn_send(task_id, 1, raw_uid, session, items.items);
                 }
                 Err(e) => {
                     let mut tasks = app.tasks.lock().unwrap();
@@ -550,6 +563,7 @@ impl App {
     fn spawn_send(
         self: &Arc<App>,
         task_id: u64,
+        gen: u64,
         task_uid: [u8; 16],
         session: Arc<Session>,
         items: Vec<lt_file::traverse::TransferItem>,
@@ -578,18 +592,29 @@ impl App {
             let Some(t) = tasks.get_mut(&task_id) else {
                 return;
             };
+            // 【关键生命周期守护】：检查当前协程的世代号是否匹配
+            // 若世代不匹配，说明该协程是之前被暂停/取消的过期历史任务，
+            // 此时已有新的续传协程在运行，绝不可篡改当前任务的状态！
+            if t.generation != gen {
+                tracing::info!(task_id, gen, current = t.generation, "superseded send task exiting silently");
+                return;
+            }
             match result {
                 Ok(summary) => {
-                    if !matches!(t.state, TaskState::Paused | TaskState::Cancelled) {
-                        t.state = TaskState::Done;
+                    if t.state != TaskState::Cancelled {
+                        // 若所有文件均失败，置为 Error 态，避免误报为 Done 产生混淆
+                        if summary.failed > 0 && summary.ok == 0 {
+                            t.state = TaskState::Error;
+                        } else {
+                            t.state = TaskState::Done;
+                        }
                     }
                     t.ok_files = summary.ok;
                     t.failed_files = summary.failed;
                 }
                 Err(e) => {
-                    let was_paused = t.state == TaskState::Paused;
                     let was_cancelled = t.state == TaskState::Cancelled;
-                    if !was_paused && !was_cancelled {
+                    if !was_cancelled {
                         t.state = if e == LtError::Cancelled {
                             TaskState::Cancelled
                         } else {
@@ -597,8 +622,7 @@ impl App {
                         };
                     }
                     drop(tasks);
-                    // 暂停触发的取消不再报错误
-                    if !was_paused && !was_cancelled && e != LtError::Cancelled {
+                    if !was_cancelled && e != LtError::Cancelled {
                         app.emit(LtEvent::Error {
                             task_id: Some(task_id),
                             code: e.code(),
@@ -612,62 +636,27 @@ impl App {
 
     // ---------------- 任务控制 ----------------
 
-    /// 暂停任务：置位取消令牌 → 发送端停止并保留已收部分（可续传）。
+    /// 暂停任务（重定向至取消任务）：置位取消令牌 → 发送端与接收端即刻停止并清理临时数据。
     pub fn pause_task(&self, task_id: u64) -> LtResult<()> {
-        let incoming;
-        let peer_uuid;
-        {
-            let mut tasks = self.tasks.lock().unwrap();
-            let task = tasks.get_mut(&task_id).ok_or(LtError::InvalidArgument)?;
-            if matches!(
-                task.state,
-                TaskState::Done | TaskState::Cancelled | TaskState::Paused
-            ) {
-                return Err(LtError::InvalidArgument);
-            }
-            task.state = TaskState::Paused;
-            incoming = matches!(task.direction, Direction::Recv);
-            peer_uuid = task.peer_uuid.clone();
-        }
-        if let Some(token) = self.cancel_tokens.lock().unwrap().get(&task_id) {
-            token.store(true, Ordering::SeqCst);
-        }
-        
-        let wire_id = if incoming {
-            let found = self.recv_ids.lock().unwrap().iter().find(|(_, &local)| local == task_id).map(|(&(_c, wire), _)| wire);
-            found.unwrap_or(task_id)
-        } else {
-            task_id
-        };
-        let session = self.engine().ok().and_then(|e| e.session_by_uuid(&peer_uuid));
-        if let Some(s) = session {
-            if incoming {
-                s.cancel_task(wire_id, 9);
-            }
-        }
-        
-        self.emit(LtEvent::TaskState {
-            task_id,
-            incoming,
-            state: "paused".into(),
-        });
-        Ok(())
+        self.cancel_task(task_id)
     }
 
-    /// 续传/重传（仅发送端）：重跑 send_files，接收端按已收区间自动跳过。
-    /// 暂停后可续传；出错（含对端断开导致的失败）后可重传。
+    /// 重试传输（仅发送端）：重跑 send_files。
+    /// 出错（含对端断开导致的失败）或取消后可重试。
     pub fn resume_task(self: &Arc<App>, task_id: u64) -> LtResult<()> {
-        let (peer_uuid, paths, raw_uid) = {
+        let (peer_uuid, paths, raw_uid, gen) = {
             let mut tasks = self.tasks.lock().unwrap();
             let task = tasks.get_mut(&task_id).ok_or(LtError::InvalidArgument)?;
-            if !matches!(task.state, TaskState::Paused | TaskState::Error | TaskState::Cancelled) {
+            if !matches!(task.state, TaskState::Error | TaskState::Cancelled) {
                 return Err(LtError::InvalidArgument);
             }
             if task.direction != Direction::Send {
                 return Err(LtError::InvalidArgument);
             }
             task.state = TaskState::Transferring;
-            task.done_bytes = 0;
+            task.generation += 1;
+            let gen = task.generation;
+            // 保留已传输字节数，避免 UI 进度骤降为 0 引起卡片闪烁，后续由 Progress 事件平滑更新
             task.ok_files = 0;
             task.failed_files = 0;
             // 【关键机制】：续传时严格沿用原有的 task_uid，对端能够 100% 精准识别
@@ -685,18 +674,29 @@ impl App {
                 uid[8] = (uid[8] & 0x3f) | 0x80;
                 task.task_uid = uid.iter().map(|b| format!("{:02x}", b)).collect();
             }
-            (task.peer_uuid.clone(), task.source_paths.clone(), uid)
+            (task.peer_uuid.clone(), task.source_paths.clone(), uid, gen)
         };
         let items =
             lt_file::traverse::traverse(&paths.iter().map(PathBuf::from).collect::<Vec<_>>())?;
         if items.items.is_empty() {
             return Err(LtError::FileNotAccessible);
         }
-        let engine = self.engine()?;
-        let session = engine
-            .session_by_uuid(&peer_uuid)
-            .ok_or(LtError::ConnectTimeout)?;
-        self.spawn_send(task_id, raw_uid, session, items.items);
+        // 优先在本地已建立会话中查找，兜底查引擎侧，确保刚重连时不会因引擎微秒级未注册而报错
+        let session = {
+            let conn_id = self.conns.lock().unwrap().get(&peer_uuid).copied();
+            conn_id
+                .and_then(|c| self.sessions.lock().unwrap().get(&c).cloned())
+                .filter(|s| !s.is_closed())
+                .or_else(|| self.engine().ok().and_then(|e| e.session_by_uuid(&peer_uuid)))
+        }
+        .ok_or(LtError::ConnectTimeout)?;
+
+        self.emit(LtEvent::TaskState {
+            task_id,
+            incoming: false,
+            state: "transferring".into(),
+        });
+        self.spawn_send(task_id, gen, raw_uid, session, items.items);
         Ok(())
     }
 
@@ -745,12 +745,12 @@ impl App {
             .ok()
             .and_then(|e| e.session_by_uuid(&peer_uuid));
         if let Some(s) = session {
-            s.cancel_task(wire_id, 1);
+            s.cancel_task(wire_id, CANCEL_REASON_USER);
         }
         self.emit(LtEvent::TaskState {
             task_id,
             incoming,
-            state: "cancelled".into(),
+            state: TASK_STATE_CANCELLED.into(),
         });
         Ok(())
     }
@@ -792,7 +792,7 @@ impl App {
         }
     }
 
-    /// 清理临时缓存（临时目录 + 断点记录），实施方案 9.3。
+    /// 清理临时缓存（临时目录），实施方案 9.3。
     pub fn clear_temp_cache(&self) -> LtResult<()> {
         let cfg = self.cfg.lock().unwrap().clone();
         let tmp = cfg.data_dir.join("tmp");
@@ -800,7 +800,6 @@ impl App {
             std::fs::remove_dir_all(&tmp).map_err(|_| LtError::FileNotAccessible)?;
         }
         std::fs::create_dir_all(&tmp).ok();
-        lt_file::resume_store::ResumeStore::new(&cfg.data_dir).clear_all()?;
         Ok(())
     }
 
@@ -926,7 +925,7 @@ impl App {
                 let parsed = TaskState::from_engine(&state);
                 let mut tasks = self.tasks.lock().unwrap();
                 if let Some(t) = tasks.get_mut(&task_id) {
-                    if !matches!(t.state, TaskState::Paused | TaskState::Cancelled) {
+                    if t.state != TaskState::Cancelled {
                         t.state = parsed;
                     }
                 } else if incoming {
@@ -984,7 +983,7 @@ impl App {
                 conn_id,
                 task_id,
                 incoming,
-                rel_path: _,
+                rel_path,
                 ok,
             } => {
                 let task_id = self.local_task_id(conn_id, task_id, incoming);
@@ -992,6 +991,7 @@ impl App {
                 if let Some(t) = tasks.get_mut(&task_id) {
                     if ok {
                         t.ok_files += 1;
+                        t.current_file = rel_path;
                     } else {
                         t.failed_files += 1;
                     }
@@ -1010,9 +1010,14 @@ impl App {
                     if let Some(t) = tasks.get_mut(&task_id) {
                         t.ok_files = ok;
                         t.failed_files = failed;
-                        if !matches!(t.state, TaskState::Paused | TaskState::Cancelled) {
-                            t.state = TaskState::Done;
-                            t.done_bytes = t.total_size;
+                        if t.state != TaskState::Cancelled {
+                            // 若全部文件传输失败，状态扭转为 Error，避免伪装成 Done 造成误解
+                            if failed > 0 && ok == 0 {
+                                t.state = TaskState::Error;
+                            } else {
+                                t.state = TaskState::Done;
+                                t.done_bytes = t.total_size;
+                            }
                         }
                     }
                 }
@@ -1035,6 +1040,20 @@ impl App {
                 message,
             } => {
                 let task_id = task_id.map(|id| self.local_task_id(conn_id, id, incoming));
+                if let Some(tid) = task_id {
+                    let mut tasks = self.tasks.lock().unwrap();
+                    if let Some(t) = tasks.get_mut(&tid) {
+                        if !matches!(t.state, TaskState::Cancelled | TaskState::Done) {
+                            t.state = TaskState::Error;
+                        }
+                    }
+                    drop(tasks);
+                    self.emit(LtEvent::TaskState {
+                        task_id: tid,
+                        incoming,
+                        state: "error".into(),
+                    });
+                }
                 self.emit(LtEvent::Error {
                     task_id,
                     code,
@@ -1146,32 +1165,30 @@ impl App {
         
         let req_uid_hex: String = req.task_uid.iter().map(|b| format!("{:02x}", b)).collect();
 
-        // 1. 根据全局唯一 task_uid 精确查找是否为历史任务的续传（断网重连复用）
-        // 【逻辑说明】：
-        // 彻底淘汰旧有的 peer_uuid + file_count + total_size 模糊猜测，
-        // 100% 精确通过全局唯一 task_uid 定位，避免误判与任务互相覆盖。
+        // 1. 根据全局唯一 task_uid 精确查找是否为历史任务的续传（断网重连复用/暂停恢复接管）
+        // 【核心设计说明】：
+        // 彻底淘汰旧有的模糊猜测，100% 精确通过全局唯一 task_uid 定位历史接收任务。
+        // 若匹配到属于该 task_uid 的已有任务（处于 Paused、Error 或仍在 Transferring 态），
+        // 则属于【断点平滑续传】，用户此前必然已确认接收过，因此必须无条件直接自动接管，
+        // 绝不可因 auto_accept_trusted 为 false 而重新退回 waiting_accept 弹窗阻断对端！
         let mut local_id = None;
+        let mut is_resume = false;
         {
             let mut tasks = self.tasks.lock().unwrap();
             for (&id, t) in tasks.iter_mut() {
                 if t.direction == Direction::Recv && t.task_uid == req_uid_hex {
-                    // 若前次任务由于网络闪断仍停留在 Transferring 态，或者处于 Paused/Error 态，
-                    // 均允许复用并平滑接管，绝不直接调用 respond_transfer(false) 造成对端被秒拒
-                    if matches!(t.state, TaskState::Transferring | TaskState::Paused | TaskState::Error) {
+                    if matches!(t.state, TaskState::Transferring | TaskState::Cancelled | TaskState::Error) {
                         local_id = Some(id);
-                        // 状态扭转为目标态
-                        t.state = if auto { TaskState::Transferring } else { TaskState::WaitingAccept }; 
+                        is_resume = true;
+                        // 重试任务无论 auto 开关与否，均直接扭转为传输中并重置计数器
+                        t.state = TaskState::Transferring;
                         t.transport = transport_str(&session.info());
-                        // 【关键修复：进度对齐】：
-                        // 重置已传输字节数、完成计数等统计指标。
-                        // 真实已接收的断点区间将在后续 FILE_META 握手时由 FileWriter 从本地断点记录加载，
-                        // 从而保证发送端与接收端卡片上显示的进度严格一致，不再残留上次失败的脏数据。
-                        t.done_bytes = 0;
-                        t.ok_files = 0;
-                        t.failed_files = 0;
                         t.rate_bps = 0;
                         t.eta_secs = 0;
                         t.current_file = String::new();
+                        t.ok_files = 0;
+                        t.failed_files = 0;
+                        t.done_bytes = 0;
                         break;
                     }
                 }
@@ -1202,12 +1219,20 @@ impl App {
             self.tasks.lock().unwrap().insert(id, record);
             id
         };
-        if auto {
+
+        // 续传任务或者已配对免密设备直接应答并启动接收
+        if is_resume || auto {
             // 应答帧带线上号（对端索引用的是它自己的任务号）
             session.respond_transfer(req.req_id, true);
             if let Some(t) = self.tasks.lock().unwrap().get_mut(&local_id) {
                 t.state = TaskState::Transferring;
             }
+            // 【关键补充】：向 UI 发射 transferring 状态事件，使接收端卡片状态平滑扭转为传输中
+            self.emit(LtEvent::TaskState {
+                task_id: local_id,
+                incoming: true,
+                state: "transferring".into(),
+            });
             return;
         }
         self.pending_recv
@@ -1215,6 +1240,13 @@ impl App {
             .unwrap()
             .insert(local_id, (req.conn_id, req.req_id));
         self.sessions.lock().unwrap().insert(req.conn_id, session);
+        // 【关键修复：通知 UI 任务状态】：
+        // 无论新建还是复用，非免密自动接收时均需向 UI 发射 waiting_accept 状态事件以刷新卡片
+        self.emit(LtEvent::TaskState {
+            task_id: local_id,
+            incoming: true,
+            state: "waiting_accept".into(),
+        });
         self.emit(LtEvent::TransferRequest {
             req_id: local_id,
             uuid: req.sender_uuid,

@@ -247,6 +247,9 @@ fn encode_payload(msg: &Message, p: &mut Vec<u8>) -> u8 {
             put_str(p, rel_path);
             p.extend_from_slice(&chunk_size.to_be_bytes());
             p.push(*hash_algo);
+            // 兼容性保障：填充 16 字节 head_hash 占位符，
+            // 确保与已发布的老版本客户端（期望帧尾读取 16 字节）保持二进制 100% 互通
+            p.extend_from_slice(&[0u8; 16]);
             op::FILE_META
         }
         Message::FileMetaAck {
@@ -438,20 +441,39 @@ pub fn decode(opcode: u8, payload: bytes::Bytes) -> Result<Message, CodecError> 
                     });
                 }
             }
-            // 兜底路径
-            let mut task_uid = [0u8; 16];
-            if d.len() >= 30 {
+            // 兜底路径：根据 UTF-8 校验精确判断是否包含 16 字节 task_uid，杜绝老版本被误读
+            let is_new = if d.len() >= 30 {
+                let s_len = u16::from_be_bytes([d[28], d[29]]) as usize;
+                30 + s_len <= d.len() && std::str::from_utf8(&d[30..30 + s_len]).is_ok()
+            } else {
+                false
+            };
+            if is_new {
+                let mut task_uid = [0u8; 16];
                 task_uid.copy_from_slice(get_bytes(&mut d, 16)?);
+                let file_count = get_u32(&mut d)?;
+                let total_size = get_u64(&mut d)?;
+                let sender_name = get_str(&mut d)?;
+                Ok(Message::TransferReq {
+                    task_uid,
+                    file_count,
+                    total_size,
+                    sender_name,
+                })
+            } else {
+                let file_count = get_u32(&mut d)?;
+                let total_size = get_u64(&mut d)?;
+                let sender_name = get_str(&mut d)?;
+                let fallback_hash = blake3::hash(format!("{sender_name}|{file_count}|{total_size}").as_bytes());
+                let mut task_uid = [0u8; 16];
+                task_uid.copy_from_slice(&fallback_hash.as_bytes()[..16]);
+                Ok(Message::TransferReq {
+                    task_uid,
+                    file_count,
+                    total_size,
+                    sender_name,
+                })
             }
-            let file_count = get_u32(&mut d)?;
-            let total_size = get_u64(&mut d)?;
-            let sender_name = get_str(&mut d)?;
-            Ok(Message::TransferReq {
-                task_uid,
-                file_count,
-                total_size,
-                sender_name,
-            })
         }
         op::TRANSFER_RESP => {
             let accept = get_bool(&mut d)?;
@@ -468,6 +490,10 @@ pub fn decode(opcode: u8, payload: bytes::Bytes) -> Result<Message, CodecError> 
             let rel_path = get_str(&mut d)?;
             let chunk_size = get_u32(&mut d)?;
             let hash_algo = get_bytes(&mut d, 1)?[0];
+            // 自适应吸收老版本携带的 16 字节 head_hash 占位符
+            if d.len() >= 16 {
+                let _ = get_bytes(&mut d, 16);
+            }
             Ok(Message::FileMeta {
                 file_seq,
                 size,

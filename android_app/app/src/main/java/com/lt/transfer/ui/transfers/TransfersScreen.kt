@@ -146,17 +146,13 @@ private fun TaskCard(task: TaskUi) {
                 )
             }
 
-            // 控制按钮（§2.5.3：暂停 / 恢复 / 取消）
+            // 控制按钮（取消 / 重试）
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                if (task.state == TaskStates.TRANSFERRING) {
-                    TextButton(onClick = { LtEngine.pauseTask(task.taskId) }) { Text("暂停") }
-                }
-                if ((task.state == TaskStates.PAUSED || task.state == TaskStates.ERROR || task.state == TaskStates.CANCELLED) && !task.incoming) {
-                    val label = if (task.state == TaskStates.PAUSED) "继续" else "重传"
-                    TextButton(onClick = { LtEngine.resumeTask(task.taskId) }) { Text(label) }
-                }
                 if (TaskStates.isActive(task.state)) {
                     TextButton(onClick = { LtEngine.cancelTask(task.taskId) }) { Text("取消") }
+                }
+                if ((task.state == TaskStates.ERROR || task.state == TaskStates.CANCELLED) && !task.incoming) {
+                    TextButton(onClick = { LtEngine.resumeTask(task.taskId) }) { Text("重试") }
                 }
                 if (task.incoming && task.state == TaskStates.DONE && task.currentFile.isNotEmpty()) {
                     TextButton(onClick = { shareReceived(context, task.currentFile) }) {

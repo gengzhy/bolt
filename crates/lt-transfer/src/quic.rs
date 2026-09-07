@@ -6,6 +6,7 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use lt_crypto::{tls, DeviceIdentity};
+use lt_utils::constants::*;
 use lt_utils::{LtError, LtResult};
 use socket2::{Domain, Protocol, Socket, Type};
 
@@ -53,12 +54,12 @@ fn tune_transport(transport: &mut quinn::TransportConfig) {
     transport.max_idle_timeout(Some(std::time::Duration::from_secs(90).try_into().unwrap()));
     transport.max_concurrent_bidi_streams(64u32.into());
     transport.max_concurrent_uni_streams(64u32.into());
-    transport.stream_receive_window((32 * 1024 * 1024u32).into());
+    transport.stream_receive_window((QUIC_STREAM_FLOW_CONTROL_WINDOW as u32).into());
     transport.receive_window(quinn::VarInt::MAX);
-    transport.send_window(64 * 1024 * 1024);
+    transport.send_window(4 * 1024 * 1024);
     transport.initial_mtu(1200);
     transport.mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
-    transport.congestion_controller_factory(Arc::new(quinn::congestion::CubicConfig::default()));
+    transport.congestion_controller_factory(Arc::new(quinn::congestion::BbrConfig::default()));
 }
 
 /// 构造 QUIC 服务端 Endpoint（绑定 addr，UDP 缓冲已加大）。
