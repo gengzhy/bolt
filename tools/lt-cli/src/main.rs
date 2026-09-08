@@ -146,16 +146,21 @@ fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<LtEvent>, mode: 
                 uuid,
                 name,
                 code,
+                is_initiator,
             } => {
-                eprintln!("[配对] {name}({uuid}) 请求配对，验证码：【{code}】");
-                if mode == Mode::Send {
-                    // 发送端自动接受配对（测试便利；正式端由用户确认）
-                    eprintln!("  （send 模式自动接受配对）");
-                    app.respond_pair(pair_id, true);
-                } else if prompt("  屏幕验证码一致，接受配对？") {
-                    app.respond_pair(pair_id, true);
+                if is_initiator {
+                    eprintln!("[配对] 正在与 {name}({uuid}) 配对，验证码：【{code}】，等待对方设备确认...");
                 } else {
-                    app.respond_pair(pair_id, false);
+                    eprintln!("[配对] {name}({uuid}) 请求配对，验证码：【{code}】");
+                    if mode == Mode::Send {
+                        // 发送端自动接受配对（测试便利；正式端由用户确认）
+                        eprintln!("  （send 模式自动接受配对）");
+                        app.respond_pair(pair_id, true);
+                    } else if prompt("  屏幕验证码一致，接受配对？") {
+                        app.respond_pair(pair_id, true);
+                    } else {
+                        app.respond_pair(pair_id, false);
+                    }
                 }
             }
             LtEvent::TransferRequest {

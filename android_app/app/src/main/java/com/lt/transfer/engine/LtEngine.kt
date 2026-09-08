@@ -236,6 +236,9 @@ object LtEngine {
                                 )
                             } else it
                         },
+                        pendingDialogs = s.pendingDialogs.filterNot { d ->
+                            d is PendingDialog.PairRequest && d.uuid == uuid
+                        },
                     )
                 }
                 val err = p.optInt("err", 0)
@@ -252,6 +255,7 @@ object LtEngine {
                         uuid = p.optString("uuid"),
                         name = p.optString("name"),
                         code = p.optString("code"),
+                        isInitiator = p.optBoolean("is_initiator", false),
                     ),
                 )
             }

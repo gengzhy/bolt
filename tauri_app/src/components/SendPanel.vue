@@ -56,7 +56,7 @@ async function pickFolder() {
 
 async function handleSend() {
   if (!hasTarget.value) {
-    showToast("请先在左侧选择目标设备");
+    showToast("请先在下方选择目标设备");
     return;
   }
   if (pending.value.length === 0) {
@@ -84,20 +84,23 @@ onUnmounted(() => unlistenDragDrop?.());
 </script>
 
 <template>
-  <div class="panel mid" :class="{ 'drag-over': dragOver }">
+  <div class="panel mid" :class="{ 'drag-over': dragOver, 'has-pending': pending.length > 0 }">
     <!-- 状态 A/B：拖拽接收区 -->
     <div v-if="pending.length === 0" class="dropzone">
       <div class="dz-inner">
-        <svg width="46" height="46" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-          stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round" class="dz-icon">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" class="dz-icon">
           <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
           <path d="M17 8l-5-5-5 5M12 3v12" />
         </svg>
         <p class="dz-title">将文件或文件夹拖拽到此区域</p>
         <p class="dz-sub">支持单个文件、多文件、整个文件夹批量传输</p>
-        <button class="btn primary dz-main" :disabled="!hasTarget" @click="pickFiles">发送文件</button>
-        <button class="btn dz-second" :disabled="!hasTarget" @click="pickFolder">发送文件夹</button>
-        <p v-if="!hasTarget" class="dz-hint">请先在左侧选择目标设备</p>
+        <div class="dz-actions">
+          <button class="btn primary sm dz-btn" :disabled="!hasTarget" @click="pickFiles">发送文件</button>
+          <button class="btn sm dz-btn" :disabled="!hasTarget" @click="pickFolder">发送文件夹</button>
+        </div>
+        <p v-if="!hasTarget" class="dz-hint">请先在下方选择目标设备</p>
+        <p v-else class="dz-target-hint">已选目标：<b>{{ targetName }}</b></p>
       </div>
       <!-- 状态 B：拖拽悬浮玻璃浮层 -->
       <Transition name="fade">
@@ -141,7 +144,7 @@ onUnmounted(() => unlistenDragDrop?.());
       </ul>
       <div class="send-foot">
         <div class="target" :class="{ none: !targetName }">
-          {{ targetName ? `发送至：${targetName}` : "请先在左侧选择目标设备" }}
+          {{ targetName ? `发送至：${targetName}` : "请先在下方选择目标设备" }}
         </div>
         <button class="btn primary send-btn" :disabled="!hasTarget" @click="handleSend">
           发送（{{ pending.length }} 项 · {{ human(totalSize) }}）
@@ -152,7 +155,19 @@ onUnmounted(() => unlistenDragDrop?.());
 </template>
 
 <style scoped>
-.mid { gap: 14px; }
+.mid {
+  display: flex;
+  flex-direction: column;
+  flex: 0 0 196px;
+  min-height: 180px;
+  gap: 10px;
+  padding: 12px 14px;
+  transition: flex 0.2s ease, min-height 0.2s ease;
+}
+.mid.has-pending {
+  flex: 1 1 0;
+  min-height: 200px;
+}
 
 /* ---- 状态 A/B：拖拽区 ---- */
 .dropzone {
@@ -160,7 +175,7 @@ onUnmounted(() => unlistenDragDrop?.());
   min-height: 0;
   position: relative;
   border: 2px dashed var(--line-dash);
-  border-radius: var(--r-card);
+  border-radius: var(--r-item);
   background: var(--panel-2);
   display: flex;
   align-items: center;
@@ -168,20 +183,21 @@ onUnmounted(() => unlistenDragDrop?.());
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 .drag-over .dropzone { background: var(--accent-soft); border-color: var(--accent); }
-.dz-inner { text-align: center; padding: 24px; position: relative; z-index: 1; }
-.dz-icon { color: #94a3b8; margin-bottom: 12px; }
+.dz-inner { text-align: center; padding: 10px 14px; position: relative; z-index: 1; }
+.dz-icon { color: #94a3b8; margin-bottom: 6px; }
 .drag-over .dz-icon { color: var(--accent); }
-.dz-title { margin: 0 0 6px; font-size: 15px; font-weight: 600; color: var(--text); }
-.dz-sub { margin: 0 0 20px; font-size: 12px; color: var(--muted); }
-.dz-main { padding: 10px 26px; font-size: 14px; }
-.dz-second { display: block; margin: 12px auto 0; }
-.dz-hint { margin: 14px 0 0; font-size: 12px; color: var(--warn); }
+.dz-title { margin: 0 0 3px; font-size: 13.5px; font-weight: 600; color: var(--text); }
+.dz-sub { margin: 0 0 8px; font-size: 11.5px; color: var(--muted); }
+.dz-actions { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.dz-btn { padding: 5px 14px; font-size: 12px; }
+.dz-hint { margin: 8px 0 0; font-size: 11.5px; color: var(--warn); }
+.dz-target-hint { margin: 8px 0 0; font-size: 11.5px; color: var(--accent); }
 /* 状态 B：玻璃浮层 */
 .glass {
   position: absolute;
-  inset: 14px;
-  border-radius: 14px;
-  background: rgba(239, 246, 255, 0.6);
+  inset: 10px;
+  border-radius: 12px;
+  background: rgba(239, 246, 255, 0.7);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(37, 99, 235, 0.25);
   box-shadow: var(--shadow-hover);
@@ -191,7 +207,7 @@ onUnmounted(() => unlistenDragDrop?.());
   z-index: 2;
   pointer-events: none;
 }
-.glass p { margin: 0; color: var(--accent); font-size: 14px; font-weight: 600; }
+.glass p { margin: 0; color: var(--accent); font-size: 13px; font-weight: 600; }
 .fade-enter-active, .fade-leave-active { transition: opacity 0.15s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 

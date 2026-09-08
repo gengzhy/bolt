@@ -29,7 +29,14 @@ impl SessionHandler for AutoHandler {
     fn connected(&self, session: Arc<Session>, _info: SessionInfo) {
         *self.session.lock().unwrap() = Some(session);
     }
-    fn pair_needed(&self, session: Arc<Session>, pair_id: u64, _info: SessionInfo, _code: String) {
+    fn pair_needed(
+        &self,
+        session: Arc<Session>,
+        pair_id: u64,
+        _info: SessionInfo,
+        _code: String,
+        _is_initiator: bool,
+    ) {
         session.respond_pair(pair_id, true);
     }
     fn transfer_incoming(&self, session: Arc<Session>, req: IncomingTransfer) {

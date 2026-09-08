@@ -373,11 +373,32 @@ impl App {
                 Ok(_session) => {}
                 Err(e) => {
                     if let Some(app) = weak.upgrade() {
-                        app.emit(LtEvent::Error {
-                            task_id: None,
-                            code: e.code(),
-                            message: format!("连接 {uuid_owned} 失败"),
+                        let mut sessions = app.sessions.lock().unwrap();
+                        let conn_id = sessions
+                            .iter()
+                            .find(|(_, s)| s.info().peer_uuid == uuid_owned)
+                            .map(|(&id, _)| id);
+                        if let Some(id) = conn_id {
+                            sessions.remove(&id);
+                        }
+                        drop(sessions);
+
+                        app.emit(LtEvent::ConnState {
+                            uuid: uuid_owned.clone(),
+                            name: String::new(),
+                            state: "disconnected".into(),
+                            conn_id: 0,
+                            transport: String::new(),
+                            err: if e == LtError::Cancelled { None } else { Some(e.code()) },
                         });
+
+                        if e != LtError::Cancelled {
+                            app.emit(LtEvent::Error {
+                                task_id: None,
+                                code: e.code(),
+                                message: format!("连接 {uuid_owned} 失败"),
+                            });
+                        }
                     }
                 }
             }
@@ -400,11 +421,33 @@ impl App {
                 Ok(_session) => {}
                 Err(e) => {
                     if let Some(app) = weak.upgrade() {
-                        app.emit(LtEvent::Error {
-                            task_id: None,
-                            code: e.code(),
-                            message: format!("连接 {addr} 失败"),
+                        let addr_str = addr.to_string();
+                        let mut sessions = app.sessions.lock().unwrap();
+                        let conn_id = sessions
+                            .iter()
+                            .find(|(_, s)| s.info().addr == addr_str)
+                            .map(|(&id, _)| id);
+                        if let Some(id) = conn_id {
+                            sessions.remove(&id);
+                        }
+                        drop(sessions);
+
+                        app.emit(LtEvent::ConnState {
+                            uuid: String::new(),
+                            name: addr_str.clone(),
+                            state: "disconnected".into(),
+                            conn_id: 0,
+                            transport: String::new(),
+                            err: if e == LtError::Cancelled { None } else { Some(e.code()) },
                         });
+
+                        if e != LtError::Cancelled {
+                            app.emit(LtEvent::Error {
+                                task_id: None,
+                                code: e.code(),
+                                message: format!("连接 {addr} 失败"),
+                            });
+                        }
                     }
                 }
             }
@@ -414,25 +457,29 @@ impl App {
 
     /// 断开与某设备的会话。
     pub fn disconnect(&self, uuid: &str) -> LtResult<()> {
-        let conn_id = self
-            .conns
-            .lock()
-            .unwrap()
-            .get(uuid)
-            .copied()
-            .ok_or(LtError::InvalidArgument)?;
-        // 关键：先把 Arc 克隆出来、释放 sessions 锁，再调 close()。
+        let conn_id = self.conns.lock().unwrap().remove(uuid);
+        let session = if let Some(conn_id) = conn_id {
+            self.sessions.lock().unwrap().remove(&conn_id)
+        } else {
+            // 兼容配对握手阶段尚未进入 conns 的会话
+            let mut sessions = self.sessions.lock().unwrap();
+            let id = sessions
+                .iter()
+                .find(|(_, s)| s.info().peer_uuid == uuid)
+                .map(|(&id, _)| id);
+            id.and_then(|id| sessions.remove(&id))
+        };
+        // 关键：先把 Arc 取出来、释放 sessions 锁，再调 close()。
         // close() 会同步回调 handler_disconnected → 再次 lock sessions；
-        // 若像 `if let Some(s) = map.lock()...` 那样持锁调用（ scrutinee 临时值
-        // 存活到整个 if-let 块结束），同一线程自死锁 → UI 线程 ANR。
-        let session = self.sessions.lock().unwrap().get(&conn_id).cloned();
+        // 若持锁调用会同一线程自死锁。
         if let Some(session) = session {
+            let id = session.id;
             session.close(None);
+            if let Some(engine) = self.engine.lock().unwrap().as_ref() {
+                engine.unregister(id);
+            }
         }
-        // 引擎侧会话表同步清理（否则已关闭会话滞留其中）
-        if let Some(engine) = self.engine.lock().unwrap().as_ref() {
-            engine.unregister(conn_id);
-        }
+        // 幂等：无论会话是否存在，均成功返回 Ok(())，绝不向 UI 返回 -1 错误码
         Ok(())
     }
 
@@ -1122,6 +1169,7 @@ impl App {
         pair_id: u64,
         info: SessionInfo,
         code: String,
+        is_initiator: bool,
     ) {
         self.sessions.lock().unwrap().insert(info.conn_id, session);
         self.emit(LtEvent::PairRequest {
@@ -1129,6 +1177,7 @@ impl App {
             uuid: info.peer_uuid,
             name: info.peer_name,
             code,
+            is_initiator,
         });
     }
 
@@ -1233,7 +1282,7 @@ impl App {
     }
 
     fn handler_disconnected(&self, conn_id: u64, err_code: Option<i32>) {
-        let uuid = {
+        let mut uuid = {
             let mut conns = self.conns.lock().unwrap();
             let uuid = conns
                 .iter()
@@ -1244,7 +1293,16 @@ impl App {
             }
             uuid
         };
-        self.sessions.lock().unwrap().remove(&conn_id);
+        let session = self.sessions.lock().unwrap().remove(&conn_id);
+        let mut name = if let Some(session) = &session {
+            let info = session.info();
+            if uuid.is_none() && !info.peer_uuid.is_empty() {
+                uuid = Some(info.peer_uuid);
+            }
+            info.peer_name
+        } else {
+            String::new()
+        };
         if let Some(u) = &uuid {
             // 解除钉住：断开后该设备恢复 TTL 清扫
             self.devices.unpin(u);
@@ -1262,14 +1320,12 @@ impl App {
                     });
                 }
             }
+            if name.is_empty() {
+                if let Some(d) = self.devices.snapshot().into_iter().find(|d| d.uuid == *u) {
+                    name = d.name;
+                }
+            }
         }
-        let name = self
-            .devices
-            .snapshot()
-            .into_iter()
-            .find(|d| Some(&d.uuid) == uuid.as_ref())
-            .map(|d| d.name)
-            .unwrap_or_default();
         self.emit(LtEvent::ConnState {
             uuid: uuid.unwrap_or_default(),
             name,
@@ -1298,9 +1354,16 @@ impl SessionHandler for AppHandler {
             app.handler_connected(session, info);
         }
     }
-    fn pair_needed(&self, session: Arc<Session>, pair_id: u64, info: SessionInfo, code: String) {
+    fn pair_needed(
+        &self,
+        session: Arc<Session>,
+        pair_id: u64,
+        info: SessionInfo,
+        code: String,
+        is_initiator: bool,
+    ) {
         if let Some(app) = self.app.upgrade() {
-            app.handler_pair_needed(session, pair_id, info, code);
+            app.handler_pair_needed(session, pair_id, info, code, is_initiator);
         }
     }
     fn transfer_incoming(&self, session: Arc<Session>, req: IncomingTransfer) {

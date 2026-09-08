@@ -4,7 +4,7 @@
 //   4 传输请求 / 5 任务状态 / 6 任务进度 / 7 任务汇总 / 8 错误。
 // - 后端命令返回负错误码时转为中文提示（对齐 protocol_spec.md §7）。
 
-import { ref, reactive } from "vue";
+import { ref, reactive, computed } from "vue";
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type {
@@ -59,6 +59,11 @@ const localInfo = ref<{ name: string; ips: string[]; qport: number }>({
   qport: 0,
 });
 
+const localIpsText = computed(() => {
+  const ips = localInfo.value.ips;
+  return ips.length > 0 ? ips.join("、") : "—";
+});
+
 let toastTimer: number | undefined;
 let unlisten: UnlistenFn | undefined;
 
@@ -76,8 +81,18 @@ export function useLt() {
   async function refreshTasks() {
     tasks.value = await invoke<Task[]>("get_tasks");
   }
+  async function refreshLocalInfo() {
+    const info = await invoke<Record<string, unknown>>("get_local_info").catch(() => null);
+    if (info) {
+      localInfo.value = {
+        name: typeof info.name === "string" ? info.name : "",
+        ips: Array.isArray(info.ips) ? (info.ips as string[]) : [],
+        qport: typeof info.qport === "number" ? info.qport : 0,
+      };
+    }
+  }
   async function refresh() {
-    await Promise.all([refreshDevices(), refreshTasks()]);
+    await Promise.all([refreshDevices(), refreshTasks(), refreshLocalInfo()]);
   }
 
   // ---------- 事件分发 ----------
@@ -107,6 +122,10 @@ export function useLt() {
             // 会让「已连接」徽标与「断开」按钮卡死）
             delete connStates[uuid];
           }
+          // 连接建立或断开时，若存在当前设备的配对弹窗，自动解除并关闭弹窗
+          if (pairReq.value && pairReq.value.uuid === uuid) {
+            pairReq.value = null;
+          }
         }
         if (p.state === "connected") {
           showToast(`已连接 ${p.name ?? uuid}（${p.transport ?? "?"}）`);
@@ -123,6 +142,7 @@ export function useLt() {
           uuid: p.uuid as string,
           name: p.name as string,
           code: p.code as string,
+          is_initiator: Boolean(p.is_initiator),
         };
         break;
       case 4: // EVT_TRANSFER_REQUEST
@@ -190,6 +210,9 @@ export function useLt() {
       }
       case 8: // EVT_ERROR
         showToast(`错误(${p.code}): ${p.message ?? ""}`);
+        if (pairReq.value) {
+          pairReq.value = null;
+        }
         void refreshTasks();
         break;
       default:
@@ -274,10 +297,10 @@ export function useLt() {
   async function loadConfig(): Promise<Record<string, unknown>> {
     return await invoke<Record<string, unknown>>("get_config");
   }
-  async function saveConfig(patch: Record<string, unknown>): Promise<boolean> {
+  async function saveConfig(patch: Record<string, unknown>, silent = false): Promise<boolean> {
     try {
       await invoke("set_config", { json: JSON.stringify(patch) });
-      showToast("设置已保存");
+      if (!silent) showToast("设置已保存");
       return true;
     } catch (e) {
       showToast(`保存设置失败：${errText(e)}`);
@@ -333,10 +356,12 @@ export function useLt() {
     version,
     fingerprint,
     localInfo,
+    localIpsText,
     // 生命周期
     start,
     stop,
     refresh,
+    refreshLocalInfo,
     showToast,
     // 操作
     connect,

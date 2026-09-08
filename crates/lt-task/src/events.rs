@@ -26,12 +26,13 @@ pub enum LtEvent {
         transport: String,
         err: Option<i32>,
     },
-    /// 配对请求：`{pair_id, uuid, name, code}`
+    /// 配对请求：`{pair_id, uuid, name, code, is_initiator}`
     PairRequest {
         pair_id: u64,
         uuid: String,
         name: String,
         code: String,
+        is_initiator: bool,
     },
     /// 入站传输请求：`{req_id, uuid, name, file_count, total_size}`
     TransferRequest {
@@ -118,11 +119,13 @@ impl LtEvent {
                 uuid,
                 name,
                 code,
+                is_initiator,
             } => serde_json::json!({
                 "pair_id": pair_id,
                 "uuid": uuid,
                 "name": name,
                 "code": code,
+                "is_initiator": is_initiator,
             })
             .to_string(),
             LtEvent::TransferRequest {

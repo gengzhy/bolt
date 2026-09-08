@@ -145,6 +145,7 @@ pub trait SessionHandler: Send + Sync {
         _pair_id: u64,
         _info: SessionInfo,
         _code: String,
+        _is_initiator: bool,
     ) {
     }
     /// 入站传输请求：用户决定后调用 [`Session::respond_transfer`]。
@@ -575,53 +576,76 @@ pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc
                 addr: ctx.addr.clone(),
             };
             *session.info.lock().unwrap() = info.clone();
+            let (dtx, mut drx) = oneshot::channel();
+            *session.pair_decision.lock().unwrap() = Some(dtx);
             ctx.handler
-                .pair_needed(session.clone(), ctx.conn_id, info, code);
-            // 等待对端 PAIR_RESP。
+                .pair_needed(session.clone(), ctx.conn_id, info, code, true);
+            // 等待对端 PAIR_RESP 或发起方用户主动取消。
             // 注意：调度器尚未启动（finish_handshake 在配对后才执行），
             // 必须在此直接读控制流，否则应答帧无人读取 → 死等。
             let deadline = tokio::time::Instant::now() + Duration::from_secs(300);
+            let mut cancelled = false;
             let resp = loop {
                 let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
                 if remaining.is_zero() {
                     return Err(LtError::PairingFailed);
                 }
-                let frame = match timeout(remaining, conn::read_frame(&mut reader)).await {
-                    Ok(r) => r,
-                    Err(_) => return Err(LtError::PairingFailed),
-                };
-                let frame = match frame {
-                    Ok(Some(f)) => f,
-                    Ok(None) => return Err(LtError::PairingFailed), // EOF
-                    Err(_) => return Err(LtError::PairingFailed),
-                };
-                match frame {
-                    Incoming::Msg {
-                        msg: msg @ Message::PairResp { .. },
-                        ..
-                    } => break msg,
-                    Incoming::Msg {
-                        msg: Message::Ping { seq },
-                        ..
-                    } => {
-                        // 对端已进入心跳期，保持应答避免其超时断开
-                        let _ = session.send_control(0, Message::Pong { seq });
+                tokio::select! {
+                    user_cancel = &mut drx, if !cancelled => {
+                        match user_cancel {
+                            Ok(false) => {
+                                let _ = session.send_control(0, Message::Bye);
+                                session.close(None);
+                                return Err(LtError::Cancelled);
+                            }
+                            _ => {
+                                cancelled = true;
+                            }
+                        }
                     }
-                    Incoming::Msg {
-                        msg: Message::PairReq { .. },
-                        ..
-                    } => {
-                        // 对端同时发起配对（双向未知）：走迟到配对流程
-                        handle_late_pair_req(&session);
+                    frame = timeout(remaining, conn::read_frame(&mut reader)) => {
+                        let frame = match frame {
+                            Ok(r) => r,
+                            Err(_) => return Err(LtError::PairingFailed),
+                        };
+                        let frame = match frame {
+                            Ok(Some(f)) => f,
+                            Ok(None) => return Err(LtError::PairingFailed), // EOF
+                            Err(_) => return Err(LtError::PairingFailed),
+                        };
+                        match frame {
+                            Incoming::Msg {
+                                msg: msg @ Message::PairResp { .. },
+                                ..
+                            } => break msg,
+                            Incoming::Msg {
+                                msg: Message::Ping { seq },
+                                ..
+                            } => {
+                                // 对端已进入心跳期，保持应答避免其超时断开
+                                let _ = session.send_control(0, Message::Pong { seq });
+                            }
+                            Incoming::Msg {
+                                msg: Message::PairReq { .. },
+                                ..
+                            } => {
+                                // 对端同时发起配对（双向未知）：走迟到配对流程
+                                handle_late_pair_req(&session);
+                            }
+                            _ => {} // 握手期其他杂帧忽略
+                        }
                     }
-                    _ => {} // 握手期其他杂帧忽略
                 }
             };
+            *session.pair_decision.lock().unwrap() = None;
             match resp {
                 Message::PairResp { accept: true, .. } => {
                     ctx.trust.add(&uuid, &fingerprint, &device_name)?;
                 }
-                _ => return Err(LtError::PairingFailed),
+                _ => {
+                    session.close(None);
+                    return Err(LtError::PairingFailed);
+                }
             }
         }
         TrustStatus::Trusted => {}
@@ -742,21 +766,49 @@ pub(crate) async fn handshake_in(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc<
                         addr: ctx.addr.clone(),
                     };
                     *session.info.lock().unwrap() = info.clone();
-                    let (dtx, drx) = oneshot::channel();
+                    let (dtx, mut drx) = oneshot::channel();
                     *session.pair_decision.lock().unwrap() = Some(dtx);
                     ctx.handler
-                        .pair_needed(session.clone(), ctx.conn_id, info, code);
-                    let accept = timeout(Duration::from_secs(300), drx)
-                        .await
-                        .ok()
-                        .and_then(|r| r.ok())
-                        .unwrap_or(false);
+                        .pair_needed(session.clone(), ctx.conn_id, info, code, false);
+                    let deadline = tokio::time::Instant::now() + Duration::from_secs(300);
+                    let accept = loop {
+                        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+                        if remaining.is_zero() {
+                            break false;
+                        }
+                        tokio::select! {
+                            res = &mut drx => {
+                                break res.unwrap_or(false);
+                            }
+                            frame = timeout(remaining, conn::read_frame(&mut reader)) => {
+                                let frame = match frame {
+                                    Ok(Ok(Some(f))) => f,
+                                    _ => {
+                                        session.close(None);
+                                        return Err(LtError::Cancelled);
+                                    }
+                                };
+                                match frame {
+                                    Incoming::Msg { msg: Message::Bye, .. } => {
+                                        session.close(None);
+                                        return Err(LtError::Cancelled);
+                                    }
+                                    Incoming::Msg { msg: Message::Ping { seq }, .. } => {
+                                        let _ = session.send_control(0, Message::Pong { seq });
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                    };
+                    *session.pair_decision.lock().unwrap() = None;
                     let mut nonce = [0u8; 16];
                     rand_fill(&mut nonce);
-                    session.send_control(0, Message::PairResp { accept, nonce })?;
+                    let _ = session.send_control(0, Message::PairResp { accept, nonce });
                     if accept {
                         ctx.trust.add(&uuid, &fingerprint, &device_name)?;
                     } else {
+                        session.close(None);
                         return Err(LtError::PairingFailed);
                     }
                 }
@@ -1208,7 +1260,7 @@ fn handle_late_pair_req(session: &Arc<Session>) {
     *session.pair_decision.lock().unwrap() = Some(dtx);
     session
         .handler
-        .pair_needed(session.clone(), session.id, info, code);
+        .pair_needed(session.clone(), session.id, info, code, false);
     let sess = session.clone();
     tokio::spawn(async move {
         let accept = timeout(Duration::from_secs(300), drx)
@@ -1224,6 +1276,8 @@ fn handle_late_pair_req(session: &Arc<Session>) {
             let _ = sess
                 .trust
                 .add(&info.peer_uuid, &info.peer_fingerprint, &info.peer_name);
+        } else {
+            sess.close(None);
         }
     });
 }

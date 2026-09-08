@@ -1,8 +1,11 @@
 package com.lt.transfer.ui
 
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -14,6 +17,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -33,38 +37,74 @@ fun DialogHost(dialog: PendingDialog) {
 
 /**
  * 配对弹窗（EVT_PAIR_REQUEST）：展示 6 位验证码，
- * 用户在两块屏幕比对一致后接受（TOFU 首次信任建立）。
+ * 发起端仅等待对端核对确认（配动画与取消），接收端核对一致后接受。
  */
 @Composable
 private fun PairRequestDialog(dialog: PendingDialog.PairRequest) {
-    AlertDialog(
-        onDismissRequest = { LtEngine.respondPair(dialog.pairId, false) },
-        title = { Text("配对请求") },
-        text = {
-            Column {
-                Text("「${dialog.name}」请求与本机配对")
-                Spacer(Modifier.height(12.dp))
-                Text(
-                    text = dialog.code,
-                    fontSize = 32.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Spacer(Modifier.height(8.dp))
-                Text("请与对方屏幕上显示的验证码比对，一致后接受。")
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = { LtEngine.respondPair(dialog.pairId, true) }) {
-                Text("验证码一致，接受")
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = { LtEngine.respondPair(dialog.pairId, false) }) {
-                Text("拒绝")
-            }
-        },
-    )
+    if (dialog.isInitiator) {
+        AlertDialog(
+            onDismissRequest = { LtEngine.respondPair(dialog.pairId, false) },
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(20.dp),
+                        strokeWidth = 2.5.dp,
+                    )
+                    Spacer(Modifier.width(10.dp))
+                    Text("设备配对中...")
+                }
+            },
+            text = {
+                Column {
+                    Text("正在与「${dialog.name}」建立配对连接")
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = dialog.code,
+                        fontSize = 32.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("请在对方设备屏幕上核对此 6 位验证码并确认接受。")
+                }
+            },
+            confirmButton = {},
+            dismissButton = {
+                TextButton(onClick = { LtEngine.respondPair(dialog.pairId, false) }) {
+                    Text("取消")
+                }
+            },
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = { LtEngine.respondPair(dialog.pairId, false) },
+            title = { Text("配对请求") },
+            text = {
+                Column {
+                    Text("「${dialog.name}」请求与本机配对")
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        text = dialog.code,
+                        fontSize = 32.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("请与对方屏幕上显示的验证码比对，一致后接受。")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { LtEngine.respondPair(dialog.pairId, true) }) {
+                    Text("验证码一致，接受")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { LtEngine.respondPair(dialog.pairId, false) }) {
+                    Text("拒绝")
+                }
+            },
+        )
+    }
 }
 
 /** 入站传输弹窗（EVT_TRANSFER_REQUEST）：展示文件数与总大小。 */

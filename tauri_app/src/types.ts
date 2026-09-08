@@ -48,6 +48,7 @@ export interface PairReq {
   uuid: string;
   name: string;
   code: string;
+  is_initiator?: boolean;
 }
 
 export interface TransferReq {

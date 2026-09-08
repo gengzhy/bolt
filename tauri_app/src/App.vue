@@ -13,7 +13,7 @@ import TaskPanel from "./components/TaskPanel.vue";
 import SettingsModal from "./components/SettingsModal.vue";
 import Modals from "./components/Modals.vue";
 
-const { version, toast, devices, connStates, progress, localInfo, start, stop } = useLt();
+const { version, toast, devices, connStates, progress, localInfo, localIpsText, start, stop } = useLt();
 const settingsOpen = ref(false);
 const win = getCurrentWindow();
 const maximized = ref(false);
@@ -53,10 +53,7 @@ let maxTimer: number | undefined;
 onMounted(() => {
   start();
   void syncMaximized();
-  // 小窗口下把两侧宽度收进可用预算，避免中间栏被挤出视口
-  leftW.value = clampSide(leftW.value, rightW.value);
-  rightW.value = clampSide(rightW.value, leftW.value);
-  // 窗口尺寸变化（拖拽边缘缩放）时同步最大化图标
+  leftW.value = clampLeft(leftW.value);
   maxTimer = window.setInterval(() => void syncMaximized(), 2000);
 });
 onUnmounted(() => {
@@ -64,26 +61,23 @@ onUnmounted(() => {
   window.clearInterval(maxTimer);
 });
 
-// ---------- 三栏宽度调节 ----------
-const CENTER_MIN = 320; // 中间发送区保底宽度
-const SIDE_MIN = 240;
-const SIDE_MAX = 520;
-const leftW = ref(320);
-const rightW = ref(360);
+// ---------- 两栏宽度调节 ----------
+const LEFT_MIN = 300;
+const RIGHT_MIN = 300;
+const leftW = ref(370);
 
-function clampSide(v: number, other: number): number {
-  // 窗口内宽 - 左右 padding(32) - 两个拖拽槽(28) - 中间保底 - 另一侧
-  const budget = window.innerWidth - 32 - 28 - CENTER_MIN - other;
-  return Math.max(SIDE_MIN, Math.min(v, SIDE_MAX, budget));
+function clampLeft(v: number): number {
+  // 窗口内宽 - 左右外边距(24) - 拖拽槽(12) - 右侧任务栏保底(RIGHT_MIN)
+  const maxW = window.innerWidth - 24 - 12 - RIGHT_MIN;
+  return Math.max(LEFT_MIN, Math.min(v, maxW));
 }
-function startDrag(side: "left" | "right", e: PointerEvent) {
+function startDrag(e: PointerEvent) {
   e.preventDefault();
   const startX = e.clientX;
-  const startW = side === "left" ? leftW.value : rightW.value;
+  const startW = leftW.value;
   const move = (ev: PointerEvent) => {
     const dx = ev.clientX - startX;
-    if (side === "left") leftW.value = clampSide(startW + dx, rightW.value);
-    else rightW.value = clampSide(startW - dx, leftW.value);
+    leftW.value = clampLeft(startW + dx);
   };
   const up = () => {
     window.removeEventListener("pointermove", move);
@@ -132,29 +126,30 @@ function startDrag(side: "left" | "right", e: PointerEvent) {
 
     <div v-if="toast" class="toast">{{ toast }}</div>
 
-    <!-- 三栏内容区（左右栏可拖动调宽，中间保底 320px） -->
+    <!-- 两栏内容区：左栏【发送+设备】| 拖拽槽 | 右栏【传输任务】 -->
     <section
       class="grid"
-      :style="{ gridTemplateColumns: `${leftW}px 14px minmax(320px, 1fr) 14px ${rightW}px` }"
+      :style="{ gridTemplateColumns: `${leftW}px 12px minmax(300px, 1fr)` }"
     >
-      <DevicePanel />
-      <div class="gutter" title="拖动调整宽度" @pointerdown="startDrag('left', $event)"></div>
-      <SendPanel />
-      <div class="gutter" title="拖动调整宽度" @pointerdown="startDrag('right', $event)"></div>
+      <div class="left-col">
+        <SendPanel />
+        <DevicePanel />
+      </div>
+      <div class="gutter" title="拖动调整左右分栏宽度" @pointerdown="startDrag($event)"></div>
       <TaskPanel />
     </section>
 
     <!-- 底部状态栏 -->
     <footer class="statusbar">
-      <span>本机名称：{{ localInfo.name || "—" }}</span>
+      <span>本机：{{ localInfo.name || "—" }}</span>
       <span class="sb-sep"></span>
-      <span>IP：{{ localInfo.ips.join("、") || "—" }}</span>
+      <span>IP：{{ localIpsText }}</span>
       <span class="sb-sep"></span>
-      <span>在线设备：{{ devices.length }}台</span>
+      <span>在线：{{ devices.length }}台</span>
       <span class="sb-sep"></span>
-      <span>当前协议：{{ protocol }}</span>
+      <span>协议：{{ protocol }}</span>
       <span class="sb-sep"></span>
-      <span>实时速度：{{ fmtRate(totalRate) }}</span>
+      <span>速度：{{ fmtRate(totalRate) }}</span>
     </footer>
 
     <SettingsModal v-model:open="settingsOpen" />
@@ -238,12 +233,19 @@ body {
 .tb-btn:hover { background: var(--accent-soft); color: var(--accent); }
 .tb-close:hover { background: var(--danger); color: #fff; }
 
-/* ---- 三栏 ---- */
+/* ---- 两栏布局 ---- */
 .grid {
   display: grid;
-  padding: 16px;
+  padding: 10px 12px;
   flex: 1;
   min-height: 0;
+}
+.left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 0;
+  height: 100%;
 }
 /* 栏宽拖拽槽 */
 .gutter { cursor: col-resize; position: relative; }
@@ -265,12 +267,12 @@ body {
   border: 1px solid var(--line);
   border-radius: var(--r-card);
   box-shadow: var(--shadow-1);
-  padding: 16px;
+  padding: 14px;
   display: flex;
   flex-direction: column;
   min-height: 0;
 }
-h2 { font-size: 16px; margin: 0; color: var(--text); font-weight: 600; }
+h2 { font-size: 15px; margin: 0; color: var(--text); font-weight: 600; }
 ul { list-style: none; margin: 0; padding: 0; }
 
 /* ---- 通用按钮（拟物立体） ---- */

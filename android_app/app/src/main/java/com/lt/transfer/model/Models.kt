@@ -71,6 +71,7 @@ sealed class PendingDialog {
         val uuid: String,
         val name: String,
         val code: String,
+        val isInitiator: Boolean = false,
     ) : PendingDialog()
 
     /** 入站传输请求（EVT_TRANSFER_REQUEST）。 */
