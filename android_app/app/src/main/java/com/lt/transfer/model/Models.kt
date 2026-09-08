@@ -59,6 +59,8 @@ data class TaskUi(
     val transport: String = "",
     val rateBps: Long = 0,
     val etaSecs: Long = 0,
+    val avgRateBps: Long = 0,
+    val durationMs: Long = 0,
 )
 
 /** 待用户响应的弹窗（队列，逐个展示）。 */

@@ -57,12 +57,15 @@ pub enum LtEvent {
         rate_bps: u64,
         eta_secs: u64,
     },
-    /// 任务汇总：`{task_id, incoming, ok, failed}`
+    /// 任务汇总：`{task_id, incoming, ok, failed, avg_rate_bps, duration_ms, total_size}`
     TaskSummary {
         task_id: u64,
         incoming: bool,
         ok: u32,
         failed: u32,
+        avg_rate_bps: u64,
+        duration_ms: u64,
+        total_size: u64,
     },
     /// 错误：`{task_id, code, message}`
     Error {
@@ -169,11 +172,17 @@ impl LtEvent {
                 incoming,
                 ok,
                 failed,
+                avg_rate_bps,
+                duration_ms,
+                total_size,
             } => serde_json::json!({
                 "task_id": task_id,
                 "incoming": incoming,
                 "ok": ok,
                 "failed": failed,
+                "avg_rate_bps": avg_rate_bps,
+                "duration_ms": duration_ms,
+                "total_size": total_size,
             })
             .to_string(),
             LtEvent::Error {

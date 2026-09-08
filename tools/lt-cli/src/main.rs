@@ -221,6 +221,7 @@ fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<LtEvent>, mode: 
                 incoming,
                 ok,
                 failed,
+                ..
             } => {
                 eprintln!();
                 eprintln!(

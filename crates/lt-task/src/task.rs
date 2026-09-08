@@ -83,6 +83,15 @@ pub struct TaskRecord {
     /// 生命周期世代版本号（续传自增，防止过期协程退出时交叉背刺篡改状态）
     #[serde(default)]
     pub generation: u64,
+    /// 实际开始传输的时间戳（毫秒）
+    #[serde(default)]
+    pub start_time_ms: u64,
+    /// 实际传输耗时（毫秒）
+    #[serde(default)]
+    pub duration_ms: u64,
+    /// 平均传输速度（字节/秒）
+    #[serde(default)]
+    pub avg_rate_bps: u64,
 }
 
 impl TaskRecord {
@@ -114,6 +123,9 @@ impl TaskRecord {
             transport: String::new(),
             created_unix: now_unix(),
             generation: 1,
+            start_time_ms: 0,
+            duration_ms: 0,
+            avg_rate_bps: 0,
         }
     }
 
@@ -144,8 +156,18 @@ impl TaskRecord {
             transport: String::new(),
             created_unix: now_unix(),
             generation: 1,
+            start_time_ms: 0,
+            duration_ms: 0,
+            avg_rate_bps: 0,
         }
     }
+}
+
+pub fn now_millis() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .map(|d| d.as_millis() as u64)
+        .unwrap_or(0)
 }
 
 pub fn now_unix() -> u64 {

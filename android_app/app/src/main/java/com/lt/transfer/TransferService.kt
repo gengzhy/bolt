@@ -187,7 +187,11 @@ class TransferService : Service() {
         val direction = if (task.incoming) "接收" else "发送"
         val peer = task.peerName.ifEmpty { task.peerUuid }
         val text = when (task.state) {
-            TaskStates.DONE -> "与 $peer：成功 ${task.okFiles} 个，失败 ${task.failedFiles} 个"
+            TaskStates.DONE -> {
+                val avgRate = if (task.avgRateBps > 0) task.avgRateBps else if (task.durationMs > 0 && task.totalSize > 0) (task.totalSize * 1000) / task.durationMs else 0L
+                val rateStr = if (avgRate > 0) " · ${Format.rate(avgRate)}" else ""
+                "与 $peer：${Format.bytes(task.totalSize)}$rateStr · 成功 ${task.okFiles} 个，失败 ${task.failedFiles} 个"
+            }
             TaskStates.CANCELLED -> "与 $peer 的${direction}已取消"
             TaskStates.REJECTED -> "$peer 拒绝了本次传输"
             else -> "与 $peer 的${direction}出错"

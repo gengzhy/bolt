@@ -462,6 +462,9 @@ impl App {
         if let Some(t) = tasks.get_mut(&req_id) {
             if accept {
                 t.state = TaskState::Transferring;
+                if t.start_time_ms == 0 {
+                    t.start_time_ms = crate::task::now_millis();
+                }
             } else {
                 t.state = TaskState::Cancelled;
             }
@@ -611,6 +614,18 @@ impl App {
                     }
                     t.ok_files = summary.ok;
                     t.failed_files = summary.failed;
+                    let now = crate::task::now_millis();
+                    let start = if t.start_time_ms > 0 {
+                        t.start_time_ms
+                    } else if t.created_unix > 0 {
+                        t.created_unix * 1000
+                    } else {
+                        now
+                    };
+                    let duration = if now > start { now - start } else { 1 };
+                    t.duration_ms = duration;
+                    let size = t.done_bytes.max(t.total_size);
+                    t.avg_rate_bps = (size as u128 * 1000 / duration as u128) as u64;
                 }
                 Err(e) => {
                     let was_cancelled = t.state == TaskState::Cancelled;
@@ -620,6 +635,13 @@ impl App {
                         } else {
                             TaskState::Error
                         };
+                    }
+                    let now = crate::task::now_millis();
+                    if t.start_time_ms > 0 && now >= t.start_time_ms {
+                        t.duration_ms = now - t.start_time_ms;
+                        if t.duration_ms > 0 {
+                            t.avg_rate_bps = (t.done_bytes as u128 * 1000 / t.duration_ms as u128) as u64;
+                        }
                     }
                     drop(tasks);
                     if !was_cancelled && e != LtError::Cancelled {
@@ -646,6 +668,13 @@ impl App {
                 return Err(LtError::InvalidArgument);
             }
             task.state = TaskState::Cancelled;
+            let now = crate::task::now_millis();
+            if task.start_time_ms > 0 && now >= task.start_time_ms {
+                task.duration_ms = now - task.start_time_ms;
+                if task.duration_ms > 0 {
+                    task.avg_rate_bps = (task.done_bytes as u128 * 1000 / task.duration_ms as u128) as u64;
+                }
+            }
             incoming = matches!(task.direction, Direction::Recv);
             peer_uuid = task.peer_uuid.clone();
         }
@@ -863,6 +892,9 @@ impl App {
                 if let Some(t) = tasks.get_mut(&task_id) {
                     if t.state != TaskState::Cancelled {
                         t.state = parsed;
+                        if parsed == TaskState::Transferring && t.start_time_ms == 0 {
+                            t.start_time_ms = crate::task::now_millis();
+                        }
                     }
                 } else if incoming {
                     // 接收任务兜底建档（正常路径在 transfer_incoming 已建）
@@ -894,6 +926,9 @@ impl App {
                 {
                     let mut tasks = self.tasks.lock().unwrap();
                     if let Some(t) = tasks.get_mut(&task_id) {
+                        if t.start_time_ms == 0 {
+                            t.start_time_ms = crate::task::now_millis();
+                        }
                         t.done_bytes = done;
                         t.rate_bps = rate_bps;
                         t.eta_secs = eta_secs;
@@ -941,7 +976,7 @@ impl App {
                 failed,
             } => {
                 let task_id = self.local_task_id(conn_id, task_id, incoming);
-                {
+                let (avg_rate_bps, duration_ms, total_size) = {
                     let mut tasks = self.tasks.lock().unwrap();
                     if let Some(t) = tasks.get_mut(&task_id) {
                         t.ok_files = ok;
@@ -955,8 +990,23 @@ impl App {
                                 t.done_bytes = t.total_size;
                             }
                         }
+                        let now = crate::task::now_millis();
+                        let start = if t.start_time_ms > 0 {
+                            t.start_time_ms
+                        } else if t.created_unix > 0 {
+                            t.created_unix * 1000
+                        } else {
+                            now
+                        };
+                        let duration = if now > start { now - start } else { 1 };
+                        t.duration_ms = duration;
+                        let size = t.done_bytes.max(t.total_size);
+                        t.avg_rate_bps = (size as u128 * 1000 / duration as u128) as u64;
+                        (t.avg_rate_bps, t.duration_ms, t.total_size)
+                    } else {
+                        (0, 0, 0)
                     }
-                }
+                };
                 self.cancel_tokens.lock().unwrap().remove(&task_id);
                 self.pending_recv.lock().unwrap().remove(&task_id);
                 self.emit(LtEvent::TaskSummary {
@@ -964,6 +1014,9 @@ impl App {
                     incoming,
                     ok,
                     failed,
+                    avg_rate_bps,
+                    duration_ms,
+                    total_size,
                 });
                 // 端口变更挂起的引擎重启：任务全部到达终态后补执行
                 self.maybe_deferred_engine_restart();
@@ -981,6 +1034,13 @@ impl App {
                     if let Some(t) = tasks.get_mut(&tid) {
                         if !matches!(t.state, TaskState::Cancelled | TaskState::Done) {
                             t.state = TaskState::Error;
+                        }
+                        let now = crate::task::now_millis();
+                        if t.start_time_ms > 0 && now >= t.start_time_ms {
+                            t.duration_ms = now - t.start_time_ms;
+                            if t.duration_ms > 0 {
+                                t.avg_rate_bps = (t.done_bytes as u128 * 1000 / t.duration_ms as u128) as u64;
+                            }
                         }
                     }
                     drop(tasks);

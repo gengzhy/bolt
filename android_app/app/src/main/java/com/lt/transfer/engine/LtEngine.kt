@@ -2,6 +2,8 @@ package com.lt.transfer.engine
 
 import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
+import android.os.Environment
 import android.util.Log
 import androidx.core.content.ContextCompat
 import com.lt.transfer.TransferService
@@ -316,15 +318,22 @@ object LtEngine {
                 val taskId = p.optLong("task_id")
                 val ok = p.optInt("ok")
                 val failed = p.optInt("failed")
+                val avgRate = p.optLong("avg_rate_bps")
+                val durationMs = p.optLong("duration_ms")
+                val totalSize = p.optLong("total_size")
                 val isSuccess = (failed == 0 && ok > 0)
                 updateState { s ->
                     val t = s.tasks[taskId] ?: return@updateState s
+                    val effectiveTotal = if (totalSize > 0) totalSize else t.totalSize
                     s.copy(
                         tasks = s.tasks + (taskId to t.copy(
                             okFiles = ok,
                             failedFiles = failed,
                             state = if (isSuccess) TaskStates.DONE else TaskStates.ERROR,
-                            doneBytes = if (isSuccess) t.totalSize else t.doneBytes,
+                            doneBytes = if (isSuccess) effectiveTotal else t.doneBytes,
+                            totalSize = effectiveTotal,
+                            avgRateBps = if (avgRate > 0) avgRate else t.avgRateBps,
+                            durationMs = if (durationMs > 0) durationMs else t.durationMs,
                         )),
                     )
                 }
@@ -334,7 +343,11 @@ object LtEngine {
                 if (isSuccess) {
                     cleanupOutbox(taskId)
                 }
+                if (incoming && ok > 0) {
+                    scanReceivedDirectory()
+                }
                 syncServiceWithActiveTasks()
+                syncTasks()
             }
 
             Native.EVT_ERROR -> {
@@ -558,6 +571,33 @@ object LtEngine {
             transport = o.optString("transport"),
             rateBps = o.optLong("rate_bps"),
             etaSecs = o.optLong("eta_secs"),
+            avgRateBps = o.optLong("avg_rate_bps"),
+            durationMs = o.optLong("duration_ms"),
         )
+    }
+
+    private fun scanReceivedDirectory() {
+        try {
+            val saveDir = _uiState.value.config.saveDir
+            val defaultRoot = File(Environment.getExternalStorageDirectory(), "Download/LocalTransfer")
+            val root = if (saveDir.isNotEmpty()) File(saveDir) else defaultRoot
+            if (root.exists()) {
+                val filePaths = root.walkTopDown()
+                    .maxDepth(3)
+                    .filter { it.isFile }
+                    .map { it.absolutePath }
+                    .toList()
+                if (filePaths.isNotEmpty()) {
+                    MediaScannerConnection.scanFile(
+                        appContext,
+                        filePaths.toTypedArray(),
+                        null,
+                        null,
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "scanReceivedDirectory 失败: $e")
+        }
     }
 }

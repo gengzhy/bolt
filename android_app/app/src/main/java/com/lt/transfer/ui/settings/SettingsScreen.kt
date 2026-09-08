@@ -1,5 +1,12 @@
 package com.lt.transfer.ui.settings
 
+import android.content.Intent
+import android.net.Uri
+import android.os.Environment
+import android.provider.DocumentsContract
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -10,6 +17,8 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
@@ -28,12 +37,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.lt.transfer.engine.LtEngine
 import com.lt.transfer.model.UiState
 import org.json.JSONObject
+import java.io.File
 
 /**
  * 设置页：全部为 `lt_set_config` / `lt_clear_*` 的透传（需求 §2.6：
@@ -179,7 +190,7 @@ private fun NetworkSection(state: UiState) {
             )
             TextButton(
                 enabled = concurrency.toIntOrNull() != null &&
-                    concurrency.toInt() != state.config.concurrency,
+                        concurrency.toInt() != state.config.concurrency,
                 onClick = {
                     val c = (concurrency.toIntOrNull() ?: 4).coerceIn(1, 16)
                     LtEngine.setConfig(JSONObject().put("concurrency", c))
@@ -207,31 +218,118 @@ private fun NetworkSection(state: UiState) {
     }
 }
 
-/** 文件接收：保存目录 / 同名冲突策略（与电脑端对齐）。 */
+/** 解析 SAF DocumentTree Uri 为设备物理路径。 */
+private fun resolveTreeUriToPath(uri: Uri): String? {
+    try {
+        val docId = DocumentsContract.getTreeDocumentId(uri) ?: return null
+        if (docId.startsWith("primary:", ignoreCase = true)) {
+            val rel = docId.substringAfter("primary:").trimStart('/', '\\')
+            val base = Environment.getExternalStorageDirectory()
+            return if (rel.isEmpty()) base.absolutePath else File(base, rel).absolutePath
+        } else {
+            val parts = docId.split(":")
+            if (parts.size >= 2) {
+                val storageId = parts[0]
+                val rel = parts[1].trimStart('/', '\\')
+                val candidate1 = File("/storage/$storageId", rel)
+                if (candidate1.exists() || candidate1.parentFile?.exists() == true) {
+                    return candidate1.absolutePath
+                }
+                val candidate2 = File("/mnt/media_rw/$storageId", rel)
+                if (candidate2.exists() || candidate2.parentFile?.exists() == true) {
+                    return candidate2.absolutePath
+                }
+                return candidate1.absolutePath
+            }
+        }
+    } catch (_: Exception) {
+    }
+    return null
+}
+
+/** 文件接收：选择文件夹（末级目录固定为 /LocalTransfer） / 同名冲突策略。 */
 @Composable
 private fun ReceiveSection(state: UiState) {
-    var saveDir by rememberSaveable(state.config.saveDir) {
-        mutableStateOf(state.config.saveDir)
+    val context = LocalContext.current
+    val currentSaveDir = state.config.saveDir.ifEmpty {
+        File(Environment.getExternalStorageDirectory(), "Download/LocalTransfer").absolutePath
     }
-    var collisionMenuOpen by remember { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text("文件接收", style = MaterialTheme.typography.titleSmall)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            OutlinedTextField(
-                value = saveDir,
-                onValueChange = { saveDir = it },
-                label = { Text("接收文件保存目录") },
-                singleLine = true,
-                placeholder = { Text("如 /storage/emulated/0/Download/LocalTransfer") },
-                modifier = Modifier.weight(1f),
-            )
-            TextButton(
-                enabled = saveDir.isNotBlank() && saveDir != state.config.saveDir,
-                onClick = {
-                    LtEngine.setConfig(JSONObject().put("save_dir", saveDir.trim()))
-                },
-            ) { Text("保存") }
+
+    val folderPicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+    ) { uri: Uri? ->
+        if (uri != null) {
+            try {
+                context.contentResolver.takePersistableUriPermission(
+                    uri,
+                    Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION,
+                )
+            } catch (_: Exception) {
+            }
+
+            val parentPath = resolveTreeUriToPath(uri)
+            if (!parentPath.isNullOrEmpty()) {
+                val cleanParent = parentPath.trimEnd('/', '\\')
+                val finalDir = if (cleanParent.endsWith("/LocalTransfer", ignoreCase = true) ||
+                    cleanParent.endsWith("\\LocalTransfer", ignoreCase = true)
+                ) {
+                    cleanParent
+                } else {
+                    "$cleanParent/LocalTransfer"
+                }
+
+                val dir = File(finalDir)
+                if (!dir.exists()) {
+                    dir.mkdirs()
+                }
+                LtEngine.setConfig(JSONObject().put("save_dir", finalDir))
+                Toast.makeText(context, "接收目录已更新为：$finalDir", Toast.LENGTH_SHORT).show()
+            } else {
+                Toast.makeText(context, "未能识别该目录，请选择内部存储中的有效文件夹", Toast.LENGTH_LONG).show()
+            }
         }
+    }
+
+    var collisionMenuOpen by remember { mutableStateOf(false) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("文件接收", style = MaterialTheme.typography.titleSmall)
+
+        // 完整接收路径展示卡片与选择操作
+        Card(
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+            ),
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = "文件下载路径",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Text(
+                    text = currentSaveDir,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontFamily = FontFamily.Monospace,
+                    modifier = Modifier.padding(vertical = 2.dp),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                ) {
+                    OutlinedButton(
+                        onClick = { folderPicker.launch(null) },
+                    ) {
+                        Text("选择文件夹")
+                    }
+                }
+            }
+        }
+
         Box {
             OutlinedButton(onClick = { collisionMenuOpen = true }) {
                 Text("同名文件：${if (state.config.collision == "overwrite") "直接覆盖" else "自动重命名"}")
@@ -287,7 +385,7 @@ private fun DiscoverySection(state: UiState) {
             )
             TextButton(
                 enabled = port.toIntOrNull() != null &&
-                    port.toInt() != state.config.listenPort,
+                        port.toInt() != state.config.listenPort,
                 onClick = {
                     val p = (port.toIntOrNull() ?: 8899).coerceIn(1, 65535)
                     LtEngine.setConfig(JSONObject().put("listen_port", p))

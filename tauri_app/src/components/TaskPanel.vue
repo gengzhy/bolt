@@ -50,6 +50,14 @@ const totalEta = computed(() => {
   return m;
 });
 
+function taskAvgRate(t: Task): number {
+  if (t.avg_rate_bps && t.avg_rate_bps > 0) return t.avg_rate_bps;
+  if (t.duration_ms && t.duration_ms > 0 && t.total_size > 0) {
+    return Math.round((t.total_size * 1000) / t.duration_ms);
+  }
+  return 0;
+}
+
 function menuAction(fn: () => void) {
   menuOpen.value = false;
   fn();
@@ -106,7 +114,12 @@ function menuAction(fn: () => void) {
           ></div>
         </div>
         <div class="task-actions">
-          <span>{{ human(t.done_bytes) }} / {{ human(t.total_size) }} · 成功 {{ t.ok_files }} 失败 {{ t.failed_files }}</span>
+          <span v-if="t.state === 'transferring'">
+            {{ human(t.done_bytes) }} / {{ human(t.total_size) }} · 成功 {{ t.ok_files }} 失败 {{ t.failed_files }}
+          </span>
+          <span v-else>
+            {{ human(t.total_size) }} · {{ humanRate(taskAvgRate(t)) }} · 成功 {{ t.ok_files }} 失败 {{ t.failed_files }}
+          </span>
           <span class="spacer"></span>
           <button
             v-if="['transferring', 'waiting_accept'].includes(t.state)"

@@ -16,7 +16,6 @@ const { devices, sendFiles, showToast } = useLt();
 
 const pending = ref<PendingItem[]>([]);
 const dragOver = ref(false);
-const confirmOpen = ref(false);
 
 let unlistenDragDrop: (() => void) | undefined;
 
@@ -24,8 +23,6 @@ const targetName = computed(
   () => devices.value.find((d) => d.uuid === targetUuid.value)?.name ?? "",
 );
 const hasTarget = computed(() => targetUuid.value !== "");
-const fileCount = computed(() => pending.value.filter((p) => !p.is_dir).length);
-const folderCount = computed(() => pending.value.filter((p) => p.is_dir).length);
 const totalSize = computed(() => pending.value.reduce((s, p) => s + (p.size || 0), 0));
 
 async function addPaths(paths: string[]) {
@@ -57,7 +54,7 @@ async function pickFolder() {
   await addPaths(Array.isArray(picked) ? picked : [picked]);
 }
 
-function openConfirm() {
+async function handleSend() {
   if (!hasTarget.value) {
     showToast("请先在左侧选择目标设备");
     return;
@@ -66,10 +63,6 @@ function openConfirm() {
     showToast("请添加要发送的文件或文件夹");
     return;
   }
-  confirmOpen.value = true;
-}
-async function confirmSend() {
-  confirmOpen.value = false;
   const ok = await sendFiles(targetUuid.value, pending.value.map((p) => p.path));
   if (ok) pending.value = [];
 }
@@ -150,28 +143,11 @@ onUnmounted(() => unlistenDragDrop?.());
         <div class="target" :class="{ none: !targetName }">
           {{ targetName ? `发送至：${targetName}` : "请先在左侧选择目标设备" }}
         </div>
-        <button class="btn primary send-btn" :disabled="!hasTarget" @click="openConfirm">
+        <button class="btn primary send-btn" :disabled="!hasTarget" @click="handleSend">
           发送（{{ pending.length }} 项 · {{ human(totalSize) }}）
         </button>
       </div>
     </template>
-
-    <!-- 发送确认弹窗 -->
-    <Teleport to="body">
-      <div v-if="confirmOpen" class="modal-mask" @click.self="confirmOpen = false">
-        <div class="modal">
-          <h3>确认发送</h3>
-          <p>目标设备：<b>{{ targetName || "—" }}</b></p>
-          <p>
-            待发送：<b>{{ fileCount }} 个文件，{{ folderCount }} 个文件夹</b>，总大小 <b>{{ human(totalSize) }}</b>
-          </p>
-          <div class="modal-actions">
-            <button class="btn" @click="confirmOpen = false">取消</button>
-            <button class="btn primary" @click="confirmSend">确认发送</button>
-          </div>
-        </div>
-      </div>
-    </Teleport>
   </div>
 </template>
 

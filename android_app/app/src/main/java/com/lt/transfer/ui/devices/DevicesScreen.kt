@@ -1,6 +1,13 @@
 package com.lt.transfer.ui.devices
 
+import android.app.Activity
+import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.os.Environment
+import android.provider.DocumentsContract
 import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContract
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -43,6 +50,48 @@ import com.lt.transfer.model.DeviceUi
 import com.lt.transfer.ui.Format
 import com.lt.transfer.ui.ManualConnectDialog
 import kotlinx.coroutines.launch
+import java.io.File
+
+/** 支持指定初始定位目录的 SAF 多文件选择器。 */
+class PickMultipleDocumentsWithInitialUri : ActivityResultContract<Uri?, List<Uri>>() {
+    override fun createIntent(context: Context, input: Uri?): Intent {
+        return Intent(Intent.ACTION_OPEN_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "*/*"
+            putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
+            if (input != null) {
+                putExtra(DocumentsContract.EXTRA_INITIAL_URI, input)
+            }
+        }
+    }
+
+    override fun parseResult(resultCode: Int, intent: Intent?): List<Uri> {
+        if (resultCode != Activity.RESULT_OK || intent == null) return emptyList()
+        val list = mutableListOf<Uri>()
+        intent.data?.let { list.add(it) }
+        val clip = intent.clipData
+        if (clip != null) {
+            for (i in 0 until clip.itemCount) {
+                clip.getItemAt(i)?.uri?.let { list.add(it) }
+            }
+        }
+        return list.distinct()
+    }
+}
+
+/** 根据当前动态 saveDir 计算 com.android.externalstorage.documents 的初始目录 URI。 */
+private fun getInitialFolderUri(saveDir: String): Uri? {
+    val defaultRoot = File(Environment.getExternalStorageDirectory(), "Download/LocalTransfer")
+    val root = if (saveDir.isNotEmpty()) File(saveDir) else defaultRoot
+    val external = Environment.getExternalStorageDirectory()
+    val rel = root.relativeToOrNull(external)?.path?.replace('\\', '/')
+    return if (rel != null) {
+        val docId = "primary:$rel"
+        DocumentsContract.buildDocumentUri("com.android.externalstorage.documents", docId)
+    } else {
+        null
+    }
+}
 
 /**
  * 设备页：局域网在线设备列表（需求 §2.6：设备列表展示 + 刷新扫描），
@@ -59,7 +108,7 @@ fun DevicesScreen(modifier: Modifier) {
 
     val context = LocalContext.current
     val pickFiles = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenMultipleDocuments(),
+        PickMultipleDocumentsWithInitialUri(),
     ) { uris ->
         val target = sendTarget ?: return@rememberLauncherForActivityResult
         if (uris.isEmpty()) return@rememberLauncherForActivityResult
@@ -125,11 +174,13 @@ fun DevicesScreen(modifier: Modifier) {
                     },
                     onPickFiles = {
                         sendTarget = device
-                        pickFiles.launch(arrayOf("*/*"))
+                        val initialUri = getInitialFolderUri(state.config.saveDir)
+                        pickFiles.launch(initialUri)
                     },
                     onPickFolder = {
                         sendTarget = device
-                        pickTree.launch(null)
+                        val initialUri = getInitialFolderUri(state.config.saveDir)
+                        pickTree.launch(initialUri)
                     },
                 )
             }

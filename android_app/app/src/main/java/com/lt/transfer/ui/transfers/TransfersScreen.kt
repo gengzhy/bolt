@@ -1,6 +1,16 @@
 package com.lt.transfer.ui.transfers
 
+import android.app.DownloadManager
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
+import android.media.MediaScannerConnection
+import android.net.Uri
+import android.os.Environment
+import android.provider.DocumentsContract
+import android.widget.Toast
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -11,8 +21,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -85,7 +97,19 @@ private fun TaskCard(task: TaskUi) {
     val dirLabel = if (task.incoming) "↓ 接收" else "↑ 发送"
     val peer = task.peerName.ifEmpty { task.peerUuid }
 
-    Card(Modifier.fillMaxWidth()) {
+    val isIncomingDone = task.incoming && task.state == TaskStates.DONE && task.currentFile.isNotEmpty()
+
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .then(
+                if (isIncomingDone) {
+                    Modifier.clickable { openReceivedFile(context, task.currentFile) }
+                } else {
+                    Modifier
+                },
+            ),
+    ) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
@@ -123,13 +147,15 @@ private fun TaskCard(task: TaskUi) {
                     .padding(top = 8.dp),
             )
 
-            Text(
-                text = "${Format.bytes(task.doneBytes)} / ${Format.bytes(task.totalSize)}" +
-                    " · ${Format.rate(task.rateBps)} · 剩余 ${Format.eta(task.etaSecs)}",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp),
-            )
-            if (task.currentFile.isNotEmpty() && TaskStates.isActive(task.state)) {
+            if (!TaskStates.isTerminal(task.state)) {
+                Text(
+                    text = "${Format.bytes(task.doneBytes)} / ${Format.bytes(task.totalSize)}" +
+                        " · ${Format.rate(task.rateBps)} · 剩余 ${Format.eta(task.etaSecs)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
+            if (task.currentFile.isNotEmpty()) {
                 Text(
                     text = task.currentFile,
                     style = MaterialTheme.typography.bodySmall,
@@ -139,24 +165,48 @@ private fun TaskCard(task: TaskUi) {
                 )
             }
             if (TaskStates.isTerminal(task.state)) {
+                val effectiveAvgRate = if (task.avgRateBps > 0) {
+                    task.avgRateBps
+                } else if (task.durationMs > 0 && task.totalSize > 0) {
+                    (task.totalSize * 1000) / task.durationMs
+                } else {
+                    task.rateBps
+                }
                 Text(
-                    text = "成功 ${task.okFiles} 个，失败 ${task.failedFiles} 个",
+                    text = "${Format.bytes(task.totalSize)} · ${Format.rate(effectiveAvgRate)} · 成功 ${task.okFiles} 个，失败 ${task.failedFiles} 个",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 4.dp),
                 )
             }
 
-            // 控制按钮（取消 / 重试）
-            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            // 控制按钮（取消 / 打开文件 / 打开文件夹 / 分享）
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.padding(top = 6.dp),
+            ) {
                 if (TaskStates.isActive(task.state)) {
                     TextButton(onClick = { LtEngine.cancelTask(task.taskId) }) { Text("取消") }
                 }
-                if (task.incoming && task.state == TaskStates.DONE && task.currentFile.isNotEmpty()) {
-                    TextButton(onClick = { shareReceived(context, task.currentFile) }) {
-                        Text("分享文件")
+                if (isIncomingDone) {
+                    FilledTonalButton(
+                        onClick = { openReceivedFile(context, task.currentFile) },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
+                        Text("打开文件")
                     }
-                    TextButton(onClick = { openReceivedFolder(context) }) {
+                    OutlinedButton(
+                        onClick = { openReceivedFolder(context) },
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                    ) {
                         Text("打开文件夹")
+                    }
+                    TextButton(
+                        onClick = { shareReceived(context, task.currentFile) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                    ) {
+                        Text("分享")
                     }
                 }
             }
@@ -164,18 +214,83 @@ private fun TaskCard(task: TaskUi) {
     }
 }
 
-/** 接收完成 → 经 FileProvider 分享（文件在应用私有目录 lt/received）。 */
-private fun shareReceived(context: android.content.Context, relPath: String) {
+/** 在落盘目录内定位接收的文件（优先相对路径直查，回落单文件名匹配）。 */
+private fun resolveReceivedFile(relPath: String): File? {
     val saveDir = LtEngine.uiState.value.config.saveDir
-    val root = if (saveDir.isNotEmpty()) File(saveDir) else File(LtEngine.dataDir(), "received")
-    // rel_path 以文件名或 目录/文件 形式给出；取最后一段在落盘目录内定位
-    val file = File(root, relPath.substringAfterLast('/'))
-    if (!file.exists()) return
-    val uri = FileProvider.getUriForFile(
-        context,
-        "${context.packageName}.fileprovider",
-        file,
-    )
+    val defaultRoot = File(Environment.getExternalStorageDirectory(), "Download/LocalTransfer")
+    val root = if (saveDir.isNotEmpty()) File(saveDir) else defaultRoot
+    if (!root.exists()) return null
+    val direct = File(root, relPath)
+    if (direct.exists()) return direct
+    val byName = File(root, relPath.substringAfterLast('/'))
+    if (byName.exists()) return byName
+    return null
+}
+
+/** 调用系统关联应用直接打开接收的文件。 */
+private fun openReceivedFile(context: Context, relPath: String) {
+    val file = resolveReceivedFile(relPath)
+    if (file == null || !file.exists()) {
+        Toast.makeText(context, "文件不存在或已被移动", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    // 触发系统媒体库扫描，保证外部查看器能立刻索引到最新落盘文件
+    try {
+        MediaScannerConnection.scanFile(
+            context,
+            arrayOf(file.absolutePath),
+            null,
+            null,
+        )
+    } catch (_: Exception) {}
+
+    val uri = try {
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+    } catch (e: Exception) {
+        Toast.makeText(context, "获取文件权限失败：${e.message}", Toast.LENGTH_SHORT).show()
+        return
+    }
+
+    val mime = URLConnection.guessContentTypeFromName(file.name) ?: "*/*"
+    val intent = Intent(Intent.ACTION_VIEW).apply {
+        setDataAndType(uri, mime)
+        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+    }
+
+    try {
+        context.startActivity(Intent.createChooser(intent, "打开 ${file.name}"))
+    } catch (_: Exception) {
+        try {
+            context.startActivity(intent)
+        } catch (_: Exception) {
+            Toast.makeText(context, "未找到可打开此格式（.${file.extension}）的应用", Toast.LENGTH_LONG).show()
+        }
+    }
+}
+
+/** 接收完成 → 经 FileProvider 分享。 */
+private fun shareReceived(context: Context, relPath: String) {
+    val file = resolveReceivedFile(relPath)
+    if (file == null || !file.exists()) {
+        Toast.makeText(context, "文件不存在或已被移动", Toast.LENGTH_SHORT).show()
+        return
+    }
+    val uri = try {
+        FileProvider.getUriForFile(
+            context,
+            "${context.packageName}.fileprovider",
+            file,
+        )
+    } catch (e: Exception) {
+        Toast.makeText(context, "无法获取分享权限：${e.message}", Toast.LENGTH_SHORT).show()
+        return
+    }
     val mime = URLConnection.guessContentTypeFromName(file.name) ?: "*/*"
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = mime
@@ -186,88 +301,137 @@ private fun shareReceived(context: android.content.Context, relPath: String) {
 }
 
 /**
- * 打开接收目录（系统文件管理器）。Android 无「在文件管理器中打开指定目录」的
- * 标准 API，各厂商接受的 intent 形态不一，按序尝试直至成功：
- * 厂商跳目录私有 action（三星 My Files）→ SAF tree/document URI（目录 MIME）
- * → document/FileProvider URI（resource/folder）。注意不用 *∕* 等宽 MIME，
- * 避免召出网盘类「打开方式」弹窗；全部无处理者时退化为拉起系统文件管理器
- * 首页并 Toast 展示目录位置。
+ * 打开接收目录（系统/厂商文件管理器）。
+ *
+ * 采用多层级精准直入策略：
+ * 1. 优先直达 Google/AOSP 原生系统文件管理器（com.google.android.documentsui / com.android.documentsui），
+ *    传入精准 documentUri（如 primary:Download/LocalTransfer），100% 直入该目标子目录。
+ * 2. SAF 树文档通用协议（多应用自由解析）
+ * 3. FileProvider 目录暴露
+ * 4. 三星 My Files 专有动作（旧系统兼容）
+ * 5. 系统下载管理器入口（仅在位于 Download 且前述均不可用时作为兜底）
+ * 6. 兜底：复制目录路径到剪贴板并 Toast 友好提醒
  */
-private fun openReceivedFolder(context: android.content.Context) {
+private fun openReceivedFolder(context: Context) {
     val saveDir = LtEngine.uiState.value.config.saveDir
-    val root = if (saveDir.isNotEmpty()) File(saveDir) else File(LtEngine.dataDir(), "received")
+    val defaultRoot = File(Environment.getExternalStorageDirectory(), "Download/LocalTransfer")
+    val root = if (saveDir.isNotEmpty()) File(saveDir) else defaultRoot
     if (!root.exists()) {
-        android.widget.Toast
-            .makeText(context, "接收目录不存在：${root.path}", android.widget.Toast.LENGTH_LONG)
-            .show()
+        root.mkdirs()
+    }
+    if (!root.exists()) {
+        Toast.makeText(context, "接收目录不存在：${root.path}", Toast.LENGTH_LONG).show()
         return
     }
-    val external = android.os.Environment.getExternalStorageDirectory()
+
+    val external = Environment.getExternalStorageDirectory()
     val rel = root.relativeToOrNull(external)?.path?.replace('\\', '/')
 
     val candidates = ArrayList<Intent>()
-    // 三星 My Files「跳转目录」私有 action（无文档，部分版本可能失效，失败自动落下一候选）
-    candidates += Intent("com.sec.android.app.myfiles.OPEN_FOLDER")
-        .putExtra("FOLDER_PATH", root.path)
+
     if (rel != null) {
-        val authority = "com.android.externalstorage.documents"
-        val treeUri = android.provider.DocumentsContract.buildTreeDocumentUri(
-            authority,
-            "primary:$rel",
-        )
-        val docUri = android.provider.DocumentsContract.buildDocumentUri(
-            authority,
-            "primary:$rel",
-        )
-        val dirMime = android.provider.DocumentsContract.Document.MIME_TYPE_DIR
-        candidates += Intent(Intent.ACTION_VIEW).setDataAndType(treeUri, dirMime)
-        candidates += Intent(Intent.ACTION_VIEW).setDataAndType(docUri, dirMime)
-        candidates += Intent(Intent.ACTION_VIEW).setDataAndType(docUri, "resource/folder")
+        val docId = "primary:$rel"
+        val docUri = Uri.parse("content://com.android.externalstorage.documents/document/" + Uri.encode(docId))
+        val treeUri = Uri.parse("content://com.android.externalstorage.documents/tree/" + Uri.encode(docId))
+        val dirMime = DocumentsContract.Document.MIME_TYPE_DIR
+
+        // 1. 优先直调 Android 原生系统文件管理器（直入该层级目录）
+        candidates += Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(docUri, dirMime)
+            setPackage("com.google.android.documentsui")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        candidates += Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(docUri, dirMime)
+            setPackage("com.android.documentsui")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        // 2. 通用 SAF Document 协议
+        candidates += Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(docUri, dirMime)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        candidates += Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(treeUri, dirMime)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
     }
-    // FileProvider 形态（应用私有目录与公共存储均在 file_paths 覆盖范围内）
+
+    // 3. FileProvider 目录关联
     try {
         val fpUri = FileProvider.getUriForFile(
             context,
             "${context.packageName}.fileprovider",
             root,
         )
-        candidates += Intent(Intent.ACTION_VIEW).setDataAndType(fpUri, "resource/folder")
-    } catch (_: Exception) {
-        // 路径不在 FileProvider 覆盖范围：继续尝试其它候选
+        candidates += Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(fpUri, "vnd.android.document/directory")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        candidates += Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(fpUri, "resource/folder")
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+    } catch (_: Exception) {}
+
+    // 4. 三星「我的文件」专有动作
+    candidates += Intent("com.sec.android.app.myfiles.OPEN_FOLDER")
+        .putExtra("FOLDER_PATH", root.absolutePath)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    // 5. 若在系统 Download 目录内，尝试调起系统下载管理器（最后兜底）
+    if (rel != null && rel.startsWith("Download", ignoreCase = true)) {
+        candidates += Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
     }
+
     for (intent in candidates) {
-        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         try {
             context.startActivity(intent)
             return
         } catch (_: Exception) {
-            // 该形态无可用处理者，尝试下一候选
+            // 尝试下一形态
         }
     }
-    // 兜底：拉起系统自带文件管理器首页，Toast 展示接收目录
+
+    // 5. 各厂商原生文件管理器（已在 AndroidManifest.xml queries 中声明）
     val fmPackages = listOf(
-        "com.sec.android.app.myfiles", // 三星 My Files
-        "com.google.android.documentsui", // Google 文件
-        "com.android.documentsui", // AOSP 文件
-        "com.mi.android.globalFileexplorer", // 小米文件管理
-        "com.huawei.hidisk", // 华为文件管理
-        "com.honor.filemanager", // 荣耀文件管理
-        "com.coloros.filemanager", // OPPO 文件管理
-        "com.vivo.filemanager", // vivo 文件管理
+        "com.android.fileexplorer",          // 小米 / 红米 MIUI & HyperOS
+        "com.mi.android.globalFileexplorer", // 小米国际版
+        "com.huawei.filemanager",            // 华为 HarmonyOS & EMUI
+        "com.huawei.hidisk",                 // 华为备选
+        "com.hihonor.filemanager",           // 荣耀 MagicOS
+        "com.honor.filemanager",             // 荣耀备选
+        "com.coloros.filemanager",           // OPPO / 一加 / realme (ColorOS)
+        "com.oneplus.filemanager",           // 一加氢OS备选
+        "com.vivo.filemanager",              // vivo / iQOO (OriginOS / Funtouch)
+        "com.sec.android.app.myfiles",       // 三星 OneUI
+        "com.google.android.apps.nbu.files", // Files by Google
+        "com.google.android.documentsui",    // 谷歌原生 Files
+        "com.android.documentsui",           // AOSP Files
     )
+
     for (pkg in fmPackages) {
         val launch = context.packageManager.getLaunchIntentForPackage(pkg) ?: continue
+        launch.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        launch.putExtra("current_directory", root.absolutePath)
+        launch.putExtra("root_path", root.absolutePath)
+        launch.putExtra("path", root.absolutePath)
         try {
             context.startActivity(launch)
-            android.widget.Toast
-                .makeText(context, "接收目录：${root.path}", android.widget.Toast.LENGTH_LONG)
-                .show()
+            Toast.makeText(context, "已打开文件管理器，保存目录：${root.path}", Toast.LENGTH_LONG).show()
             return
-        } catch (_: Exception) {
-            // 该系统文件管理器拉起失败，尝试下一家
-        }
+        } catch (_: Exception) {}
     }
-    android.widget.Toast
-        .makeText(context, "接收目录：${root.path}", android.widget.Toast.LENGTH_LONG)
-        .show()
+
+    // 6. 兜底：复制路径至剪贴板并友好提示
+    try {
+        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+        clipboard.setPrimaryClip(ClipData.newPlainText("LocalTransfer Save Dir", root.absolutePath))
+        Toast.makeText(context, "已复制路径到剪贴板，请在文件管理器中查看：${root.path}", Toast.LENGTH_LONG).show()
+    } catch (_: Exception) {
+        Toast.makeText(context, "接收目录：${root.path}", Toast.LENGTH_LONG).show()
+    }
 }

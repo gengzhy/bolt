@@ -83,22 +83,34 @@ scripts/          构建与测试脚本
 
 ### 编译 Windows 桌面端
 
-```bash
-# 开发模式
-cd tauri_app && npm install && npm run tauri dev
+- **直接打包独立可执行文件（推荐，免 Node 环境）**：
+  静态资产已内嵌于 `tauri_app/dist`，直接通过 Rust 工具链构建：
+  ```bash
+  cd tauri_app/src-tauri
+  cargo build --release
+  # 产物输出于：tauri_app/src-tauri/target/release/lt-tauri.exe
+  ```
 
-# 生产构建（NSIS 安装包）
-cd tauri_app && npm run tauri build
-```
+- **编译 Windows FFI 动态库与 CLI 工具**：
+  ```cmd
+  scripts\build_rust_lib.bat
+  # 产物输出于：lib/win64/lt_ffi.dll 及 target/release/lt-cli.exe
+  ```
+
+- **完整前端热重载开发 / NSIS 打包（需 Node.js）**：
+  ```bash
+  cd tauri_app && npm install && npm run tauri dev
+  cd tauri_app && npm run tauri build
+  ```
 
 ### 编译 Android 端
 
 ```bash
-# 1. 添加 Android 编译目标
+# 1. 添加 Android 编译目标（首次需要）
 rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 
-# 2. 编译 Rust 动态库（.so）
-scripts/build_android_lib.bat    # 需要设置 ANDROID_NDK_HOME 环境变量
+# 2. 编译 Rust 动态库（.so）（自动支持三大架构 aarch64, armv7, x86_64）
+scripts\build_android_lib.bat    # 或 powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_lib.ps1
 
 # 3. 构建 APK
 cd android_app

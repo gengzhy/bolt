@@ -25,6 +25,12 @@ export interface Task {
   transport?: string;
   /** 创建时间（unix 秒），用于完成弹窗的总耗时计算 */
   created_unix: number;
+  /** 开始传输时间（毫秒） */
+  start_time_ms?: number;
+  /** 实际传输耗时（毫秒） */
+  duration_ms?: number;
+  /** 平均传输速度（字节/秒） */
+  avg_rate_bps?: number;
 }
 
 /** 待发送清单项（inspect_paths 返回）。 */

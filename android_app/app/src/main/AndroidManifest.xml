@@ -22,6 +22,42 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"
         android:maxSdkVersion="29" />
 
+    <!-- Android 11+ 包可见性声明：允许查询与调起主流系统/厂商文件管理器及通用文件查看器 -->
+    <queries>
+        <!-- 小米 / 红米 MIUI & HyperOS 文件管理 -->
+        <package android:name="com.android.fileexplorer" />
+        <package android:name="com.mi.android.globalFileexplorer" />
+        <!-- 华为 HarmonyOS & EMUI 文件管理 -->
+        <package android:name="com.huawei.filemanager" />
+        <package android:name="com.huawei.hidisk" />
+        <!-- 荣耀 MagicOS 文件管理 -->
+        <package android:name="com.hihonor.filemanager" />
+        <package android:name="com.honor.filemanager" />
+        <!-- OPPO / 一加 / realme (ColorOS) 文件管理 -->
+        <package android:name="com.coloros.filemanager" />
+        <package android:name="com.oneplus.filemanager" />
+        <!-- vivo / iQOO (OriginOS / Funtouch) 文件管理 -->
+        <package android:name="com.vivo.filemanager" />
+        <!-- 三星 OneUI 我的文件 -->
+        <package android:name="com.sec.android.app.myfiles" />
+        <!-- 谷歌原生 / AOSP 文件与 Files by Google -->
+        <package android:name="com.google.android.apps.nbu.files" />
+        <package android:name="com.google.android.documentsui" />
+        <package android:name="com.android.documentsui" />
+        <!-- 通用文件与目录查看 Intent -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="*/*" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:mimeType="vnd.android.document/directory" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW_DOWNLOADS" />
+        </intent>
+    </queries>
+
     <application
         android:name=".LtApplication"
         android:allowBackup="false"

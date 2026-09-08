@@ -17,8 +17,9 @@ object Format {
         return "$text ${units[u]}"
     }
 
-    /** 速率 → 字节单位（与电脑端一致：`2.1MB/s`）。 */
+    /** 速率 → 字节单位（格式：`xx MB/s`）。 */
     fun rate(bps: Long): String {
+        if (bps <= 0) return "0 B/s"
         val units = listOf("B", "KB", "MB", "GB", "TB")
         var v = bps.toDouble()
         var u = 0
@@ -26,7 +27,8 @@ object Format {
             v /= 1024.0
             u++
         }
-        return "%.1f%s/s".format(v, units[u])
+        val text = if (v >= 100) v.toLong().toString() else "%.1f".format(v)
+        return "$text ${units[u]}/s"
     }
 
     /** 剩余时间 → `1 分 23 秒` 形式。 */
