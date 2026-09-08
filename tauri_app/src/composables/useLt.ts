@@ -256,20 +256,6 @@ export function useLt() {
       return false;
     }
   }
-  async function pauseTask(id: number) {
-    try {
-      await invoke("pause_task", { taskId: id });
-    } catch (e) {
-      showToast(`暂停失败：${errText(e)}`);
-    }
-  }
-  async function resumeTask(id: number) {
-    try {
-      await invoke("resume_task", { taskId: id });
-    } catch (e) {
-      showToast(`恢复失败：${errText(e)}`);
-    }
-  }
   async function cancelTask(id: number) {
     try {
       await invoke("cancel_task", { taskId: id });
@@ -357,8 +343,6 @@ export function useLt() {
     connectAddr,
     disconnect,
     sendFiles,
-    pauseTask,
-    resumeTask,
     cancelTask,
     respondPair,
     respondTransfer,

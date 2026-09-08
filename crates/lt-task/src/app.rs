@@ -636,71 +636,7 @@ impl App {
 
     // ---------------- 任务控制 ----------------
 
-    /// 暂停任务（重定向至取消任务）：置位取消令牌 → 发送端与接收端即刻停止并清理临时数据。
-    pub fn pause_task(&self, task_id: u64) -> LtResult<()> {
-        self.cancel_task(task_id)
-    }
-
-    /// 重试传输（仅发送端）：重跑 send_files。
-    /// 出错（含对端断开导致的失败）或取消后可重试。
-    pub fn resume_task(self: &Arc<App>, task_id: u64) -> LtResult<()> {
-        let (peer_uuid, paths, raw_uid, gen) = {
-            let mut tasks = self.tasks.lock().unwrap();
-            let task = tasks.get_mut(&task_id).ok_or(LtError::InvalidArgument)?;
-            if !matches!(task.state, TaskState::Error | TaskState::Cancelled) {
-                return Err(LtError::InvalidArgument);
-            }
-            if task.direction != Direction::Send {
-                return Err(LtError::InvalidArgument);
-            }
-            task.state = TaskState::Transferring;
-            task.generation += 1;
-            let gen = task.generation;
-            // 保留已传输字节数，避免 UI 进度骤降为 0 引起卡片闪烁，后续由 Progress 事件平滑更新
-            task.ok_files = 0;
-            task.failed_files = 0;
-            // 【关键机制】：续传时严格沿用原有的 task_uid，对端能够 100% 精准识别
-            let mut uid = [0u8; 16];
-            if task.task_uid.len() == 32 {
-                for i in 0..16 {
-                    if let Ok(b) = u8::from_str_radix(&task.task_uid[i * 2..i * 2 + 2], 16) {
-                        uid[i] = b;
-                    }
-                }
-            } else {
-                use rand::RngExt;
-                rand::rng().fill(&mut uid);
-                uid[6] = (uid[6] & 0x0f) | 0x40;
-                uid[8] = (uid[8] & 0x3f) | 0x80;
-                task.task_uid = uid.iter().map(|b| format!("{:02x}", b)).collect();
-            }
-            (task.peer_uuid.clone(), task.source_paths.clone(), uid, gen)
-        };
-        let items =
-            lt_file::traverse::traverse(&paths.iter().map(PathBuf::from).collect::<Vec<_>>())?;
-        if items.items.is_empty() {
-            return Err(LtError::FileNotAccessible);
-        }
-        // 优先在本地已建立会话中查找，兜底查引擎侧，确保刚重连时不会因引擎微秒级未注册而报错
-        let session = {
-            let conn_id = self.conns.lock().unwrap().get(&peer_uuid).copied();
-            conn_id
-                .and_then(|c| self.sessions.lock().unwrap().get(&c).cloned())
-                .filter(|s| !s.is_closed())
-                .or_else(|| self.engine().ok().and_then(|e| e.session_by_uuid(&peer_uuid)))
-        }
-        .ok_or(LtError::ConnectTimeout)?;
-
-        self.emit(LtEvent::TaskState {
-            task_id,
-            incoming: false,
-            state: "transferring".into(),
-        });
-        self.spawn_send(task_id, gen, raw_uid, session, items.items);
-        Ok(())
-    }
-
-    /// 取消任务（不可续传）。
+    /// 取消任务。
     pub fn cancel_task(&self, task_id: u64) -> LtResult<()> {
         let (incoming, peer_uuid);
         {
@@ -1118,26 +1054,6 @@ impl App {
             err: None,
         });
 
-        // 断线重连自动恢复：扫描属于该对端且因断网等异常处于 Error 态的出站任务并自动续传
-        let to_resume: Vec<u64> = self
-            .tasks
-            .lock()
-            .unwrap()
-            .values()
-            .filter(|t| {
-                t.peer_uuid == info.peer_uuid
-                    && t.direction == Direction::Send
-                    && t.state == TaskState::Error
-            })
-            .map(|t| t.task_id)
-            .collect();
-        for task_id in to_resume {
-            tracing::info!(task_id, peer = %info.peer_uuid, "auto-resuming interrupted task on reconnect");
-            let app = self.clone();
-            self.rt.spawn(async move {
-                let _ = app.resume_task(task_id);
-            });
-        }
     }
 
     fn handler_pair_needed(

@@ -7,7 +7,7 @@ import { useLt } from "../composables/useLt";
 import { human, humanEta, humanRate } from "../utils/format";
 import type { Task } from "../types";
 
-const { tasks, progress, pauseTask, resumeTask, cancelTask, clearRecords, clearTempCache, loadConfig, revealPath } = useLt();
+const { tasks, progress, cancelTask, clearRecords, clearTempCache, loadConfig, revealPath } = useLt();
 
 const menuOpen = ref(false);
 
@@ -115,7 +115,6 @@ function menuAction(fn: () => void) {
           >
             取消
           </button>
-          <button v-if="(t.state === 'error' || t.state === 'cancelled') && t.direction === 'send'" class="btn sm primary" @click="resumeTask(t.task_id)">重试</button>
           <button
             v-if="t.direction === 'recv' && t.state === 'done'"
             class="btn sm"

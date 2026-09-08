@@ -323,26 +323,6 @@ pub extern "C" fn lt_send_files(
 }
 
 #[no_mangle]
-pub extern "C" fn lt_pause_task(task_id: u64) -> c_int {
-    with_app(|app| match app.pause_task(task_id) {
-        Ok(()) => 0,
-        Err(e) => code_of(&e),
-    })
-}
-
-#[no_mangle]
-pub extern "C" fn lt_resume_task(task_id: u64) -> c_int {
-    let guard = APP.lock().unwrap();
-    let Some(app) = guard.as_ref() else {
-        return err_not_init();
-    };
-    match app.resume_task(task_id) {
-        Ok(()) => 0,
-        Err(e) => code_of(&e),
-    }
-}
-
-#[no_mangle]
 pub extern "C" fn lt_cancel_task(task_id: u64) -> c_int {
     with_app(|app| match app.cancel_task(task_id) {
         Ok(()) => 0,

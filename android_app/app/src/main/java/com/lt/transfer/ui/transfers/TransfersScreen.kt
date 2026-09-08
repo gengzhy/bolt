@@ -151,9 +151,6 @@ private fun TaskCard(task: TaskUi) {
                 if (TaskStates.isActive(task.state)) {
                     TextButton(onClick = { LtEngine.cancelTask(task.taskId) }) { Text("取消") }
                 }
-                if ((task.state == TaskStates.ERROR || task.state == TaskStates.CANCELLED) && !task.incoming) {
-                    TextButton(onClick = { LtEngine.resumeTask(task.taskId) }) { Text("重试") }
-                }
                 if (task.incoming && task.state == TaskStates.DONE && task.currentFile.isNotEmpty()) {
                     TextButton(onClick = { shareReceived(context, task.currentFile) }) {
                         Text("分享文件")

@@ -45,7 +45,7 @@ impl TaskState {
             TASK_STATE_WAITING_ACCEPT => TaskState::WaitingAccept,
             TASK_STATE_TRANSFERRING => TaskState::Transferring,
             TASK_STATE_DONE => TaskState::Done,
-            TASK_STATE_CANCELLED | TASK_STATE_PAUSED => TaskState::Cancelled,
+            TASK_STATE_CANCELLED => TaskState::Cancelled,
             _ => TaskState::Error,
         }
     }
@@ -166,7 +166,7 @@ mod tests {
             TaskState::Transferring
         );
         assert_eq!(TaskState::from_engine("done"), TaskState::Done);
-        assert_eq!(TaskState::from_engine("paused"), TaskState::Cancelled);
+        assert_eq!(TaskState::from_engine("cancelled"), TaskState::Cancelled);
         assert_eq!(TaskState::Cancelled.as_str(), "cancelled");
     }
 

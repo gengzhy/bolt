@@ -438,18 +438,6 @@ object LtEngine {
         syncServiceWithActiveTasks()
     }
 
-    fun pauseTask(taskId: Long) {
-        Native.ltPauseTask(taskId)
-    }
-
-    fun resumeTask(taskId: Long) {
-        val rc = Native.ltResumeTask(taskId)
-        if (rc != 0) postOneShot(
-            OneShotEvent.Error(rc, com.lt.transfer.model.ErrorMessages.of(rc)),
-        )
-        syncServiceWithActiveTasks()
-    }
-
     fun cancelTask(taskId: Long) {
         Native.ltCancelTask(taskId)
     }

@@ -15,7 +15,7 @@ import java.util.UUID
  * 背景：Rust 核心经 std::fs 读取真实文件路径，无法打开 `content://` URI；
  * SAF 的临时读授权只在进程存活期有效。因此选中后先把文件（或整棵目录树）
  * 复制到 `filesDir/outbox/<nonce>/`，再把暂存后的绝对路径交给
- * `lt_send_files`。断点续传（lt_resume_task 会重新遍历 source_paths）
+ * `lt_send_files`。
  * 也因此可行——暂存目录在任务终态前一直保留。
  *
  * 代价：空间占用翻倍 + 一次本地复制耗时（同分区拷贝），换取无需

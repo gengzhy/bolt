@@ -40,21 +40,6 @@ impl FileIdentity {
             mtime_unix: mtime,
         })
     }
-
-    /// 是否与另一个身份匹配（断点续传协商用）。
-    /// 当相对路径、文件大小和修改时间完全一致时，判定为同一文件可进行断点恢复。
-    pub fn matches(&self, other: &FileIdentity) -> bool {
-        self.rel_path == other.rel_path
-            && self.size == other.size
-            && self.mtime_unix == other.mtime_unix
-    }
-
-    /// 断点缓存键（内容寻址）。
-    /// 基于「相对路径|文件大小|修改时间」计算 BLAKE3 64字符十六进制摘要。
-    pub fn cache_key(&self) -> String {
-        let raw = format!("{}|{}|{}", self.rel_path, self.size, self.mtime_unix);
-        blake3::hash(raw.as_bytes()).to_hex().to_string()
-    }
 }
 
 #[cfg(test)]
@@ -62,7 +47,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn match_semantics() {
+    fn identity_fields() {
         let a = FileIdentity {
             rel_path: "a/b.txt".into(),
             size: 10,
@@ -73,12 +58,11 @@ mod tests {
             size: 10,
             mtime_unix: 123,
         };
-        assert!(a.matches(&b));
+        assert_eq!(a, b);
         let c = FileIdentity {
             size: 11,
             ..a.clone()
         };
-        assert!(!a.matches(&c));
-        assert_eq!(a.cache_key().len(), 64);
+        assert_ne!(a, c);
     }
 }

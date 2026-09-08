@@ -86,8 +86,6 @@ const METHODS: &[NativeMethod<'static>] = &[
         "(Ljava/lang/String;Ljava/lang/String;[J)I",
         java_ltSendFiles
     ),
-    method!("ltPauseTask", "(J)I", java_ltPauseTask),
-    method!("ltResumeTask", "(J)I", java_ltResumeTask),
     method!("ltCancelTask", "(J)I", java_ltCancelTask),
     method!("ltGetTasks", "()Ljava/lang/String;", java_ltGetTasks),
     method!("ltClearRecords", "()I", java_ltClearRecords),
@@ -522,8 +520,6 @@ macro_rules! passthrough_jlong {
     };
 }
 
-passthrough_jlong!(java_ltPauseTask, crate::lt_pause_task);
-passthrough_jlong!(java_ltResumeTask, crate::lt_resume_task);
 passthrough_jlong!(java_ltCancelTask, crate::lt_cancel_task);
 
 #[no_mangle]

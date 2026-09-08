@@ -231,18 +231,6 @@ pub fn send_files(uuid: String, paths: Vec<String>) -> Result<u64, i32> {
 }
 
 #[tauri::command]
-pub fn pause_task(task_id: u64) -> Result<(), i32> {
-    let code = lt_ffi::lt_pause_task(task_id);
-    if code == 0 { Ok(()) } else { Err(code) }
-}
-
-#[tauri::command]
-pub fn resume_task(task_id: u64) -> Result<(), i32> {
-    let code = lt_ffi::lt_resume_task(task_id);
-    if code == 0 { Ok(()) } else { Err(code) }
-}
-
-#[tauri::command]
 pub fn cancel_task(task_id: u64) -> Result<(), i32> {
     let code = lt_ffi::lt_cancel_task(task_id);
     if code == 0 { Ok(()) } else { Err(code) }

@@ -125,13 +125,6 @@ pub async fn dial(
     Ok((pipe, connection, endpoint))
 }
 
-/// 从入站连接打开控制流（服务端侧）。
-pub fn accept_pipe(connection: &quinn::Connection) -> Pipe {
-    // 由 accept_bi 得到的流在 session 层建立；此处仅提供类型辅助
-    let _ = connection;
-    unreachable!("use accept_bi directly")
-}
-
 /// 将 quinn 双向流转为 Pipe。
 pub fn pipe_from_bi(send: quinn::SendStream, recv: quinn::RecvStream) -> Pipe {
     Pipe {

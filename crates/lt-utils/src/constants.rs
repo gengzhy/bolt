@@ -44,12 +44,9 @@ pub const INTERVAL_PROGRESS_EMIT: Duration = Duration::from_millis(250);
 // ---------------- 任务状态字符串常量 ----------------
 pub const TASK_STATE_WAITING_ACCEPT: &str = "waiting_accept";
 pub const TASK_STATE_TRANSFERRING: &str = "transferring";
-pub const TASK_STATE_PAUSED: &str = "paused";
 pub const TASK_STATE_CANCELLED: &str = "cancelled";
 pub const TASK_STATE_DONE: &str = "done";
 pub const TASK_STATE_ERROR: &str = "error";
 pub const TASK_STATE_REJECTED: &str = "rejected";
 
-// ---------------- 同名文件冲突处理策略 ----------------
-pub const COLLISION_RENAME: &str = "rename";
-pub const COLLISION_OVERWRITE: &str = "overwrite";
+

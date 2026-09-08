@@ -27,8 +27,6 @@ pub fn run() {
             ffi_bridge::respond_pair,
             ffi_bridge::respond_transfer,
             ffi_bridge::send_files,
-            ffi_bridge::pause_task,
-            ffi_bridge::resume_task,
             ffi_bridge::cancel_task,
             ffi_bridge::clear_records,
             ffi_bridge::clear_temp_cache,

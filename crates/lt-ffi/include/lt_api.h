@@ -106,10 +106,6 @@ int lt_respond_transfer(uint64_t req_id, int accept);
  */
 int lt_send_files(const char *uuid, const char *paths_json, uint64_t *out_task_id);
 
-int lt_pause_task(uint64_t task_id);
-
-int lt_resume_task(uint64_t task_id);
-
 int lt_cancel_task(uint64_t task_id);
 
 /**
