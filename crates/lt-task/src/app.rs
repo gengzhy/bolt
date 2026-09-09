@@ -457,21 +457,22 @@ impl App {
 
     /// 断开与某设备的会话。
     pub fn disconnect(&self, uuid: &str) -> LtResult<()> {
-        let conn_id = self.conns.lock().unwrap().remove(uuid);
+        let conn_id = self.conns.lock().unwrap().get(uuid).copied();
         let session = if let Some(conn_id) = conn_id {
-            self.sessions.lock().unwrap().remove(&conn_id)
+            self.sessions.lock().unwrap().get(&conn_id).cloned()
         } else {
             // 兼容配对握手阶段尚未进入 conns 的会话
-            let mut sessions = self.sessions.lock().unwrap();
-            let id = sessions
-                .iter()
-                .find(|(_, s)| s.info().peer_uuid == uuid)
-                .map(|(&id, _)| id);
-            id.and_then(|id| sessions.remove(&id))
+            let sessions = self.sessions.lock().unwrap();
+            sessions
+                .values()
+                .find(|s| s.info().peer_uuid == uuid)
+                .cloned()
         };
-        // 关键：先把 Arc 取出来、释放 sessions 锁，再调 close()。
-        // close() 会同步回调 handler_disconnected → 再次 lock sessions；
-        // 若持锁调用会同一线程自死锁。
+        // 关键：先把 Arc 克隆出来、释放 conns 与 sessions 锁，再调 close()。
+        // close() 会同步回调 handler_disconnected → 再次 lock conns 与 sessions；
+        // 由 handler_disconnected 统一从 conns/sessions 提取真实 peer_uuid 与 peer_name
+        // 并从表中移除且派发 state: "disconnected" 事件。若在此处提前 remove，会导致
+        // handler_disconnected 无法查出 uuid，使本端 UI 无法更新断开状态。
         if let Some(session) = session {
             let id = session.id;
             session.close(None);
