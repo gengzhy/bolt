@@ -52,6 +52,9 @@ pub struct AppConfig {
     /// 接收文件同名冲突策略：`rename`（自动重命名）/ `overwrite`（覆盖）
     #[serde(default = "default_collision")]
     pub collision: String,
+    /// Windows 桌面端关闭窗口时最小化到系统托盘（默认 false）
+    #[serde(default)]
+    pub minimize_to_tray: bool,
 }
 
 fn default_true() -> bool {
@@ -97,6 +100,7 @@ impl Default for AppConfig {
             prefer_quic: true,
             use_mdns: true,
             collision: default_collision(),
+            minimize_to_tray: false,
         }
     }
 }
@@ -180,7 +184,8 @@ impl AppConfig {
             | "data_dir"
             | "prefer_quic"
             | "use_mdns"
-            | "collision" => key,
+            | "collision"
+            | "minimize_to_tray" => key,
             _ => return Err(LtError::InvalidArgument),
         };
         let item = v.get(field).ok_or(LtError::InvalidArgument)?;

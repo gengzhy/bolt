@@ -13,5 +13,6 @@ class LtApplication : Application() {
     override fun onCreate() {
         super.onCreate()
         LtEngine.init(this)
+        PersistentNotification.show(this)
     }
 }

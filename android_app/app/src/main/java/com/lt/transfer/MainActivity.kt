@@ -33,6 +33,9 @@ class MainActivity : ComponentActivity() {
                 // 授权前启动的发现可能因权限被拒，这里重试
                 NsdHelper.ensureDiscovery()
             }
+            if (grants[Manifest.permission.POST_NOTIFICATIONS] == true) {
+                PersistentNotification.show(this)
+            }
         }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -47,6 +50,19 @@ class MainActivity : ComponentActivity() {
         }
         // 回到前台时与核心任务表对账一次
         LtEngine.syncTasks()
+        PersistentNotification.show(this)
+    }
+
+    override fun onResume() {
+        super.onResume()
+        PersistentNotification.show(this)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        LtEngine.syncTasks()
+        PersistentNotification.show(this)
     }
 
     private fun ensurePermissions() {

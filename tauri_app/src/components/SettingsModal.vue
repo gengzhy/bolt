@@ -31,6 +31,7 @@ const loaded = ref(false);
 // 1. 本机设备
 const deviceName = ref("");
 const stealthMode = ref(false);
+const minimizeToTray = ref(false);
 
 // 2. 网络传输
 const preferQuic = ref(true);
@@ -69,6 +70,7 @@ watch(
         listenPort.value = Number(cfg.listen_port) || 8899;
         deviceName.value = (cfg.device_name as string) ?? "";
         stealthMode.value = Boolean(cfg.stealth_mode);
+        minimizeToTray.value = Boolean(cfg.minimize_to_tray);
         autoAcceptTrusted.value = Boolean(cfg.auto_accept_trusted);
         loaded.value = true;
       }
@@ -219,6 +221,22 @@ async function copyFingerprint() {
                   </div>
                 </div>
                 <div class="setting-desc">不在对方设备列表中广播本机，仍可被手动输入 IP 连接</div>
+              </div>
+
+              <!-- 关闭时最小化到托盘 -->
+              <div class="setting-item">
+                <div class="setting-row">
+                  <span class="setting-title">关闭时最小化到托盘</span>
+                  <div class="setting-ctrl">
+                    <input
+                      v-model="minimizeToTray"
+                      type="checkbox"
+                      class="custom-switch"
+                      @change="updateConfig({ minimize_to_tray: minimizeToTray })"
+                    />
+                  </div>
+                </div>
+                <div class="setting-desc">点击关闭按钮时隐藏到系统托盘，保持后台运行而非退出</div>
               </div>
             </div>
           </section>
