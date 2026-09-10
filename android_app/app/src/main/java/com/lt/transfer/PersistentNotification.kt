@@ -39,10 +39,10 @@ object PersistentNotification {
 
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "后台常驻运行",
+                context.getString(R.string.notif_channel_persistent_name),
                 NotificationManager.IMPORTANCE_LOW,
             ).apply {
-                description = "保持 LocalTransfer 后台运行并随时快捷访问"
+                description = context.getString(R.string.notif_channel_persistent_desc)
                 setShowBadge(false)
             }
             nm.createNotificationChannel(channel)
@@ -60,7 +60,7 @@ object PersistentNotification {
             val notification = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle(context.getString(R.string.app_name))
-                .setContentText("LocalTransfer 运行中，点击快速进入")
+                .setContentText(context.getString(R.string.notif_persistent_content))
                 .setOngoing(true)
                 .setShowWhen(false)
                 .setContentIntent(pendingIntent)

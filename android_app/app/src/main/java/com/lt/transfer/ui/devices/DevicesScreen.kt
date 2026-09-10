@@ -27,6 +27,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import com.lt.transfer.R
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -137,17 +138,17 @@ fun DevicesScreen(modifier: Modifier) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text("局域网设备", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.devices_title), style = MaterialTheme.typography.titleMedium)
                 Text(
                     text = when {
-                        state.scanning -> "正在扫描局域网设备…"
-                        state.devices.isEmpty() -> "正在扫描…"
-                        else -> "共发现 ${state.devices.size} 台设备"
+                        state.scanning -> stringResource(R.string.devices_scanning)
+                        state.devices.isEmpty() -> stringResource(R.string.devices_scanning_short)
+                        else -> stringResource(R.string.devices_found_count, state.devices.size)
                     },
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
-            TextButton(onClick = { showManualConnect = true }) { Text("手动连接") }
+            TextButton(onClick = { showManualConnect = true }) { Text(stringResource(R.string.devices_btn_manual_connect)) }
             IconButton(onClick = { LtEngine.probeNetwork() }) {
                 if (state.scanning) {
                     CircularProgressIndicator(
@@ -155,7 +156,7 @@ fun DevicesScreen(modifier: Modifier) {
                         strokeWidth = 2.dp,
                     )
                 } else {
-                    Icon(Icons.Filled.Refresh, contentDescription = "刷新发现")
+                    Icon(Icons.Filled.Refresh, contentDescription = stringResource(R.string.devices_cd_refresh))
                 }
             }
         }
@@ -194,8 +195,7 @@ fun DevicesScreen(modifier: Modifier) {
             if (state.devices.isEmpty()) {
                 item {
                     Text(
-                        text = "尚未发现设备。\n请确认双方在同一局域网（同 WiFi / 热点），" +
-                            "或点右上角「手动连接」直接输入对方 IP。",
+                        text = stringResource(R.string.devices_empty_hint),
                         modifier = Modifier.padding(top = 24.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -272,7 +272,7 @@ private fun DeviceCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = "${Format.deviceType(device.deviceType)} · " +
+                        text = "${stringResource(Format.deviceTypeResId(device.deviceType))} · " +
                             "${device.ip}:${device.quicPort} · ${device.source}",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -281,17 +281,17 @@ private fun DeviceCard(
                 TextButton(onClick = onToggleConnect) {
                     Text(
                         when (device.connState) {
-                            ConnectionState.Connected -> "断开"
-                            ConnectionState.Connecting -> "连接中…"
-                            ConnectionState.Disconnected -> "重新连接"
-                            ConnectionState.None -> "连接"
+                            ConnectionState.Connected -> stringResource(R.string.devices_btn_disconnect)
+                            ConnectionState.Connecting -> stringResource(R.string.devices_btn_connecting)
+                            ConnectionState.Disconnected -> stringResource(R.string.devices_btn_reconnect)
+                            ConnectionState.None -> stringResource(R.string.devices_btn_connect)
                         },
                     )
                 }
             }
             if (device.connState == ConnectionState.Connected && device.transport.isNotEmpty()) {
                 Text(
-                    text = "已连接（${device.transport.uppercase()}）",
+                    text = stringResource(R.string.devices_connected_protocol, device.transport.uppercase()),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                 )
@@ -303,10 +303,10 @@ private fun DeviceCard(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 OutlinedButton(onClick = onPickFiles, modifier = Modifier.weight(1f)) {
-                    Text("发送文件")
+                    Text(stringResource(R.string.devices_btn_send_files))
                 }
                 OutlinedButton(onClick = onPickFolder, modifier = Modifier.weight(1f)) {
-                    Text("发送文件夹")
+                    Text(stringResource(R.string.devices_btn_send_folder))
                 }
             }
         }

@@ -1,4 +1,278 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <!-- ========================================== -->
+    <!-- 1. 应用与基础通用                           -->
+    <!-- ========================================== -->
+    <!-- 应用名称 -->
     <string name="app_name">LocalTransfer</string>
+
+    <!-- 通用按钮与操作标签 -->
+    <string name="common_confirm">确定</string>
+    <string name="common_cancel">取消</string>
+    <string name="common_save">保存</string>
+    <string name="common_accept">接受</string>
+    <string name="common_reject">拒绝</string>
+    <string name="common_close">关闭</string>
+    <string name="common_retry">重试</string>
+    <string name="common_empty_placeholder">—</string>
+
+    <!-- 底部主导航标签 -->
+    <string name="tab_devices">设备</string>
+    <string name="tab_transfers">传输</string>
+    <string name="tab_settings">设置</string>
+
+    <!-- ========================================== -->
+    <!-- 2. 设备模块 (DevicesScreen)                -->
+    <!-- ========================================== -->
+    <string name="devices_title">局域网设备</string>
+    <string name="devices_scanning">正在扫描局域网设备…</string>
+    <string name="devices_scanning_short">正在扫描…</string>
+    <string name="devices_found_count">共发现 %d 台设备</string>
+    <string name="devices_btn_manual_connect">手动连接</string>
+    <string name="devices_cd_refresh">刷新发现</string>
+    <string name="devices_empty_hint">尚未发现设备。\n请确认双方在同一局域网（同 WiFi / 热点），或点右上角「手动连接」直接输入对方 IP。</string>
+
+    <!-- 设备连接状态与操作按钮 -->
+    <string name="devices_btn_disconnect">断开</string>
+    <string name="devices_btn_connecting">连接中…</string>
+    <string name="devices_btn_reconnect">重新连接</string>
+    <string name="devices_btn_connect">连接</string>
+    <string name="devices_connected_protocol">已连接（%s）</string>
+
+    <!-- 设备卡片发送操作 -->
+    <string name="devices_btn_send_files">发送文件</string>
+    <string name="devices_btn_send_folder">发送文件夹</string>
+
+    <!-- ========================================== -->
+    <!-- 3. 传输模块 (TransfersScreen)              -->
+    <!-- ========================================== -->
+    <string name="transfers_title">传输任务</string>
+    <string name="transfers_btn_clear_records">清除记录</string>
+    <string name="transfers_empty_hint">暂无传输任务。\n在「设备」页选择设备即可发送文件；对方发来的文件会在此显示接收进度。</string>
+
+    <!-- 任务方向标签 -->
+    <string name="transfers_dir_incoming">↓ 接收</string>
+    <string name="transfers_dir_outgoing">↑ 发送</string>
+    <string name="transfers_dir_incoming_short">接收</string>
+    <string name="transfers_dir_outgoing_short">发送</string>
+
+    <!-- 任务进度与总结信息格式 -->
+    <string name="transfers_active_progress_format">%1$s / %2$s · %3$s · 剩余 %4$s</string>
+    <string name="transfers_summary_format">%1$s · %2$s · 成功 %3$d 个，失败 %4$d 个</string>
+
+    <!-- 任务卡片按钮 -->
+    <string name="transfers_btn_open_file">打开文件</string>
+    <string name="transfers_btn_open_folder">打开文件夹</string>
+    <string name="transfers_btn_share">分享</string>
+
+    <!-- 文件与系统交互 Toast 提示 -->
+    <string name="transfers_toast_file_not_found">文件不存在或已被移动</string>
+    <string name="transfers_toast_get_file_perm_failed">获取文件权限失败：%s</string>
+    <string name="transfers_chooser_open_file">打开 %s</string>
+    <string name="transfers_toast_no_app_to_open">未找到可打开此格式（.%s）的应用</string>
+    <string name="transfers_toast_get_share_perm_failed">无法获取分享权限：%s</string>
+    <string name="transfers_chooser_share_file">分享接收的文件</string>
+    <string name="transfers_toast_dir_not_exist">接收目录不存在：%s</string>
+    <string name="transfers_toast_opened_file_manager">已打开文件管理器，保存目录：%s</string>
+    <string name="transfers_toast_copied_path_to_clipboard">已复制路径到剪贴板，请在文件管理器中查看：%s</string>
+    <string name="transfers_toast_save_dir_path">接收目录：%s</string>
+
+    <!-- ========================================== -->
+    <!-- 4. 设置模块 (SettingsScreen)               -->
+    <!-- ========================================== -->
+    <!-- 设置分组标题 -->
+    <string name="settings_section_device">本机设备</string>
+    <string name="settings_section_network">网络传输</string>
+    <string name="settings_section_receive">文件接收</string>
+    <string name="settings_section_discovery">设备发现</string>
+    <string name="settings_section_maintenance">存储与维护</string>
+    <string name="settings_section_about">关于本机</string>
+
+    <!-- 语言设置 -->
+    <string name="setting_language_title">界面语言</string>
+    <string name="setting_language_desc">选择应用显示语言（可跟随系统或手动指定）</string>
+    <string name="language_system">跟随系统</string>
+    <string name="language_system_dropdown">跟随系统 ▾</string>
+    <string name="language_zh">简体中文</string>
+    <string name="language_zh_dropdown">简体中文 ▾</string>
+    <string name="language_en">English</string>
+    <string name="language_en_dropdown">English ▾</string>
+
+    <!-- 本机设备分组 -->
+    <string name="setting_device_name_title">设备名称</string>
+    <string name="setting_device_name_desc">局域网内其他设备发现与展示的名称</string>
+    <string name="setting_device_name_unnamed">未命名设备</string>
+    <string name="setting_local_ip_title">本机 IP</string>
+    <string name="setting_local_ip_desc">当前连接的局域网物理网络地址（支持多网卡/热点）</string>
+    <string name="setting_listen_port_actual_title">实际监听端口</string>
+    <string name="setting_listen_port_actual_desc">传输核心实际绑定的本地监听端口</string>
+    <string name="setting_stealth_mode_title">隐身模式</string>
+    <string name="setting_stealth_mode_desc">不在对方设备列表中广播本机，仍可被手动输入 IP 连接</string>
+
+    <!-- 网络传输分组 -->
+    <string name="setting_protocol_title">传输协议</string>
+    <string name="setting_protocol_desc">两端任一设备选择 TCP 即使用 TCP，均选 QUIC 才用 QUIC</string>
+    <string name="proto_quic_recommend">QUIC（推荐）</string>
+    <string name="proto_quic_recommend_dropdown">QUIC（推荐） ▾</string>
+    <string name="proto_tcp">TCP</string>
+    <string name="proto_tcp_dropdown">TCP ▾</string>
+
+    <string name="setting_concurrency_title">并发流数量</string>
+    <string name="setting_concurrency_desc">批量文件传输时的并行流数量（推荐 4）</string>
+    <string name="concurrency_streams_format">%d 个流 ▾</string>
+    <string name="concurrency_stream_item_format">%d 个并发流</string>
+    <string name="concurrency_stream_item_recommend_format">%d 个并发流（推荐）</string>
+
+    <string name="setting_chunk_size_title">分片大小</string>
+    <string name="setting_chunk_size_desc">单次传输拆包尺寸，影响吞吐与内存负载</string>
+    <string name="chunk_size_format">%s ▾</string>
+    <string name="chunk_size_256kb">256KB</string>
+    <string name="chunk_size_512kb">512KB</string>
+    <string name="chunk_size_1mb">1MB（推荐）</string>
+    <string name="chunk_size_4mb">4MB</string>
+
+    <!-- 文件接收分组 -->
+    <string name="setting_save_dir_title">保存目录</string>
+    <string name="setting_save_dir_desc">选择的文件夹为父目录，末级目录自动固定为 /LocalTransfer</string>
+    <string name="setting_save_dir_btn_change">📁 更改</string>
+    <string name="setting_save_dir_updated_toast">接收目录已更新为：%s</string>
+    <string name="setting_save_dir_invalid_toast">未能识别该目录，请选择内部存储中的有效文件夹</string>
+
+    <string name="setting_collision_title">同名冲突策略</string>
+    <string name="setting_collision_desc">目标目录中已存在同名文件时的应对方式</string>
+    <string name="collision_rename">自动重命名</string>
+    <string name="collision_rename_dropdown">自动重命名 ▾</string>
+    <string name="collision_overwrite">直接覆盖</string>
+    <string name="collision_overwrite_dropdown">直接覆盖 ▾</string>
+
+    <string name="setting_auto_accept_title">自动接收信任文件</string>
+    <string name="setting_auto_accept_desc">已完成配对的信任设备发送文件时，免确认直接开始接收</string>
+
+    <!-- 设备发现分组 -->
+    <string name="setting_mdns_title">mDNS 自动发现</string>
+    <string name="setting_mdns_desc">局域网内通过多播 DNS 自动广播与发现设备</string>
+    <string name="setting_probe_port_title">广播探测端口</string>
+    <string name="setting_probe_port_desc">UDP 广播探测端口，修改后在当前任务结束后生效</string>
+
+    <!-- 存储与维护分组 -->
+    <string name="setting_records_title">传输任务记录</string>
+    <string name="setting_records_desc">清理列表中所有已完成、失败或取消的历史记录</string>
+    <string name="setting_records_btn_clear">全部清除</string>
+    <string name="setting_records_cleared_toast">传输记录已清空</string>
+
+    <string name="setting_cache_title">传输临时缓存</string>
+    <string name="setting_cache_desc">删除未完成的接收碎片与断点续传临时缓存文件</string>
+    <string name="setting_cache_btn_clear">清理缓存</string>
+    <string name="setting_cache_cleared_toast">临时缓存已清理</string>
+
+    <!-- 关于本机分组 -->
+    <string name="setting_fingerprint_title">设备安全指纹</string>
+    <string name="setting_fingerprint_desc">用于身份配对校验的 BLAKE3 安全标识（点击复制，默认隐藏）</string>
+    <string name="setting_fingerprint_copied_toast">设备指纹已复制到剪贴板</string>
+    <string name="setting_fingerprint_show">显示安全指纹</string>
+    <string name="setting_fingerprint_hide">隐藏安全指纹</string>
+    <string name="setting_engine_ver_title">传输引擎版本</string>
+    <string name="setting_engine_ver_desc">LocalTransfer Rust P2P Core 核心底层引擎</string>
+
+    <!-- 设置弹窗 -->
+    <string name="dialog_edit_name_title">修改设备名称</string>
+    <string name="dialog_edit_name_placeholder">如：我的手机</string>
+    <string name="dialog_edit_port_title">修改广播探测端口</string>
+    <string name="dialog_edit_port_label">端口号（1-65535）</string>
+    <string name="dialog_edit_port_hint">修改后将在当前传输任务全部结束后生效。</string>
+
+    <!-- ========================================== -->
+    <!-- 5. 弹窗与交互 (Dialogs)                    -->
+    <!-- ========================================== -->
+    <string name="dialog_pair_initiator_title">设备配对中...</string>
+    <string name="dialog_pair_initiator_msg">正在与「%s」建立配对连接</string>
+    <string name="dialog_pair_initiator_hint">请在对方设备屏幕上核对此 6 位验证码并确认接受。</string>
+
+    <string name="dialog_pair_receiver_title">配对请求</string>
+    <string name="dialog_pair_receiver_msg">「%s」请求与本机配对</string>
+    <string name="dialog_pair_receiver_hint">请与对方屏幕上显示的验证码比对，一致后接受。</string>
+    <string name="dialog_pair_btn_accept">验证码一致，接受</string>
+
+    <string name="dialog_transfer_title">接收文件</string>
+    <string name="dialog_transfer_msg">「%1$s」要发送 %2$d 个文件（共 %3$s）给本机，是否接收？</string>
+
+    <string name="dialog_staging_msg">正在准备文件（复制到发送暂存区）…</string>
+    <string name="dialog_init_error_title">初始化失败</string>
+    <string name="dialog_init_error_msg">Rust 核心初始化失败（错误码 %1$d）：%2$s</string>
+
+    <string name="dialog_manual_ip_title">手动输入 IP 连接</string>
+    <string name="dialog_manual_ip_label">目标 IPv4 地址</string>
+    <string name="dialog_manual_port_label">端口（默认 8899）</string>
+    <string name="dialog_btn_connect">连接</string>
+
+    <!-- ========================================== -->
+    <!-- 6. 格式化工具 (Format)                     -->
+    <!-- ========================================== -->
+    <!-- 时间展示 -->
+    <string name="time_seconds">%d 秒</string>
+    <string name="time_minutes_seconds">%1$d 分 %2$d 秒</string>
+    <string name="time_hours_minutes">%1$d 时 %2$d 分</string>
+
+    <!-- 任务状态名称 -->
+    <string name="state_waiting_accept">等待对方接受</string>
+    <string name="state_transferring">传输中</string>
+    <string name="state_paused">已暂停</string>
+    <string name="state_done">已完成</string>
+    <string name="state_cancelled">已取消</string>
+    <string name="state_rejected">对方已拒绝</string>
+    <string name="state_error">出错</string>
+
+    <!-- 设备类型与系统名称 -->
+    <string name="device_type_pc">电脑（Windows）</string>
+    <string name="device_type_android">手机（Android）</string>
+    <string name="device_type_ios">手机（iOS）</string>
+    <string name="device_type_unknown">设备</string>
+
+    <!-- ========================================== -->
+    <!-- 7. 通知与后台服务                           -->
+    <!-- ========================================== -->
+    <!-- 常驻通知 (PersistentNotification) -->
+    <string name="notif_channel_persistent_name">后台常驻运行</string>
+    <string name="notif_channel_persistent_desc">保持 LocalTransfer 后台运行并随时快捷访问</string>
+    <string name="notif_persistent_content">LocalTransfer 运行中，点击快速进入</string>
+
+    <!-- 前台传输通知 (TransferService) -->
+    <string name="notif_channel_transfer_name">文件传输</string>
+    <string name="notif_channel_transfer_done_name">传输完成</string>
+    <string name="notif_transfer_incoming_prefix">↓ 接收自</string>
+    <string name="notif_transfer_outgoing_prefix">↑ 发送给</string>
+    <string name="notif_transfer_eta">剩余 %s</string>
+    <string name="notif_transfer_btn_cancel">取消</string>
+    <string name="notif_transfer_done_title">%s结束</string>
+    <string name="notif_transfer_done_summary">与 %1$s：%2$s%3$s · 成功 %4$d 个，失败 %5$d 个</string>
+    <string name="notif_transfer_cancelled">与 %1$s 的%2$s已取消</string>
+    <string name="notif_transfer_rejected">%s 拒绝了本次传输</string>
+    <string name="notif_transfer_error">与 %1$s 的%2$s出错</string>
+
+    <!-- ========================================== -->
+    <!-- 8. 错误码文案 (ErrorMessages)              -->
+    <!-- ========================================== -->
+    <string name="err_code_0">成功</string>
+    <string name="err_code_neg_1">参数非法</string>
+    <string name="err_code_neg_2">网络端口被占用</string>
+    <string name="err_code_neg_3">连接超时或远端设备离线</string>
+    <string name="err_code_neg_4">文件不存在或无读取权限</string>
+    <string name="err_code_neg_5">磁盘剩余空间不足</string>
+    <string name="err_code_neg_6">文件校验失败（内容损坏），请重新传输</string>
+    <string name="err_code_neg_7">设备发现不可用（组播可能被拦截，可尝试手动输入 IP 连接）</string>
+    <string name="err_code_neg_8">文件读取失败（内存映射错误）</string>
+    <string name="err_code_neg_9">任务已被取消</string>
+    <string name="err_code_neg_10">系统权限不足（文件/网络/通知）</string>
+    <string name="err_code_neg_11">配对失败（对方拒绝或验证码不一致）</string>
+    <string name="err_code_neg_12">传输被对方拒绝</string>
+    <string name="err_code_neg_13">协议版本不兼容，请升级两端应用</string>
+    <string name="err_code_neg_14">对端证书指纹变更（疑似中间人），连接已阻止</string>
+    <string name="err_code_neg_15">内部错误（详见本地日志）</string>
+    <string name="err_code_unknown">未知错误（%d）</string>
+
+    <!-- ========================================== -->
+    <!-- 9. 权限申请与引导 (MainActivity)            -->
+    <!-- ========================================== -->
+    <string name="perm_storage_toast">接收文件默认保存到 Download/LocalTransfer，请授予「所有文件访问」权限</string>
+    <string name="perm_storage_guide">请在系统设置中授予「所有文件访问」权限</string>
 </resources>

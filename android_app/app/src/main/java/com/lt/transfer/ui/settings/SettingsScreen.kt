@@ -7,6 +7,12 @@ import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.app.Activity
+import android.app.LocaleManager
+import android.content.Context
+import android.os.Build
+import android.os.LocaleList
+import java.util.Locale
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -54,6 +60,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -103,15 +110,16 @@ private fun DeviceModule(state: UiState) {
     var showNameDialog by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("本机设备")
+        SectionHeader(stringResource(R.string.settings_section_device))
         SettingCard {
+            val unnamed = stringResource(R.string.setting_device_name_unnamed)
             SettingRow(
-                title = "设备名称",
-                subtitle = "局域网内其他设备发现与展示的名称",
+                title = stringResource(R.string.setting_device_name_title),
+                subtitle = stringResource(R.string.setting_device_name_desc),
                 onClick = { showNameDialog = true },
             ) {
                 ValueBadge(
-                    text = "${state.config.deviceName.ifEmpty { "未命名设备" }}  ✎",
+                    text = "${state.config.deviceName.ifEmpty { unnamed }}  ✎",
                     accent = true,
                     onClick = { showNameDialog = true },
                 )
@@ -119,11 +127,64 @@ private fun DeviceModule(state: UiState) {
 
             SettingDivider()
 
-            val ipList = state.localIps.ifEmpty { listOf("—") }
+            // 界面语言 / Language
+            var langMenuOpen by remember { mutableStateOf(false) }
+            val context = LocalContext.current
+            val currentLangTag = getCurrentLocaleTag(context)
+            val currentLangLabel = when {
+                currentLangTag.startsWith("en", ignoreCase = true) -> stringResource(R.string.language_en_dropdown)
+                currentLangTag.startsWith("zh", ignoreCase = true) -> stringResource(R.string.language_zh_dropdown)
+                else -> stringResource(R.string.language_system_dropdown)
+            }
+
+            SettingRow(
+                title = stringResource(R.string.setting_language_title),
+                subtitle = stringResource(R.string.setting_language_desc),
+                onClick = { langMenuOpen = true },
+            ) {
+                Box {
+                    ValueBadge(
+                        text = currentLangLabel,
+                        accent = true,
+                        onClick = { langMenuOpen = true },
+                    )
+                    DropdownMenu(
+                        expanded = langMenuOpen,
+                        onDismissRequest = { langMenuOpen = false },
+                    ) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.language_system)) },
+                            onClick = {
+                                langMenuOpen = false
+                                setAppLocale(context, "")
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.language_zh)) },
+                            onClick = {
+                                langMenuOpen = false
+                                setAppLocale(context, "zh-CN")
+                            },
+                        )
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.language_en)) },
+                            onClick = {
+                                langMenuOpen = false
+                                setAppLocale(context, "en")
+                            },
+                        )
+                    }
+                }
+            }
+
+            SettingDivider()
+
+            val emptyPlaceholder = stringResource(R.string.common_empty_placeholder)
+            val ipList = state.localIps.ifEmpty { listOf(emptyPlaceholder) }
             val ipText = ipList.joinToString("、")
             SettingRow(
-                title = "本机 IP",
-                subtitle = "当前连接的局域网物理网络地址（支持多网卡/热点）",
+                title = stringResource(R.string.setting_local_ip_title),
+                subtitle = stringResource(R.string.setting_local_ip_desc),
                 alignTop = ipList.size > 1,
             ) {
                 ValueBadge(
@@ -135,11 +196,11 @@ private fun DeviceModule(state: UiState) {
             SettingDivider()
 
             SettingRow(
-                title = "实际监听端口",
-                subtitle = "传输核心实际绑定的本地监听端口",
+                title = stringResource(R.string.setting_listen_port_actual_title),
+                subtitle = stringResource(R.string.setting_listen_port_actual_desc),
             ) {
                 ValueBadge(
-                    text = if (state.localPort > 0) state.localPort.toString() else "—",
+                    text = if (state.localPort > 0) state.localPort.toString() else emptyPlaceholder,
                     mono = true,
                 )
             }
@@ -147,8 +208,8 @@ private fun DeviceModule(state: UiState) {
             SettingDivider()
 
             SettingRow(
-                title = "隐身模式",
-                subtitle = "不在对方设备列表中广播本机，仍可被手动输入 IP 连接",
+                title = stringResource(R.string.setting_stealth_mode_title),
+                subtitle = stringResource(R.string.setting_stealth_mode_desc),
             ) {
                 Switch(
                     checked = state.config.stealthMode,
@@ -183,17 +244,17 @@ private fun NetworkModule(state: UiState) {
     var concurrencyMenuOpen by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("网络传输")
+        SectionHeader(stringResource(R.string.settings_section_network))
         SettingCard {
             // 传输协议
             SettingRow(
-                title = "传输协议",
-                subtitle = "两端任一设备选择 TCP 即使用 TCP，均选 QUIC 才用 QUIC",
+                title = stringResource(R.string.setting_protocol_title),
+                subtitle = stringResource(R.string.setting_protocol_desc),
                 onClick = { protoMenuOpen = true },
             ) {
                 Box {
                     ValueBadge(
-                        text = if (state.config.preferQuic) "QUIC（推荐） ▾" else "TCP ▾",
+                        text = if (state.config.preferQuic) stringResource(R.string.proto_quic_recommend_dropdown) else stringResource(R.string.proto_tcp_dropdown),
                         accent = state.config.preferQuic,
                         onClick = { protoMenuOpen = true },
                     )
@@ -202,7 +263,7 @@ private fun NetworkModule(state: UiState) {
                         onDismissRequest = { protoMenuOpen = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("QUIC（推荐）") },
+                            text = { Text(stringResource(R.string.proto_quic_recommend)) },
                             onClick = {
                                 protoMenuOpen = false
                                 if (!state.config.preferQuic) {
@@ -211,7 +272,7 @@ private fun NetworkModule(state: UiState) {
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("TCP") },
+                            text = { Text(stringResource(R.string.proto_tcp)) },
                             onClick = {
                                 protoMenuOpen = false
                                 if (state.config.preferQuic) {
@@ -227,14 +288,14 @@ private fun NetworkModule(state: UiState) {
 
             // 并发流数量
             SettingRow(
-                title = "并发流数量",
-                subtitle = "批量文件传输时的并行流数量（推荐 4）",
+                title = stringResource(R.string.setting_concurrency_title),
+                subtitle = stringResource(R.string.setting_concurrency_desc),
                 onClick = { concurrencyMenuOpen = true },
             ) {
                 Box {
                     val currentC = if (state.config.concurrency > 0) state.config.concurrency else 4
                     ValueBadge(
-                        text = "$currentC 个流 ▾",
+                        text = stringResource(R.string.concurrency_streams_format, currentC),
                         onClick = { concurrencyMenuOpen = true },
                     )
                     DropdownMenu(
@@ -243,7 +304,12 @@ private fun NetworkModule(state: UiState) {
                     ) {
                         listOf(1, 2, 4, 8, 12, 16).forEach { num ->
                             DropdownMenuItem(
-                                text = { Text("$num 个并发流${if (num == 4) "（推荐）" else ""}") },
+                                text = {
+                                    Text(
+                                        if (num == 4) stringResource(R.string.concurrency_stream_item_recommend_format, num)
+                                        else stringResource(R.string.concurrency_stream_item_format, num)
+                                    )
+                                },
                                 onClick = {
                                     concurrencyMenuOpen = false
                                     if (num != state.config.concurrency) {
@@ -260,22 +326,22 @@ private fun NetworkModule(state: UiState) {
 
             // 分片大小
             SettingRow(
-                title = "分片大小",
-                subtitle = "单次传输拆包尺寸，影响吞吐与内存负载",
+                title = stringResource(R.string.setting_chunk_size_title),
+                subtitle = stringResource(R.string.setting_chunk_size_desc),
                 onClick = { chunkMenuOpen = true },
             ) {
                 Box {
                     ValueBadge(
-                        text = "${chunkLabel(state.config.chunkSize)} ▾",
+                        text = stringResource(R.string.chunk_size_format, chunkLabel(state.config.chunkSize)),
                         onClick = { chunkMenuOpen = true },
                     )
                     DropdownMenu(
                         expanded = chunkMenuOpen,
                         onDismissRequest = { chunkMenuOpen = false },
                     ) {
-                        CHUNK_OPTIONS.forEach { (size, label) ->
+                        CHUNK_OPTIONS.forEach { (size, resId) ->
                             DropdownMenuItem(
-                                text = { Text(label) },
+                                text = { Text(stringResource(resId)) },
                                 onClick = {
                                     chunkMenuOpen = false
                                     if (size != state.config.chunkSize) {
@@ -328,9 +394,9 @@ private fun ReceiveModule(state: UiState) {
                     dir.mkdirs()
                 }
                 LtEngine.setConfig(JSONObject().put("save_dir", finalDir))
-                Toast.makeText(context, "接收目录已更新为：$finalDir", Toast.LENGTH_SHORT).show()
+                Toast.makeText(context, context.getString(R.string.setting_save_dir_updated_toast, finalDir), Toast.LENGTH_SHORT).show()
             } else {
-                Toast.makeText(context, "未能识别该目录，请选择内部存储中的有效文件夹", Toast.LENGTH_LONG).show()
+                Toast.makeText(context, context.getString(R.string.setting_save_dir_invalid_toast), Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -338,18 +404,19 @@ private fun ReceiveModule(state: UiState) {
     var collisionMenuOpen by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("文件接收")
+        SectionHeader(stringResource(R.string.settings_section_receive))
         SettingCard {
             // 接收保存目录：参数名称与参数值同一行，参数值超宽自动折行不截断；补充说明另起一行
             val safeWrappedPath = currentSaveDir.replace("/", "/\u200B")
+            val btnChange = stringResource(R.string.setting_save_dir_btn_change)
             SettingRow(
-                title = "保存目录",
-                subtitle = "选择的文件夹为父目录，末级目录自动固定为 /LocalTransfer",
+                title = stringResource(R.string.setting_save_dir_title),
+                subtitle = stringResource(R.string.setting_save_dir_desc),
                 alignTop = true,
                 onClick = { folderPicker.launch(null) },
             ) {
                 ValueBadge(
-                    text = "$safeWrappedPath  📁 更改",
+                    text = "$safeWrappedPath  $btnChange",
                     mono = true,
                     accent = true,
                     onClick = { folderPicker.launch(null) },
@@ -360,13 +427,13 @@ private fun ReceiveModule(state: UiState) {
 
             // 同名文件冲突策略
             SettingRow(
-                title = "同名冲突策略",
-                subtitle = "目标目录中已存在同名文件时的应对方式",
+                title = stringResource(R.string.setting_collision_title),
+                subtitle = stringResource(R.string.setting_collision_desc),
                 onClick = { collisionMenuOpen = true },
             ) {
                 Box {
                     ValueBadge(
-                        text = "${if (state.config.collision == "overwrite") "直接覆盖" else "自动重命名"} ▾",
+                        text = if (state.config.collision == "overwrite") stringResource(R.string.collision_overwrite_dropdown) else stringResource(R.string.collision_rename_dropdown),
                         onClick = { collisionMenuOpen = true },
                     )
                     DropdownMenu(
@@ -374,7 +441,7 @@ private fun ReceiveModule(state: UiState) {
                         onDismissRequest = { collisionMenuOpen = false },
                     ) {
                         DropdownMenuItem(
-                            text = { Text("自动重命名") },
+                            text = { Text(stringResource(R.string.collision_rename)) },
                             onClick = {
                                 collisionMenuOpen = false
                                 if (state.config.collision != "rename") {
@@ -383,7 +450,7 @@ private fun ReceiveModule(state: UiState) {
                             },
                         )
                         DropdownMenuItem(
-                            text = { Text("直接覆盖") },
+                            text = { Text(stringResource(R.string.collision_overwrite)) },
                             onClick = {
                                 collisionMenuOpen = false
                                 if (state.config.collision != "overwrite") {
@@ -399,8 +466,8 @@ private fun ReceiveModule(state: UiState) {
 
             // 自动接收已信任设备
             SettingRow(
-                title = "自动接收信任文件",
-                subtitle = "已完成配对的信任设备发送文件时，免确认直接开始接收",
+                title = stringResource(R.string.setting_auto_accept_title),
+                subtitle = stringResource(R.string.setting_auto_accept_desc),
             ) {
                 Switch(
                     checked = state.config.autoAcceptTrusted,
@@ -420,11 +487,11 @@ private fun DiscoveryModule(state: UiState) {
     var showPortDialog by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("设备发现")
+        SectionHeader(stringResource(R.string.settings_section_discovery))
         SettingCard {
             SettingRow(
-                title = "mDNS 自动发现",
-                subtitle = "局域网内通过多播 DNS 自动广播与发现设备",
+                title = stringResource(R.string.setting_mdns_title),
+                subtitle = stringResource(R.string.setting_mdns_desc),
             ) {
                 Switch(
                     checked = state.config.useMdns,
@@ -437,8 +504,8 @@ private fun DiscoveryModule(state: UiState) {
             SettingDivider()
 
             SettingRow(
-                title = "广播探测端口",
-                subtitle = "UDP 广播探测端口，修改后在当前任务结束后生效",
+                title = stringResource(R.string.setting_probe_port_title),
+                subtitle = stringResource(R.string.setting_probe_port_desc),
                 onClick = { showPortDialog = true },
             ) {
                 ValueBadge(
@@ -472,37 +539,37 @@ private fun MaintenanceModule(state: UiState) {
     val context = LocalContext.current
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("存储与维护")
+        SectionHeader(stringResource(R.string.settings_section_maintenance))
         SettingCard {
             SettingRow(
-                title = "传输任务记录",
-                subtitle = "清理列表中所有已完成、失败或取消的历史记录",
+                title = stringResource(R.string.setting_records_title),
+                subtitle = stringResource(R.string.setting_records_desc),
             ) {
                 OutlinedButton(
                     shape = RoundedCornerShape(10.dp),
                     onClick = {
                         LtEngine.clearRecords()
-                        Toast.makeText(context, "传输记录已清空", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.setting_records_cleared_toast), Toast.LENGTH_SHORT).show()
                     },
                 ) {
-                    Text("全部清除")
+                    Text(stringResource(R.string.setting_records_btn_clear))
                 }
             }
 
             SettingDivider()
 
             SettingRow(
-                title = "传输临时缓存",
-                subtitle = "删除未完成的接收碎片与断点续传临时缓存文件",
+                title = stringResource(R.string.setting_cache_title),
+                subtitle = stringResource(R.string.setting_cache_desc),
             ) {
                 OutlinedButton(
                     shape = RoundedCornerShape(10.dp),
                     onClick = {
                         LtEngine.clearTempCache()
-                        Toast.makeText(context, "临时缓存已清理", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.setting_cache_cleared_toast), Toast.LENGTH_SHORT).show()
                     },
                 ) {
-                    Text("清理缓存")
+                    Text(stringResource(R.string.setting_cache_btn_clear))
                 }
             }
         }
@@ -518,7 +585,7 @@ private fun AboutModule(state: UiState) {
     var fingerprintVisible by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        SectionHeader("关于本机")
+        SectionHeader(stringResource(R.string.settings_section_about))
         SettingCard {
             val fp = state.fingerprint.ifEmpty { "—" }
             val maskedFp = "••••••••••••"
@@ -529,13 +596,13 @@ private fun AboutModule(state: UiState) {
             }
 
             SettingRow(
-                title = "设备安全指纹",
-                subtitle = "用于身份配对校验的 BLAKE3 安全标识（点击复制，默认隐藏）",
+                title = stringResource(R.string.setting_fingerprint_title),
+                subtitle = stringResource(R.string.setting_fingerprint_desc),
                 alignTop = fingerprintVisible,
                 onClick = {
                     if (state.fingerprint.isNotEmpty()) {
                         clipboardManager.setText(AnnotatedString(state.fingerprint))
-                        Toast.makeText(context, "设备指纹已复制到剪贴板", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, context.getString(R.string.setting_fingerprint_copied_toast), Toast.LENGTH_SHORT).show()
                     }
                 },
             ) {
@@ -550,7 +617,7 @@ private fun AboutModule(state: UiState) {
                         onClick = {
                             if (state.fingerprint.isNotEmpty()) {
                                 clipboardManager.setText(AnnotatedString(state.fingerprint))
-                                Toast.makeText(context, "设备指纹已复制到剪贴板", Toast.LENGTH_SHORT).show()
+                                Toast.makeText(context, context.getString(R.string.setting_fingerprint_copied_toast), Toast.LENGTH_SHORT).show()
                             }
                         },
                         modifier = Modifier.weight(1f, fill = false),
@@ -564,7 +631,11 @@ private fun AboutModule(state: UiState) {
                             painter = painterResource(
                                 if (fingerprintVisible) R.drawable.ic_visibility_off else R.drawable.ic_visibility
                             ),
-                            contentDescription = if (fingerprintVisible) "隐藏安全指纹" else "显示安全指纹",
+                            contentDescription = if (fingerprintVisible) {
+                                stringResource(R.string.setting_fingerprint_hide)
+                            } else {
+                                stringResource(R.string.setting_fingerprint_show)
+                            },
                             tint = if (fingerprintVisible) {
                                 MaterialTheme.colorScheme.primary
                             } else {
@@ -579,8 +650,8 @@ private fun AboutModule(state: UiState) {
             SettingDivider()
 
             SettingRow(
-                title = "传输引擎版本",
-                subtitle = "LocalTransfer Rust P2P Core 核心底层引擎",
+                title = stringResource(R.string.setting_engine_ver_title),
+                subtitle = stringResource(R.string.setting_engine_ver_desc),
             ) {
                 ValueBadge(
                     text = state.version.ifEmpty { "0.1.0" },
@@ -779,13 +850,13 @@ private fun EditNameDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("修改设备名称") },
+        title = { Text(stringResource(R.string.dialog_edit_name_title)) },
         text = {
             OutlinedTextField(
                 value = name,
                 onValueChange = { name = it },
-                label = { Text("设备名称") },
-                placeholder = { Text("如：我的手机") },
+                label = { Text(stringResource(R.string.setting_device_name_title)) },
+                placeholder = { Text(stringResource(R.string.dialog_edit_name_placeholder)) },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -795,12 +866,12 @@ private fun EditNameDialog(
                 enabled = name.isNotBlank(),
                 onClick = { onConfirm(name) },
             ) {
-                Text("保存")
+                Text(stringResource(R.string.common_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -816,19 +887,19 @@ private fun EditPortDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("修改广播探测端口") },
+        title = { Text(stringResource(R.string.dialog_edit_port_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 OutlinedTextField(
                     value = portText,
                     onValueChange = { portText = it.filter(Char::isDigit).take(5) },
-                    label = { Text("端口号（1-65535）") },
+                    label = { Text(stringResource(R.string.dialog_edit_port_label)) },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
-                    text = "修改后将在当前传输任务全部结束后生效。",
+                    text = stringResource(R.string.dialog_edit_port_hint),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.75f),
                 )
@@ -840,12 +911,12 @@ private fun EditPortDialog(
                 enabled = valid,
                 onClick = { onConfirm(portText.toInt()) },
             ) {
-                Text("保存")
+                Text(stringResource(R.string.common_save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("取消")
+                Text(stringResource(R.string.common_cancel))
             }
         },
     )
@@ -854,14 +925,17 @@ private fun EditPortDialog(
 // ---------------- 工具常量与解析 ----------------
 
 private val CHUNK_OPTIONS = listOf(
-    256L * 1024 to "256KB",
-    512L * 1024 to "512KB",
-    1024L * 1024 to "1MB（推荐）",
-    4L * 1024 * 1024 to "4MB",
+    256L * 1024 to R.string.chunk_size_256kb,
+    512L * 1024 to R.string.chunk_size_512kb,
+    1024L * 1024 to R.string.chunk_size_1mb,
+    4L * 1024 * 1024 to R.string.chunk_size_4mb,
 )
 
-private fun chunkLabel(size: Long): String =
-    CHUNK_OPTIONS.firstOrNull { it.first == size }?.second ?: "${size / 1024}KB"
+@Composable
+private fun chunkLabel(size: Long): String {
+    val resId = CHUNK_OPTIONS.firstOrNull { it.first == size }?.second
+    return if (resId != null) stringResource(resId) else "${size / 1024}KB"
+}
 
 /** 解析 SAF DocumentTree Uri 为设备物理路径。 */
 private fun resolveTreeUriToPath(uri: Uri): String? {
@@ -891,3 +965,32 @@ private fun resolveTreeUriToPath(uri: Uri): String? {
     }
     return null
 }
+
+private fun getCurrentLocaleTag(context: Context): String {
+    return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val localeManager = context.getSystemService(LocaleManager::class.java)
+        localeManager?.applicationLocales?.toLanguageTags() ?: ""
+    } else {
+        context.resources.configuration.locales[0]?.toLanguageTag() ?: ""
+    }
+}
+
+private fun setAppLocale(context: Context, tag: String) {
+    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        val localeManager = context.getSystemService(LocaleManager::class.java)
+        localeManager?.applicationLocales = if (tag.isEmpty()) {
+            LocaleList.getEmptyLocaleList()
+        } else {
+            LocaleList.forLanguageTags(tag)
+        }
+    } else {
+        val locale = if (tag.isEmpty()) Locale.getDefault() else Locale.forLanguageTag(tag)
+        Locale.setDefault(locale)
+        val config = context.resources.configuration
+        config.setLocale(locale)
+        @Suppress("DEPRECATION")
+        context.resources.updateConfiguration(config, context.resources.displayMetrics)
+        (context as? Activity)?.recreate()
+    }
+}
+

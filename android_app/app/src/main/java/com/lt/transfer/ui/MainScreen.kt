@@ -7,6 +7,7 @@ import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.Icon
 import androidx.compose.ui.res.painterResource
 import com.lt.transfer.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -59,7 +60,7 @@ fun MainScreen() {
             TopAppBar(
                 title = {
                     Text(
-                        text = "LocalTransfer",
+                        text = stringResource(R.string.app_name),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                         style = MaterialTheme.typography.titleMedium,
@@ -73,19 +74,19 @@ fun MainScreen() {
                     selected = tab == 0,
                     onClick = { tab = 0 },
                     icon = { Icon(painterResource(R.drawable.ic_devices), contentDescription = null) },
-                    label = { Text("设备") },
+                    label = { Text(stringResource(R.string.tab_devices)) },
                 )
                 NavigationBarItem(
                     selected = tab == 1,
                     onClick = { tab = 1 },
                     icon = { Icon(Icons.AutoMirrored.Filled.List, contentDescription = null) },
-                    label = { Text("传输") },
+                    label = { Text(stringResource(R.string.tab_transfers)) },
                 )
                 NavigationBarItem(
                     selected = tab == 2,
                     onClick = { tab = 2 },
                     icon = { Icon(Icons.Filled.Settings, contentDescription = null) },
-                    label = { Text("设置") },
+                    label = { Text(stringResource(R.string.tab_settings)) },
                 )
             }
         },

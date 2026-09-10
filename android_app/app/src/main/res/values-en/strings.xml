@@ -1,0 +1,278 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- ========================================== -->
+    <!-- 1. Application & Base Common               -->
+    <!-- ========================================== -->
+    <!-- Application Name -->
+    <string name="app_name">LocalTransfer</string>
+
+    <!-- Common Button & Action Labels -->
+    <string name="common_confirm">OK</string>
+    <string name="common_cancel">Cancel</string>
+    <string name="common_save">Save</string>
+    <string name="common_accept">Accept</string>
+    <string name="common_reject">Decline</string>
+    <string name="common_close">Close</string>
+    <string name="common_retry">Retry</string>
+    <string name="common_empty_placeholder">—</string>
+
+    <!-- Bottom Navigation Tabs -->
+    <string name="tab_devices">Devices</string>
+    <string name="tab_transfers">Transfers</string>
+    <string name="tab_settings">Settings</string>
+
+    <!-- ========================================== -->
+    <!-- 2. Devices Module (DevicesScreen)          -->
+    <!-- ========================================== -->
+    <string name="devices_title">Nearby Devices</string>
+    <string name="devices_scanning">Scanning for nearby devices…</string>
+    <string name="devices_scanning_short">Scanning…</string>
+    <string name="devices_found_count">%d devices found</string>
+    <string name="devices_btn_manual_connect">Direct IP</string>
+    <string name="devices_cd_refresh">Refresh discovery</string>
+    <string name="devices_empty_hint">No devices found.\nEnsure both devices are on the same Wi-Fi or hotspot, or tap \"Direct IP\" to connect manually.</string>
+
+    <!-- Device Connection Status & Actions -->
+    <string name="devices_btn_disconnect">Disconnect</string>
+    <string name="devices_btn_connecting">Connecting…</string>
+    <string name="devices_btn_reconnect">Reconnect</string>
+    <string name="devices_btn_connect">Connect</string>
+    <string name="devices_connected_protocol">Connected (%s)</string>
+
+    <!-- Device Card Send Actions -->
+    <string name="devices_btn_send_files">Send Files</string>
+    <string name="devices_btn_send_folder">Send Folder</string>
+
+    <!-- ========================================== -->
+    <!-- 3. Transfers Module (TransfersScreen)      -->
+    <!-- ========================================== -->
+    <string name="transfers_title">Transfers</string>
+    <string name="transfers_btn_clear_records">Clear History</string>
+    <string name="transfers_empty_hint">No transfer history.\nSelect a peer in \"Devices\" to send files. Incoming files will show progress here.</string>
+
+    <!-- Direction Tags -->
+    <string name="transfers_dir_incoming">↓ Incoming</string>
+    <string name="transfers_dir_outgoing">↑ Outgoing</string>
+    <string name="transfers_dir_incoming_short">Incoming</string>
+    <string name="transfers_dir_outgoing_short">Outgoing</string>
+
+    <!-- Progress & Summary Format -->
+    <string name="transfers_active_progress_format">%1$s / %2$s · %3$s · %4$s remaining</string>
+    <string name="transfers_summary_format">%1$s · %2$s · %3$d completed, %4$d failed</string>
+
+    <!-- Transfer Action Buttons -->
+    <string name="transfers_btn_open_file">Open File</string>
+    <string name="transfers_btn_open_folder">Open Folder</string>
+    <string name="transfers_btn_share">Share</string>
+
+    <!-- File & System Interaction Toast Messages -->
+    <string name="transfers_toast_file_not_found">File not found or has been moved</string>
+    <string name="transfers_toast_get_file_perm_failed">Failed to obtain file permission: %s</string>
+    <string name="transfers_chooser_open_file">Open %s</string>
+    <string name="transfers_toast_no_app_to_open">No application found to open .%s files</string>
+    <string name="transfers_toast_get_share_perm_failed">Unable to grant share permission: %s</string>
+    <string name="transfers_chooser_share_file">Share received file</string>
+    <string name="transfers_toast_dir_not_exist">Destination directory does not exist: %s</string>
+    <string name="transfers_toast_opened_file_manager">Opened file manager at: %s</string>
+    <string name="transfers_toast_copied_path_to_clipboard">Path copied to clipboard: %s</string>
+    <string name="transfers_toast_save_dir_path">Save directory: %s</string>
+
+    <!-- ========================================== -->
+    <!-- 4. Settings Module (SettingsScreen)        -->
+    <!-- ========================================== -->
+    <!-- Section Headers -->
+    <string name="settings_section_device">Device</string>
+    <string name="settings_section_network">Network &amp; Transfer</string>
+    <string name="settings_section_receive">Receiving</string>
+    <string name="settings_section_discovery">Discovery</string>
+    <string name="settings_section_maintenance">Storage &amp; Maintenance</string>
+    <string name="settings_section_about">About</string>
+
+    <!-- Language Selection -->
+    <string name="setting_language_title">Language</string>
+    <string name="setting_language_desc">Choose display language (system default or manual)</string>
+    <string name="language_system">System Default</string>
+    <string name="language_system_dropdown">System Default ▾</string>
+    <string name="language_zh">简体中文</string>
+    <string name="language_zh_dropdown">简体中文 ▾</string>
+    <string name="language_en">English</string>
+    <string name="language_en_dropdown">English ▾</string>
+
+    <!-- Device Section -->
+    <string name="setting_device_name_title">Device Name</string>
+    <string name="setting_device_name_desc">Name displayed to other devices on the local network</string>
+    <string name="setting_device_name_unnamed">Unnamed Device</string>
+    <string name="setting_local_ip_title">Local IP Address</string>
+    <string name="setting_local_ip_desc">Physical network address on the local network (supports multi-NIC / hotspot)</string>
+    <string name="setting_listen_port_actual_title">Listening Port</string>
+    <string name="setting_listen_port_actual_desc">Local port currently bound by the transfer engine</string>
+    <string name="setting_stealth_mode_title">Stealth Mode</string>
+    <string name="setting_stealth_mode_desc">Hide this device from discovery broadcasts. Direct connections via IP remain possible.</string>
+
+    <!-- Network Section -->
+    <string name="setting_protocol_title">Transfer Protocol</string>
+    <string name="setting_protocol_desc">Uses TCP if either peer selects TCP; QUIC is used only when both peers support QUIC</string>
+    <string name="proto_quic_recommend">QUIC (Recommended)</string>
+    <string name="proto_quic_recommend_dropdown">QUIC (Recommended) ▾</string>
+    <string name="proto_tcp">TCP</string>
+    <string name="proto_tcp_dropdown">TCP ▾</string>
+
+    <string name="setting_concurrency_title">Concurrent Streams</string>
+    <string name="setting_concurrency_desc">Number of parallel data streams for batch transfers (recommended: 4)</string>
+    <string name="concurrency_streams_format">%d streams ▾</string>
+    <string name="concurrency_stream_item_format">%d concurrent streams</string>
+    <string name="concurrency_stream_item_recommend_format">%d concurrent streams (Recommended)</string>
+
+    <string name="setting_chunk_size_title">Chunk Size</string>
+    <string name="setting_chunk_size_desc">Block size for chunked streaming, balancing throughput and memory usage</string>
+    <string name="chunk_size_format">%s ▾</string>
+    <string name="chunk_size_256kb">256 KB</string>
+    <string name="chunk_size_512kb">512 KB</string>
+    <string name="chunk_size_1mb">1 MB (Recommended)</string>
+    <string name="chunk_size_4mb">4 MB</string>
+
+    <!-- Receiving Section -->
+    <string name="setting_save_dir_title">Destination Directory</string>
+    <string name="setting_save_dir_desc">Selected folder serves as the parent directory; files are saved to /LocalTransfer</string>
+    <string name="setting_save_dir_btn_change">📁 Change</string>
+    <string name="setting_save_dir_updated_toast">Destination directory updated to: %s</string>
+    <string name="setting_save_dir_invalid_toast">Invalid directory. Please select a valid folder in internal storage.</string>
+
+    <string name="setting_collision_title">File Name Conflicts</string>
+    <string name="setting_collision_desc">Action when a file with the same name already exists in destination</string>
+    <string name="collision_rename">Auto-rename</string>
+    <string name="collision_rename_dropdown">Auto-rename ▾</string>
+    <string name="collision_overwrite">Overwrite</string>
+    <string name="collision_overwrite_dropdown">Overwrite ▾</string>
+
+    <string name="setting_auto_accept_title">Auto-Accept from Trusted Devices</string>
+    <string name="setting_auto_accept_desc">Automatically receive files from paired trusted devices without confirmation</string>
+
+    <!-- Discovery Section -->
+    <string name="setting_mdns_title">mDNS Discovery</string>
+    <string name="setting_mdns_desc">Broadcast and discover devices via Multicast DNS on the local network</string>
+    <string name="setting_probe_port_title">Discovery Broadcast Port</string>
+    <string name="setting_probe_port_desc">UDP port for discovery probes; changes take effect after current tasks finish</string>
+
+    <!-- Maintenance Section -->
+    <string name="setting_records_title">Transfer History</string>
+    <string name="setting_records_desc">Clear all completed, failed, and canceled transfer records</string>
+    <string name="setting_records_btn_clear">Clear All</string>
+    <string name="setting_records_cleared_toast">Transfer history cleared</string>
+
+    <string name="setting_cache_title">Temporary Cache</string>
+    <string name="setting_cache_desc">Delete incomplete transfer chunks and temporary resume files</string>
+    <string name="setting_cache_btn_clear">Clear Cache</string>
+    <string name="setting_cache_cleared_toast">Temporary cache cleared</string>
+
+    <!-- About Section -->
+    <string name="setting_fingerprint_title">Security Fingerprint</string>
+    <string name="setting_fingerprint_desc">BLAKE3 cryptographic identity for peer verification (tap to copy, hidden by default)</string>
+    <string name="setting_fingerprint_copied_toast">Device fingerprint copied to clipboard</string>
+    <string name="setting_fingerprint_show">Show security fingerprint</string>
+    <string name="setting_fingerprint_hide">Hide security fingerprint</string>
+    <string name="setting_engine_ver_title">Transfer Engine Version</string>
+    <string name="setting_engine_ver_desc">LocalTransfer Rust P2P Core Engine</string>
+
+    <!-- Dialogs -->
+    <string name="dialog_edit_name_title">Edit Device Name</string>
+    <string name="dialog_edit_name_placeholder">e.g. My Phone</string>
+    <string name="dialog_edit_port_title">Edit Discovery Port</string>
+    <string name="dialog_edit_port_label">Port number (1-65535)</string>
+    <string name="dialog_edit_port_hint">Changes will take effect after all active transfers complete.</string>
+
+    <!-- ========================================== -->
+    <!-- 5. Dialogs & Interactions                  -->
+    <!-- ========================================== -->
+    <string name="dialog_pair_initiator_title">Pairing…</string>
+    <string name="dialog_pair_initiator_msg">Establishing secure pairing with \"%s\"</string>
+    <string name="dialog_pair_initiator_hint">Please verify that this 6-digit PIN matches the one on the other device and confirm.</string>
+
+    <string name="dialog_pair_receiver_title">Pairing Request</string>
+    <string name="dialog_pair_receiver_msg">\"%s\" wants to pair with this device</string>
+    <string name="dialog_pair_receiver_hint">Please verify that the PIN matches the one on the peer device and accept.</string>
+    <string name="dialog_pair_btn_accept">PIN matches, Accept</string>
+
+    <string name="dialog_transfer_title">Incoming Transfer</string>
+    <string name="dialog_transfer_msg">\"%1$s\" wants to send %2$d file(s) (%3$s). Accept transfer?</string>
+
+    <string name="dialog_staging_msg">Preparing files (copying to staging area)…</string>
+    <string name="dialog_init_error_title">Initialization Failed</string>
+    <string name="dialog_init_error_msg">Core engine initialization failed (error code %1$d): %2$s</string>
+
+    <string name="dialog_manual_ip_title">Connect via IP</string>
+    <string name="dialog_manual_ip_label">Target IPv4 Address</string>
+    <string name="dialog_manual_port_label">Port (default: 8899)</string>
+    <string name="dialog_btn_connect">Connect</string>
+
+    <!-- ========================================== -->
+    <!-- 6. Formatting Tools (Format)               -->
+    <!-- ========================================== -->
+    <!-- Time Units -->
+    <string name="time_seconds">%d s</string>
+    <string name="time_minutes_seconds">%1$d m %2$d s</string>
+    <string name="time_hours_minutes">%1$d h %2$d m</string>
+
+    <!-- Task State Labels -->
+    <string name="state_waiting_accept">Waiting for response</string>
+    <string name="state_transferring">Transferring</string>
+    <string name="state_paused">Paused</string>
+    <string name="state_done">Completed</string>
+    <string name="state_cancelled">Canceled</string>
+    <string name="state_rejected">Declined by peer</string>
+    <string name="state_error">Failed</string>
+
+    <!-- Device Type Names -->
+    <string name="device_type_pc">Computer (Windows)</string>
+    <string name="device_type_android">Phone (Android)</string>
+    <string name="device_type_ios">Phone (iOS)</string>
+    <string name="device_type_unknown">Device</string>
+
+    <!-- ========================================== -->
+    <!-- 7. Notifications & Background Service      -->
+    <!-- ========================================== -->
+    <!-- Persistent Notification (PersistentNotification) -->
+    <string name="notif_channel_persistent_name">Background Service</string>
+    <string name="notif_channel_persistent_desc">Keeps LocalTransfer running in the background for quick access</string>
+    <string name="notif_persistent_content">LocalTransfer is active. Tap to open.</string>
+
+    <!-- Foreground Transfer Notifications (TransferService) -->
+    <string name="notif_channel_transfer_name">File Transfers</string>
+    <string name="notif_channel_transfer_done_name">Transfers Completed</string>
+    <string name="notif_transfer_incoming_prefix">↓ Receiving from</string>
+    <string name="notif_transfer_outgoing_prefix">↑ Sending to</string>
+    <string name="notif_transfer_eta">%s remaining</string>
+    <string name="notif_transfer_btn_cancel">Cancel</string>
+    <string name="notif_transfer_done_title">%s Finished</string>
+    <string name="notif_transfer_done_summary">With %1$s: %2$s%3$s · %4$d succeeded, %5$d failed</string>
+    <string name="notif_transfer_cancelled">%2$s with %1$s was canceled</string>
+    <string name="notif_transfer_rejected">%s declined the transfer</string>
+    <string name="notif_transfer_error">%2$s with %1$s encountered an error</string>
+
+    <!-- ========================================== -->
+    <!-- 8. Error Codes (ErrorMessages)             -->
+    <!-- ========================================== -->
+    <string name="err_code_0">Success</string>
+    <string name="err_code_neg_1">Invalid parameter</string>
+    <string name="err_code_neg_2">Network port already in use</string>
+    <string name="err_code_neg_3">Connection timed out or peer offline</string>
+    <string name="err_code_neg_4">File does not exist or unreadable</string>
+    <string name="err_code_neg_5">Insufficient storage space</string>
+    <string name="err_code_neg_6">Checksum verification failed (file corrupted). Please retry.</string>
+    <string name="err_code_neg_7">Discovery unavailable (multicast may be blocked; try direct IP)</string>
+    <string name="err_code_neg_8">File read error (memory mapping failed)</string>
+    <string name="err_code_neg_9">Task was canceled</string>
+    <string name="err_code_neg_10">Permission denied (storage, network, or notification)</string>
+    <string name="err_code_neg_11">Pairing failed (declined or PIN mismatch)</string>
+    <string name="err_code_neg_12">Transfer was declined by the recipient</string>
+    <string name="err_code_neg_13">Incompatible protocol version. Please update both apps.</string>
+    <string name="err_code_neg_14">Peer certificate fingerprint changed (potential MITM attack). Connection blocked.</string>
+    <string name="err_code_neg_15">Internal core error (see local diagnostics log)</string>
+    <string name="err_code_unknown">Unknown error (%d)</string>
+
+    <!-- ========================================== -->
+    <!-- 9. Permissions & Onboarding (MainActivity) -->
+    <!-- ========================================== -->
+    <string name="perm_storage_toast">Files are saved to Download/LocalTransfer by default. Please grant \"All Files Access\" permission.</string>
+    <string name="perm_storage_guide">Please grant \"All Files Access\" permission in system settings.</string>
+</resources>

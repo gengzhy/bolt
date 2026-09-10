@@ -109,13 +109,13 @@ class MainActivity : ComponentActivity() {
             Toast
                 .makeText(
                     this,
-                    "接收文件默认保存到 Download/LocalTransfer，请授予「所有文件访问」权限",
+                    getString(R.string.perm_storage_toast),
                     Toast.LENGTH_LONG,
                 )
                 .show()
         } catch (_: Exception) {
             Toast
-                .makeText(this, "请在系统设置中授予「所有文件访问」权限", Toast.LENGTH_LONG)
+                .makeText(this, getString(R.string.perm_storage_guide), Toast.LENGTH_LONG)
                 .show()
         }
     }

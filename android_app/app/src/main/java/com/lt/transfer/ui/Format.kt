@@ -39,6 +39,18 @@ object Format {
         else -> "${secs / 3600} 时 ${(secs % 3600) / 60} 分"
     }
 
+    /** 任务状态 → 资源 ID。 */
+    fun stateResId(state: String): Int = when (state) {
+        "waiting_accept" -> com.lt.transfer.R.string.state_waiting_accept
+        "transferring" -> com.lt.transfer.R.string.state_transferring
+        "paused" -> com.lt.transfer.R.string.state_paused
+        "done" -> com.lt.transfer.R.string.state_done
+        "cancelled" -> com.lt.transfer.R.string.state_cancelled
+        "rejected" -> com.lt.transfer.R.string.state_rejected
+        "error" -> com.lt.transfer.R.string.state_error
+        else -> 0
+    }
+
     /** 任务状态 → 中文。 */
     fun state(state: String): String = when (state) {
         "waiting_accept" -> "等待对方接受"
@@ -49,6 +61,14 @@ object Format {
         "rejected" -> "对方已拒绝"
         "error" -> "出错"
         else -> state
+    }
+
+    /** 设备类型码 → 资源 ID。 */
+    fun deviceTypeResId(type: Int): Int = when (type) {
+        1 -> com.lt.transfer.R.string.device_type_pc
+        2 -> com.lt.transfer.R.string.device_type_android
+        3 -> com.lt.transfer.R.string.device_type_ios
+        else -> com.lt.transfer.R.string.device_type_unknown
     }
 
     /** 设备类型码 → 「类型（操作系统）」中文标签（1=Windows/PC，2=Android，见 protocol_spec）。 */

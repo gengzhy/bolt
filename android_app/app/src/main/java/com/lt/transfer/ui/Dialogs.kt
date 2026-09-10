@@ -22,6 +22,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.lt.transfer.R
 import com.lt.transfer.engine.LtEngine
 import com.lt.transfer.model.ErrorMessages
 import com.lt.transfer.model.PendingDialog
@@ -51,12 +54,12 @@ private fun PairRequestDialog(dialog: PendingDialog.PairRequest) {
                         strokeWidth = 2.5.dp,
                     )
                     Spacer(Modifier.width(10.dp))
-                    Text("设备配对中...")
+                    Text(stringResource(R.string.dialog_pair_initiator_title))
                 }
             },
             text = {
                 Column {
-                    Text("正在与「${dialog.name}」建立配对连接")
+                    Text(stringResource(R.string.dialog_pair_initiator_msg, dialog.name))
                     Spacer(Modifier.height(12.dp))
                     Text(
                         text = dialog.code,
@@ -65,23 +68,23 @@ private fun PairRequestDialog(dialog: PendingDialog.PairRequest) {
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text("请在对方设备屏幕上核对此 6 位验证码并确认接受。")
+                    Text(stringResource(R.string.dialog_pair_initiator_hint))
                 }
             },
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { LtEngine.respondPair(dialog.pairId, false) }) {
-                    Text("取消")
+                    Text(stringResource(R.string.common_cancel))
                 }
             },
         )
     } else {
         AlertDialog(
             onDismissRequest = { LtEngine.respondPair(dialog.pairId, false) },
-            title = { Text("配对请求") },
+            title = { Text(stringResource(R.string.dialog_pair_receiver_title)) },
             text = {
                 Column {
-                    Text("「${dialog.name}」请求与本机配对")
+                    Text(stringResource(R.string.dialog_pair_receiver_msg, dialog.name))
                     Spacer(Modifier.height(12.dp))
                     Text(
                         text = dialog.code,
@@ -90,17 +93,17 @@ private fun PairRequestDialog(dialog: PendingDialog.PairRequest) {
                         color = MaterialTheme.colorScheme.primary,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text("请与对方屏幕上显示的验证码比对，一致后接受。")
+                    Text(stringResource(R.string.dialog_pair_receiver_hint))
                 }
             },
             confirmButton = {
                 TextButton(onClick = { LtEngine.respondPair(dialog.pairId, true) }) {
-                    Text("验证码一致，接受")
+                    Text(stringResource(R.string.dialog_pair_btn_accept))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { LtEngine.respondPair(dialog.pairId, false) }) {
-                    Text("拒绝")
+                    Text(stringResource(R.string.common_reject))
                 }
             },
         )
@@ -112,21 +115,25 @@ private fun PairRequestDialog(dialog: PendingDialog.PairRequest) {
 private fun TransferRequestDialog(dialog: PendingDialog.TransferRequest) {
     AlertDialog(
         onDismissRequest = { LtEngine.respondTransfer(dialog.reqId, false) },
-        title = { Text("接收文件") },
+        title = { Text(stringResource(R.string.dialog_transfer_title)) },
         text = {
             Text(
-                "「${dialog.name}」要发送 ${dialog.fileCount} 个文件" +
-                    "（共 ${Format.bytes(dialog.totalSize)}）给本机，是否接收？",
+                stringResource(
+                    R.string.dialog_transfer_msg,
+                    dialog.name,
+                    dialog.fileCount,
+                    Format.bytes(dialog.totalSize),
+                ),
             )
         },
         confirmButton = {
             TextButton(onClick = { LtEngine.respondTransfer(dialog.reqId, true) }) {
-                Text("接收")
+                Text(stringResource(R.string.common_accept))
             }
         },
         dismissButton = {
             TextButton(onClick = { LtEngine.respondTransfer(dialog.reqId, false) }) {
-                Text("拒绝")
+                Text(stringResource(R.string.common_reject))
             }
         },
     )
@@ -142,7 +149,7 @@ fun StagingDialog() {
             Column {
                 CircularProgressIndicator()
                 Spacer(Modifier.height(12.dp))
-                Text("正在准备文件（复制到发送暂存区）…")
+                Text(stringResource(R.string.dialog_staging_msg))
             }
         },
     )
@@ -151,10 +158,11 @@ fun StagingDialog() {
 /** 引擎初始化失败（lt_init 返回非 0）。 */
 @Composable
 fun InitErrorDialog(code: Int) {
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = {},
-        title = { Text("初始化失败") },
-        text = { Text("Rust 核心初始化失败（错误码 $code）：${ErrorMessages.of(code)}") },
+        title = { Text(stringResource(R.string.dialog_init_error_title)) },
+        text = { Text(stringResource(R.string.dialog_init_error_msg, code, ErrorMessages.of(context, code))) },
         confirmButton = {},
     )
 }
@@ -166,20 +174,20 @@ fun ManualConnectDialog(onDismiss: () -> Unit) {
     var port by rememberSaveable { mutableStateOf("8899") }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("手动输入 IP 连接") },
+        title = { Text(stringResource(R.string.dialog_manual_ip_title)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = ip,
                     onValueChange = { ip = it },
-                    label = { Text("目标 IPv4 地址") },
+                    label = { Text(stringResource(R.string.dialog_manual_ip_label)) },
                     singleLine = true,
                 )
                 Spacer(Modifier.height(8.dp))
                 OutlinedTextField(
                     value = port,
                     onValueChange = { port = it },
-                    label = { Text("端口（默认 8899）") },
+                    label = { Text(stringResource(R.string.dialog_manual_port_label)) },
                     singleLine = true,
                 )
             }
@@ -191,8 +199,8 @@ fun ManualConnectDialog(onDismiss: () -> Unit) {
                     LtEngine.connectAddr(ip.trim(), port.trim().toInt())
                     onDismiss()
                 },
-            ) { Text("连接") }
+            ) { Text(stringResource(R.string.dialog_btn_connect)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) } },
     )
 }

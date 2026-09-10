@@ -34,8 +34,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import com.lt.transfer.R
 import com.lt.transfer.engine.LtEngine
 import com.lt.transfer.model.TaskStates
 import com.lt.transfer.model.TaskUi
@@ -60,9 +62,9 @@ fun TransfersScreen(modifier: Modifier) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("传输任务", style = MaterialTheme.typography.titleMedium)
+            Text(stringResource(R.string.transfers_title), style = MaterialTheme.typography.titleMedium)
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = { LtEngine.clearRecords() }) { Text("清除记录") }
+                TextButton(onClick = { LtEngine.clearRecords() }) { Text(stringResource(R.string.transfers_btn_clear_records)) }
             }
         }
         LazyColumn(
@@ -75,8 +77,7 @@ fun TransfersScreen(modifier: Modifier) {
             if (tasks.isEmpty()) {
                 item {
                     Text(
-                        text = "暂无传输任务。\n在「设备」页选择设备即可发送文件；" +
-                            "对方发来的文件会在此显示接收进度。",
+                        text = stringResource(R.string.transfers_empty_hint),
                         modifier = Modifier.padding(top = 24.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -94,7 +95,7 @@ private fun TaskCard(task: TaskUi) {
     } else {
         0f
     }
-    val dirLabel = if (task.incoming) "↓ 接收" else "↑ 发送"
+    val dirLabel = if (task.incoming) stringResource(R.string.transfers_dir_incoming) else stringResource(R.string.transfers_dir_outgoing)
     val peer = task.peerName.ifEmpty { task.peerUuid }
 
     val isIncomingDone = task.incoming && task.state == TaskStates.DONE && task.currentFile.isNotEmpty()
@@ -127,8 +128,9 @@ private fun TaskCard(task: TaskUi) {
                         modifier = Modifier.padding(end = 6.dp),
                     )
                 }
+                val stateResId = Format.stateResId(task.state)
                 Text(
-                    text = Format.state(task.state),
+                    text = if (stateResId != 0) stringResource(stateResId) else task.state,
                     style = MaterialTheme.typography.bodySmall,
                     color = when (task.state) {
                         TaskStates.DONE -> MaterialTheme.colorScheme.primary
@@ -149,8 +151,13 @@ private fun TaskCard(task: TaskUi) {
 
             if (!TaskStates.isTerminal(task.state)) {
                 Text(
-                    text = "${Format.bytes(task.doneBytes)} / ${Format.bytes(task.totalSize)}" +
-                        " · ${Format.rate(task.rateBps)} · 剩余 ${Format.eta(task.etaSecs)}",
+                    text = stringResource(
+                        R.string.transfers_active_progress_format,
+                        Format.bytes(task.doneBytes),
+                        Format.bytes(task.totalSize),
+                        Format.rate(task.rateBps),
+                        Format.eta(task.etaSecs),
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     modifier = Modifier.padding(top = 4.dp),
                 )
@@ -173,7 +180,13 @@ private fun TaskCard(task: TaskUi) {
                     task.rateBps
                 }
                 Text(
-                    text = "${Format.bytes(task.totalSize)} · ${Format.rate(effectiveAvgRate)} · 成功 ${task.okFiles} 个，失败 ${task.failedFiles} 个",
+                    text = stringResource(
+                        R.string.transfers_summary_format,
+                        Format.bytes(task.totalSize),
+                        Format.rate(effectiveAvgRate),
+                        task.okFiles,
+                        task.failedFiles,
+                    ),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 4.dp),
@@ -187,26 +200,26 @@ private fun TaskCard(task: TaskUi) {
                 modifier = Modifier.padding(top = 6.dp),
             ) {
                 if (TaskStates.isActive(task.state)) {
-                    TextButton(onClick = { LtEngine.cancelTask(task.taskId) }) { Text("取消") }
+                    TextButton(onClick = { LtEngine.cancelTask(task.taskId) }) { Text(stringResource(R.string.common_cancel)) }
                 }
                 if (isIncomingDone) {
                     FilledTonalButton(
                         onClick = { openReceivedFile(context, task.currentFile) },
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     ) {
-                        Text("打开文件")
+                        Text(stringResource(R.string.transfers_btn_open_file))
                     }
                     OutlinedButton(
                         onClick = { openReceivedFolder(context) },
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                     ) {
-                        Text("打开文件夹")
+                        Text(stringResource(R.string.transfers_btn_open_folder))
                     }
                     TextButton(
                         onClick = { shareReceived(context, task.currentFile) },
                         contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
                     ) {
-                        Text("分享")
+                        Text(stringResource(R.string.transfers_btn_share))
                     }
                 }
             }
@@ -231,7 +244,7 @@ private fun resolveReceivedFile(relPath: String): File? {
 private fun openReceivedFile(context: Context, relPath: String) {
     val file = resolveReceivedFile(relPath)
     if (file == null || !file.exists()) {
-        Toast.makeText(context, "文件不存在或已被移动", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.transfers_toast_file_not_found), Toast.LENGTH_SHORT).show()
         return
     }
 
@@ -252,7 +265,7 @@ private fun openReceivedFile(context: Context, relPath: String) {
             file,
         )
     } catch (e: Exception) {
-        Toast.makeText(context, "获取文件权限失败：${e.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.transfers_toast_get_file_perm_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
         return
     }
 
@@ -264,12 +277,12 @@ private fun openReceivedFile(context: Context, relPath: String) {
     }
 
     try {
-        context.startActivity(Intent.createChooser(intent, "打开 ${file.name}"))
+        context.startActivity(Intent.createChooser(intent, context.getString(R.string.transfers_chooser_open_file, file.name)))
     } catch (_: Exception) {
         try {
             context.startActivity(intent)
         } catch (_: Exception) {
-            Toast.makeText(context, "未找到可打开此格式（.${file.extension}）的应用", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.transfers_toast_no_app_to_open, file.extension), Toast.LENGTH_LONG).show()
         }
     }
 }
@@ -278,7 +291,7 @@ private fun openReceivedFile(context: Context, relPath: String) {
 private fun shareReceived(context: Context, relPath: String) {
     val file = resolveReceivedFile(relPath)
     if (file == null || !file.exists()) {
-        Toast.makeText(context, "文件不存在或已被移动", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.transfers_toast_file_not_found), Toast.LENGTH_SHORT).show()
         return
     }
     val uri = try {
@@ -288,7 +301,7 @@ private fun shareReceived(context: Context, relPath: String) {
             file,
         )
     } catch (e: Exception) {
-        Toast.makeText(context, "无法获取分享权限：${e.message}", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, context.getString(R.string.transfers_toast_get_share_perm_failed, e.message ?: ""), Toast.LENGTH_SHORT).show()
         return
     }
     val mime = URLConnection.guessContentTypeFromName(file.name) ?: "*/*"
@@ -297,7 +310,7 @@ private fun shareReceived(context: Context, relPath: String) {
         putExtra(Intent.EXTRA_STREAM, uri)
         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
     }
-    context.startActivity(Intent.createChooser(intent, "分享接收的文件"))
+    context.startActivity(Intent.createChooser(intent, context.getString(R.string.transfers_chooser_share_file)))
 }
 
 /**
@@ -320,7 +333,7 @@ private fun openReceivedFolder(context: Context) {
         root.mkdirs()
     }
     if (!root.exists()) {
-        Toast.makeText(context, "接收目录不存在：${root.path}", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, context.getString(R.string.transfers_toast_dir_not_exist, root.path), Toast.LENGTH_LONG).show()
         return
     }
 
@@ -421,7 +434,7 @@ private fun openReceivedFolder(context: Context) {
         launch.putExtra("path", root.absolutePath)
         try {
             context.startActivity(launch)
-            Toast.makeText(context, "已打开文件管理器，保存目录：${root.path}", Toast.LENGTH_LONG).show()
+            Toast.makeText(context, context.getString(R.string.transfers_toast_opened_file_manager, root.path), Toast.LENGTH_LONG).show()
             return
         } catch (_: Exception) {}
     }
@@ -430,8 +443,8 @@ private fun openReceivedFolder(context: Context) {
     try {
         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
         clipboard.setPrimaryClip(ClipData.newPlainText("LocalTransfer Save Dir", root.absolutePath))
-        Toast.makeText(context, "已复制路径到剪贴板，请在文件管理器中查看：${root.path}", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, context.getString(R.string.transfers_toast_copied_path_to_clipboard, root.path), Toast.LENGTH_LONG).show()
     } catch (_: Exception) {
-        Toast.makeText(context, "接收目录：${root.path}", Toast.LENGTH_LONG).show()
+        Toast.makeText(context, context.getString(R.string.transfers_toast_save_dir_path, root.path), Toast.LENGTH_LONG).show()
     }
 }

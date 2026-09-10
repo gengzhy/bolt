@@ -51,10 +51,10 @@ class TransferService : Service() {
         super.onCreate()
         val nm = getSystemService(NotificationManager::class.java)
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "文件传输", NotificationManager.IMPORTANCE_LOW),
+            NotificationChannel(CHANNEL_ID, getString(R.string.notif_channel_transfer_name), NotificationManager.IMPORTANCE_LOW),
         )
         nm.createNotificationChannel(
-            NotificationChannel(CHANNEL_DONE_ID, "传输完成", NotificationManager.IMPORTANCE_DEFAULT),
+            NotificationChannel(CHANNEL_DONE_ID, getString(R.string.notif_channel_transfer_done_name), NotificationManager.IMPORTANCE_DEFAULT),
         )
 
         scope.launch {
@@ -141,7 +141,7 @@ class TransferService : Service() {
     }
 
     private fun buildActiveNotification(task: TaskUi): Notification {
-        val direction = if (task.incoming) "↓ 接收自" else "↑ 发送给"
+        val direction = if (task.incoming) getString(R.string.notif_transfer_incoming_prefix) else getString(R.string.notif_transfer_outgoing_prefix)
         val peer = task.peerName.ifEmpty { task.peerUuid }
         val cancelIntent = PendingIntent.getService(
             this,
@@ -159,12 +159,17 @@ class TransferService : Service() {
             )
             .setContentTitle("$direction $peer")
             .setContentText(
-                "${Format.bytes(task.doneBytes)} / ${Format.bytes(task.totalSize)}" +
-                    " · ${Format.rate(task.rateBps)} · 剩余 ${Format.eta(task.etaSecs)}",
+                getString(
+                    R.string.transfers_active_progress_format,
+                    Format.bytes(task.doneBytes),
+                    Format.bytes(task.totalSize),
+                    Format.rate(task.rateBps),
+                    Format.eta(task.etaSecs),
+                ),
             )
             .setOngoing(true)
             .setOnlyAlertOnce(true)
-            .addAction(0, "取消", cancelIntent)
+            .addAction(0, getString(R.string.notif_transfer_btn_cancel), cancelIntent)
 
         if (task.totalSize > 0) {
             // 用 KB 刻度避免超过 Int 上限
@@ -184,24 +189,24 @@ class TransferService : Service() {
             getSystemService(NotificationManager::class.java).cancel(notifId(task.taskId))
             return
         }
-        val direction = if (task.incoming) "接收" else "发送"
+        val direction = if (task.incoming) getString(R.string.transfers_dir_incoming_short) else getString(R.string.transfers_dir_outgoing_short)
         val peer = task.peerName.ifEmpty { task.peerUuid }
         val text = when (task.state) {
             TaskStates.DONE -> {
                 val avgRate = if (task.avgRateBps > 0) task.avgRateBps else if (task.durationMs > 0 && task.totalSize > 0) (task.totalSize * 1000) / task.durationMs else 0L
                 val rateStr = if (avgRate > 0) " · ${Format.rate(avgRate)}" else ""
-                "与 $peer：${Format.bytes(task.totalSize)}$rateStr · 成功 ${task.okFiles} 个，失败 ${task.failedFiles} 个"
+                getString(R.string.notif_transfer_done_summary, peer, Format.bytes(task.totalSize), rateStr, task.okFiles, task.failedFiles)
             }
-            TaskStates.CANCELLED -> "与 $peer 的${direction}已取消"
-            TaskStates.REJECTED -> "$peer 拒绝了本次传输"
-            else -> "与 $peer 的${direction}出错"
+            TaskStates.CANCELLED -> getString(R.string.notif_transfer_cancelled, peer, direction)
+            TaskStates.REJECTED -> getString(R.string.notif_transfer_rejected, peer)
+            else -> getString(R.string.notif_transfer_error, peer, direction)
         }
         val notification = NotificationCompat.Builder(this, CHANNEL_DONE_ID)
             .setSmallIcon(
                 if (task.state == TaskStates.DONE) android.R.drawable.stat_sys_download_done
                 else android.R.drawable.stat_notify_error,
             )
-            .setContentTitle("${direction}结束")
+            .setContentTitle(getString(R.string.notif_transfer_done_title, direction))
             .setContentText(text)
             .setAutoCancel(true)
             .build()
