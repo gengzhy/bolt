@@ -27,7 +27,7 @@ if not defined CARGO_BUILD_JOBS set CARGO_BUILD_JOBS=4
 set TARGETS=aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
 for %%t in (%TARGETS%) do (
     echo ---- building %%t ----
-    cargo ndk -t %%t -o android_app\app\src\main\jniLibs build -p lt-ffi --release
+    cargo ndk -t %%t -o android_app\app\src\main\jniLibs build -p ffi --release
     if errorlevel 1 (
         echo [FAIL] %%t build failed
         exit /b 1

@@ -100,7 +100,7 @@
 | -7 | 发现服务不可用 | | |
 | -8 | mmap 失败 | | |
 
-## 8. 全局常量（`lt-utils/src/constants.rs`）
+## 8. 全局常量（`utils/src/constants.rs`）
 
 | 常量 | 值 | 说明 |
 |------|----|------|

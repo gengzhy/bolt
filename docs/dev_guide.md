@@ -4,14 +4,14 @@
 
 ```
 crates/
-  lt-utils      公共设施：错误码、配置、UUID、网络、全局常量（constants.rs）
-  lt-crypto     设备身份（Ed25519 自签证书）、指纹、配对码、信任库、TLS 配置
-  lt-file       遍历/读取/写入（BLAKE3 校验+落盘）、磁盘预检
-  lt-discovery  设备模型、mDNS（mdns-sd 0.21）、UDP 探测、NSD 桥、发现管理器
-  lt-transfer   传输引擎：QUIC(quinn 0.11)+TCP 双栈、会话状态机、收发流水线、协议编解码
-  lt-task       应用门面 App：事件、任务记录、配置、发现/引擎编排
+  utils      公共设施：错误码、配置、UUID、网络、全局常量（constants.rs）
+  crypto     设备身份（Ed25519 自签证书）、指纹、配对码、信任库、TLS 配置
+  file       遍历/读取/写入（BLAKE3 校验+落盘）、磁盘预检
+  discovery  设备模型、mDNS（mdns-sd 0.21）、UDP 探测、NSD 桥、发现管理器
+  transfer   传输引擎：QUIC(quinn 0.11)+TCP 双栈、会话状态机、收发流水线、协议编解码
+  task       应用门面 App：事件、任务记录、配置、发现/引擎编排
   lt-ffi        C ABI（lt_* 前缀，cbindgen 生成 include/lt_api.h）
-tools/lt-cli    命令行联调端（serve/discover/send）
+tools/cli    命令行联调端（serve/discover/send）
 tauri_app/      Windows 桌面端（Tauri v2 + Vue3 + TS）
 android_app/    Android 端（Kotlin + Gradle，jniLibs 装载 liblt_ffi.so）
 scripts/        构建/冒烟脚本
@@ -32,9 +32,9 @@ cargo test --workspace           # 全量测试
 cargo clippy --workspace --all-targets -- -D warnings   # 门禁级 lint
 cargo fmt --all                  # 格式化
 
-cargo run -p lt-cli -- serve --port 8899 --data-dir target/cli_a   # 接收端
-cargo run -p lt-cli -- send --data-dir target/cli_b 127.0.0.1:8899 ./some/file
-cargo run -p lt-cli -- discover
+cargo run -p cli -- serve --port 8899 --data-dir target/cli_a   # 接收端
+cargo run -p cli -- send --data-dir target/cli_b 127.0.0.1:8899 ./some/file
+cargo run -p cli -- discover
 ```
 
 环境变量：
@@ -44,9 +44,9 @@ cargo run -p lt-cli -- discover
 
 ## 架构速览
 
-1. **App（lt-task）** 是唯一门面：持有 tokio 运行时、配置、身份、信任库、
+1. **App（task）** 是唯一门面：持有 tokio 运行时、配置、身份、信任库、
    设备表、任务表、会话表；`SessionHandler` 经 `Weak<App>` 回指避免循环引用。
-2. **会话（lt-transfer::session）**：握手 → 配对/信任 → 控制管道 0 +
+2. **会话（transfer::session）**：握手 → 配对/信任 → 控制管道 0 +
    调度器（单消费点路由所有入站帧）+ 心跳（30s/90s）。文件管道：QUIC 每文件
    独立双向流；TCP 复用控制管道。
 3. **接收端状态** 全部活在调度器协程内（`recv_tasks`/`seq_index`），
@@ -58,7 +58,7 @@ cargo run -p lt-cli -- discover
 
 ## 全局常量管理
 
-所有传输相关的硬编码常量统一定义在 `crates/lt-utils/src/constants.rs`，
+所有传输相关的硬编码常量统一定义在 `crates/utils/src/constants.rs`，
 各模块通过 `use lt_utils::constants::*` 引用，修改一处全局生效：
 
 | 常量 | 值 | 用途 |
@@ -76,11 +76,11 @@ cargo run -p lt-cli -- discover
 
 ## 新增功能检查单
 
-- [ ] 协议帧：`lt-transfer/src/protocol.rs` 编解码 + 单元测试往返
+- [ ] 协议帧：`transfer/src/protocol.rs` 编解码 + 单元测试往返
 - [ ] 会话路由：`session.rs handle_frame` 增分支
-- [ ] 应用层：`lt-task/src/app.rs` 事件/记账
+- [ ] 应用层：`task/src/app.rs` 事件/记账
 - [ ] FFI：`lt-ffi/src/lib.rs`（cbindgen 自动更新 `include/lt_api.h`）
-- [ ] CLI 联调：`tools/lt-cli/src/main.rs`
+- [ ] CLI 联调：`tools/cli/src/main.rs`
 - [ ] `cargo fmt` + `cargo clippy -D warnings` + `cargo test --workspace`
 
 ## Windows 桌面端（tauri_app）

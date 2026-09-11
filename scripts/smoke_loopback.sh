@@ -7,7 +7,7 @@
 # ============================================================
 set -u
 cd "$(dirname "$0")/.."
-BIN="${1:-./target/debug/lt-cli.exe}"
+BIN="${1:-./target/debug/cli.exe}"
 PORT_A=8901
 PORT_B=8902
 ROOT=target/smoke
@@ -31,15 +31,15 @@ start_serve() {
     mkdir -p "$DATA_A"
     printf '{"save_dir":"%s/out"}\n' "$DATA_A" > "$DATA_A/config.json"
     ( printf 'y\ny\ny\ny\n'; sleep 300 ) \
-        | RUST_LOG=info,lt_transfer=debug,lt_task=debug "$BIN" serve --port $PORT_A \
+        | RUST_LOG=info,transfer=debug,task=debug "$BIN" serve --port $PORT_A \
             --data-dir "$DATA_A" > "$ROOT/recv.log" 2>&1 &
     RECV_PID=$!
     sleep 5
 }
 
-# 终止接收端（lt-cli 与持 stdin 的子壳一并结束；不 wait——子壳带 300s sleep）
+# 终止接收端（cli 与持 stdin 的子壳一并结束；不 wait——子壳带 300s sleep）
 stop_serve() {
-    taskkill //IM lt-cli.exe //F >/dev/null 2>&1
+    taskkill //IM cli.exe //F >/dev/null 2>&1
     kill "$RECV_PID" 2>/dev/null
     sleep 1
 }
@@ -89,7 +89,7 @@ wait "$SEND_PID" 2>/dev/null
 sleep 3 # 等接收端把断点缓存落盘（flush_acks 2s 节流）
 ls "$DATA_A/resume"/*.json >/dev/null 2>&1 || fail "阶段3 未生成断点缓存"
 # 第二次发送：续传完成
-timeout 120 env RUST_LOG=info,lt_transfer=debug "$BIN" send --port $PORT_B --data-dir "$DATA_B" \
+timeout 120 env RUST_LOG=info,transfer=debug "$BIN" send --port $PORT_B --data-dir "$DATA_B" \
     127.0.0.1:$PORT_A "$ROOT/src/huge.bin" > "$ROOT/send_r2.log" 2>&1 \
     || fail "阶段3 续传发送超时/失败"
 grep -q "成功 1，失败 0" "$ROOT/send_r2.log" || fail "阶段3 续传发送端汇总异常"

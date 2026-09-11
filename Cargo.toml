@@ -1,14 +1,14 @@
 [workspace]
 resolver = "2"
 members = [
-    "crates/lt-utils",
-    "crates/lt-crypto",
-    "crates/lt-discovery",
-    "crates/lt-file",
-    "crates/lt-transfer",
-    "crates/lt-task",
-    "crates/lt-ffi",
-    "tools/lt-cli",
+    "crates/utils",
+    "crates/crypto",
+    "crates/discovery",
+    "crates/file",
+    "crates/transfer",
+    "crates/task",
+    "crates/ffi",
+    "tools/cli",
 ]
 
 [workspace.package]
@@ -21,12 +21,12 @@ repository = "local"
 
 [workspace.dependencies]
 # ---- internal crates ----
-lt-utils = { path = "crates/lt-utils" }
-lt-crypto = { path = "crates/lt-crypto" }
-lt-discovery = { path = "crates/lt-discovery" }
-lt-file = { path = "crates/lt-file" }
-lt-transfer = { path = "crates/lt-transfer" }
-lt-task = { path = "crates/lt-task" }
+utils = { path = "crates/utils" }
+crypto = { path = "crates/crypto" }
+discovery = { path = "crates/discovery" }
+file = { path = "crates/file" }
+transfer = { path = "crates/transfer" }
+task = { path = "crates/task" }
 
 # ---- async runtime ----
 tokio = { version = "1", features = ["full"] }

@@ -1,0 +1,19 @@
+[package]
+name = "utils"
+description = "LocalTransfer 通用工具：统一错误码、应用配置、IP/端口检测"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+rand = { workspace = true }
+tracing = { workspace = true }
+dirs = { workspace = true }
+if-addrs = { workspace = true }
+
+[dev-dependencies]
+tokio = { workspace = true }

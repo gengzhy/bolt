@@ -256,6 +256,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "c8d4a3bb8b1e0c1050499d1815f5ab16d04f0959b233085fb31653fbfc9d98f9"
 
 [[package]]
+name = "cli"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "crypto",
+ "discovery",
+ "file",
+ "serde_json",
+ "task",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "transfer",
+ "utils",
+]
+
+[[package]]
 name = "colorchoice"
 version = "1.0.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -337,6 +354,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "61803da095bee82a81bb1a452ecc25d3b2f1416d1897eb86430c6159ef717c17"
 
 [[package]]
+name = "crypto"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "hex",
+ "rcgen",
+ "rustls",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "utils",
+]
+
+[[package]]
 name = "data-encoding"
 version = "2.11.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -384,6 +418,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "discovery"
+version = "0.1.0"
+dependencies = [
+ "crossbeam-channel",
+ "crypto",
+ "mdns-sd",
+ "rand",
+ "serde",
+ "serde_json",
+ "socket2",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utils",
+]
+
+[[package]]
 name = "displaydoc"
 version = "0.2.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -427,6 +478,42 @@ name = "fastrand"
 version = "2.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
+
+[[package]]
+name = "ffi"
+version = "0.1.0"
+dependencies = [
+ "cbindgen",
+ "crossbeam-channel",
+ "crypto",
+ "discovery",
+ "file",
+ "jni",
+ "once_cell",
+ "serde",
+ "serde_json",
+ "task",
+ "tokio",
+ "tracing",
+ "tracing-subscriber",
+ "transfer",
+ "utils",
+]
+
+[[package]]
+name = "file"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "memmap2",
+ "rand",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "utils",
+]
 
 [[package]]
 name = "find-msvc-tools"
@@ -671,147 +758,6 @@ name = "lru-slab"
 version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "112b39cec0b298b6c1999fee3e31427f74f676e4cb9879ed1a121b43661a4154"
-
-[[package]]
-name = "lt-cli"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "lt-crypto",
- "lt-discovery",
- "lt-file",
- "lt-task",
- "lt-transfer",
- "lt-utils",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "lt-crypto"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "hex",
- "lt-utils",
- "rcgen",
- "rustls",
- "serde",
- "serde_json",
- "thiserror",
- "time",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "lt-discovery"
-version = "0.1.0"
-dependencies = [
- "crossbeam-channel",
- "lt-crypto",
- "lt-utils",
- "mdns-sd",
- "rand",
- "serde",
- "serde_json",
- "socket2",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "lt-ffi"
-version = "0.1.0"
-dependencies = [
- "cbindgen",
- "crossbeam-channel",
- "jni",
- "lt-crypto",
- "lt-discovery",
- "lt-file",
- "lt-task",
- "lt-transfer",
- "lt-utils",
- "once_cell",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "tracing-subscriber",
-]
-
-[[package]]
-name = "lt-file"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "lt-utils",
- "memmap2",
- "rand",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "lt-task"
-version = "0.1.0"
-dependencies = [
- "blake3",
- "lt-crypto",
- "lt-discovery",
- "lt-file",
- "lt-transfer",
- "lt-utils",
- "rand",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "lt-transfer"
-version = "0.1.0"
-dependencies = [
- "async-trait",
- "blake3",
- "bytes",
- "lt-crypto",
- "lt-file",
- "lt-utils",
- "quinn",
- "rand",
- "rustls",
- "serde",
- "serde_json",
- "socket2",
- "thiserror",
- "tokio",
- "tokio-rustls",
- "tracing",
-]
-
-[[package]]
-name = "lt-utils"
-version = "0.1.0"
-dependencies = [
- "dirs",
- "if-addrs",
- "rand",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
-]
 
 [[package]]
 name = "matchers"
@@ -1548,6 +1494,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "task"
+version = "0.1.0"
+dependencies = [
+ "blake3",
+ "crypto",
+ "discovery",
+ "file",
+ "rand",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "transfer",
+ "utils",
+]
+
+[[package]]
 name = "tempfile"
 version = "3.27.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1776,6 +1740,28 @@ dependencies = [
 ]
 
 [[package]]
+name = "transfer"
+version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "blake3",
+ "bytes",
+ "crypto",
+ "file",
+ "quinn",
+ "rand",
+ "rustls",
+ "serde",
+ "serde_json",
+ "socket2",
+ "thiserror",
+ "tokio",
+ "tokio-rustls",
+ "tracing",
+ "utils",
+]
+
+[[package]]
 name = "unicode-ident"
 version = "1.0.24"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1792,6 +1778,20 @@ name = "utf8parse"
 version = "0.2.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "06abde3611657adf66d383f00b093d7faecc7fa57071cce2578660c9f1010821"
+
+[[package]]
+name = "utils"
+version = "0.1.0"
+dependencies = [
+ "dirs",
+ "if-addrs",
+ "rand",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+]
 
 [[package]]
 name = "valuable"

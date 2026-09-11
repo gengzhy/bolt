@@ -1,6 +1,6 @@
 # LocalTransfer FFI API（`lt_` 前缀）
 
-> 头文件由 cbindgen 生成：`crates/lt-ffi/include/lt_api.h`。
+> 头文件由 cbindgen 生成：`crates/ffi/include/lt_api.h`。
 > 库产物：Windows `lt_ffi.dll`；Android `liblt_ffi.so`。
 > 线程模型：任何线程可调用；事件由专用分发线程回调（不在调用线程上执行）。
 

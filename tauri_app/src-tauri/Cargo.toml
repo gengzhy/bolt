@@ -26,7 +26,7 @@ tauri-plugin-dialog = "2"
 tauri-plugin-single-instance = "2"
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
-# 核心引擎经 lt-ffi 调用（与 Android 共用同一 C ABI）
-lt-ffi = { path = "../../crates/lt-ffi" }
+# 核心引擎经 ffi 调用（与 Android 共用同一 C ABI）
+lt_ffi = { package = "ffi", path = "../../crates/ffi" }
 # 待发送清单统计（文件/文件夹大小数量）直接复用遍历器
-lt-file = { path = "../../crates/lt-file" }
+file = { path = "../../crates/file" }

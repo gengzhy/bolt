@@ -9,7 +9,7 @@ package com.lt.transfer.ffi
 typealias LtEventCallback = (Int, String?) -> Unit
 
 /**
- * liblt_ffi.so 的 JNI 声明与接口封装类（与 Rust 导出接口 `crates/lt-ffi/include/lt_api.h` 一一对应）。
+ * liblt_ffi.so 的 JNI 声明与接口封装类（与 Rust 导出接口 `crates/ffi/include/lt_api.h` 一一对应）。
  *
  * 封装了 LocalTransfer 核心引擎的生命周期管理、网络发现、设备连接、配对认证、文件收发与状态查询等 Native 接口。
  *
@@ -18,7 +18,7 @@ typealias LtEventCallback = (Int, String?) -> Unit
  *    回调方法内部仅应做轻量的数据中转（例如投递至 Kotlin 协程 Channel 或主线程 Handler），**严禁在回调线程中同步重入调用本类中的 Native 方法**，
  *    否则可能导致底层的锁递归死锁。
  * 2. **返回值约定**：除返回字符串的查询方法外，绝大多数返回 [Int] 的接口遵循统一定义：返回 `0` 表示操作成功；返回负数表示具体错误码
- *    （参见 [com.lt.transfer.model.ErrorMessages] 及 `crates/lt-utils/src/error.rs` 的 `LtError`）。
+ *    （参见 [com.lt.transfer.model.ErrorMessages] 及 `crates/utils/src/error.rs` 的 `LtError`）。
  * 3. **字符串内存管理**：对于返回 [String] 的 Native 方法，底层 Rust 堆分配的 C 字符串已由 JNI 桥接层自动转换为 Java 字符串并释放底层指针，
  *    上层通常无需手动调用 [ltFreeString]。
  */

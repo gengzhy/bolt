@@ -43,15 +43,15 @@ LocalTransfer 是一款基于 **Rust** 构建的局域网文件传输工具，�
 
 ```
 crates/
-  lt-utils        公共设施：错误码、配置、UUID、网络、全局常量
-  lt-crypto       设备身份、证书、指纹、配对码、信任库、TLS 配置
-  lt-file         文件遍历、读取、写入（BLAKE3 校验）、磁盘预检
-  lt-discovery    设备模型、mDNS、UDP 探测、NSD 桥、发现管理器
-  lt-transfer     传输引擎：QUIC+TCP 双栈、会话状态机、收发流水线
-  lt-task         应用门面：事件驱动、任务管理、配置、编排调度
-  lt-ffi          C ABI 导出（Windows lt_ffi.dll / Android liblt_ffi.so）
+  utils           公共设施：错误码、配置、UUID、网络、全局常量
+  crypto          设备身份、证书、指纹、配对码、信任库、TLS 配置
+  file            文件遍历、读取、写入（BLAKE3 校验）、磁盘预检
+  discovery       设备模型、mDNS、UDP 探测、NSD 桥、发现管理器
+  transfer        传输引擎：QUIC+TCP 双栈、会话状态机、收发流水线
+  task            应用门面：事件驱动、任务管理、配置、编排调度
+  ffi             C ABI 导出（Windows lt_ffi.dll / Android liblt_ffi.so）
 
-tools/lt-cli      命令行联调工具（serve / send / discover）
+tools/cli         命令行联调工具（serve / send / discover）
 tauri_app/        Windows 桌面客户端（Tauri v2 + Vue 3）
 android_app/      Android 客户端（Kotlin + Jetpack Compose）
 docs/             设计文档与规范
@@ -63,7 +63,7 @@ scripts/          构建与测试脚本
 ```
 ┌─────────────┐         QUIC / TCP + TLS 1.3         ┌─────────────┐
 │  发送端 App  │ ◄──────────────────────────────────► │  接收端 App  │
-│  (lt-task)   │    mDNS / UDP 发现  ←→  设备列表     │  (lt-task)   │
+│   (task)    │    mDNS / UDP 发现  ←→  设备列表     │   (task)    │
 └──────┬───────┘                                      └──────┬───────┘
        │ FFI (C ABI)                                         │ FFI
 ┌──────┴───────┐                                      ┌──────┴───────┐
@@ -94,7 +94,7 @@ scripts/          构建与测试脚本
 - **编译 Windows FFI 动态库与 CLI 工具**：
   ```cmd
   scripts\build_rust_lib.bat
-  # 产物输出于：lib/win64/lt_ffi.dll 及 target/release/lt-cli.exe
+  # 产物输出于：lib/win64/lt_ffi.dll 及 target/release/cli.exe
   ```
 
 - **完整前端热重载开发 / NSIS 打包（需 Node.js）**：
@@ -120,19 +120,19 @@ cd android_app
 adb install -r ./app/build/outputs/apk/debug/app-debug.apk
 ```
 
-### 命令行联调（lt-cli）
+### 命令行联调（cli）
 
 ```bash
-cargo build -p lt-cli
+cargo build -p cli
 
 # 接收端
-./target/debug/lt-cli.exe serve --port 8899 --data-dir target/cli_a
+./target/debug/cli.exe serve --port 8899 --data-dir target/cli_a
 
 # 发送端
-./target/debug/lt-cli.exe send --data-dir target/cli_b 127.0.0.1:8899 ./file.zip
+./target/debug/cli.exe send --data-dir target/cli_b 127.0.0.1:8899 ./file.zip
 
 # 浏览局域网设备
-./target/debug/lt-cli.exe discover
+./target/debug/cli.exe discover
 ```
 
 ## 📱 使用说明

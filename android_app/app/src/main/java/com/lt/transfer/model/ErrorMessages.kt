@@ -5,7 +5,7 @@ import com.lt.transfer.R
 
 /**
  * 统一错误码 → 中文文案 / 资源 ID（需求分析报告 §6.1/§6.2）。
- * 码值与 crates/lt-utils/src/error.rs 的 LtError::code() 一一对应；
+ * 码值与 crates/utils/src/error.rs 的 LtError::code() 一一对应；
  * UI 层只负责按码展示，不做任何自行处理。
  */
 object ErrorMessages {

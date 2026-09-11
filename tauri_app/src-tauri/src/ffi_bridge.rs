@@ -329,7 +329,7 @@ pub fn inspect_paths(paths: Vec<String>) -> serde_json::Value {
             .file_name()
             .map(|s| s.to_string_lossy().to_string())
             .unwrap_or_else(|| p.clone());
-        let entry = match lt_file::traverse::traverse(std::slice::from_ref(&pb)) {
+        let entry = match file::traverse::traverse(std::slice::from_ref(&pb)) {
             Ok(res) => serde_json::json!({
                 "path": p,
                 "name": name,
