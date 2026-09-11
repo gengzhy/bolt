@@ -1,5 +1,5 @@
 [package]
-name = "lt-tauri"
+name = "LocalTransfer"
 version = "0.1.0"
 description = "LocalTransfer Windows 桌面端（Tauri v2）"
 edition = "2021"

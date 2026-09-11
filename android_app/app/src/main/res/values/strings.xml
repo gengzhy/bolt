@@ -187,11 +187,11 @@
     <!-- ========================================== -->
     <string name="dialog_pair_initiator_title">设备配对中...</string>
     <string name="dialog_pair_initiator_msg">正在与「%s」建立配对连接</string>
-    <string name="dialog_pair_initiator_hint">请在对方设备屏幕上核对此 6 位验证码并确认接受。</string>
+    <string name="dialog_pair_initiator_hint">请在对方设备屏幕上核对此 4 位验证码并确认接受。</string>
 
     <string name="dialog_pair_receiver_title">配对请求</string>
     <string name="dialog_pair_receiver_msg">「%s」请求与本机配对</string>
-    <string name="dialog_pair_receiver_hint">请与对方屏幕上显示的验证码比对，一致后接受。</string>
+    <string name="dialog_pair_receiver_hint">请与对方屏幕上显示的 4 位验证码比对，一致后接受。</string>
     <string name="dialog_pair_btn_accept">验证码一致，接受</string>
 
     <string name="dialog_transfer_title">接收文件</string>
@@ -276,4 +276,9 @@
     <!-- ========================================== -->
     <string name="perm_storage_toast">接收文件默认保存到 Download/LocalTransfer，请授予「所有文件访问」权限</string>
     <string name="perm_storage_guide">请在系统设置中授予「所有文件访问」权限</string>
+
+    <!-- 底部关于与版权信息 -->
+    <string name="app_author">ian</string>
+    <string name="app_copyright">@%1$d %2$s</string>
+    <string name="app_version_fmt">v%s</string>
 </resources>

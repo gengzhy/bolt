@@ -9,6 +9,13 @@
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { open as pickDialog } from "@tauri-apps/plugin-dialog";
 import { useLt } from "../composables/useLt";
+import logoSvg from "../assets/logo.svg";
+import appConfig from "../config/app.json";
+
+const appName = appConfig.appName || "LocalTransfer";
+const appAuthor = appConfig.author || "ian";
+const currentYear = new Date().getFullYear();
+const copyright = `@${currentYear} ${appAuthor}`;
 
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: "update:open", v: boolean): void }>();
@@ -502,9 +509,12 @@ async function copyFingerprint() {
             </div>
           </section>
 
-          <!-- 底部版本信息 -->
+          <!-- 底部品牌展示区：logo、APP名称、版本、版权分别单独成行展示 -->
           <div class="footer-info">
-            <p class="about">LocalTransfer · v{{ version || "0.1.0" }} · 局域网点对点文件传输</p>
+            <img :src="logoSvg" alt="LocalTransfer" class="footer-logo" />
+            <span class="app-name">{{ appName }}</span>
+            <span class="app-ver">v{{ version || appConfig.version || "0.1.0" }}</span>
+            <span class="app-copyright">{{ copyright }}</span>
           </div>
         </div>
       </aside>
@@ -837,13 +847,36 @@ async function copyFingerprint() {
 /* 底部区域 */
 .footer-info {
   display: flex;
-  justify-content: center;
-  padding-top: 6px;
-  padding-bottom: 2px;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding-top: 14px;
+  padding-bottom: 8px;
 }
-.about {
-  margin: 0;
-  text-align: center;
+.footer-logo {
+  width: 48px;
+  height: 34px;
+  object-fit: contain;
+  margin-bottom: 4px;
+  filter: drop-shadow(0 2px 8px rgba(255, 107, 0, 0.22));
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.footer-logo:hover {
+  transform: scale(1.06);
+  filter: drop-shadow(0 4px 12px rgba(255, 107, 0, 0.35));
+}
+.app-name {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+.app-ver {
+  font-size: 12px;
+  color: var(--muted);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+}
+.app-copyright {
   font-size: 12px;
   color: var(--faint);
 }

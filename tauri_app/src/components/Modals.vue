@@ -19,10 +19,12 @@ const { pairReq, transReq, respondPair, respondTransfer } = useLt();
       </div>
       <h3>设备配对中...</h3>
       <p>正在与 <b>{{ pairReq.name }}</b> 配对</p>
-      <div class="code-container">
-        <p class="code">{{ pairReq.code }}</p>
+      <div class="pin-code-group">
+        <div v-for="(ch, idx) in (pairReq.code || '').slice(0, 4)" :key="idx" class="pin-box">
+          {{ ch }}
+        </div>
       </div>
-      <p class="hint">请在对方设备屏幕上核对这 6 位验证码并确认接受</p>
+      <p class="hint">请在对方设备屏幕上核对这 4 位验证码并确认接受</p>
       <div class="modal-actions">
         <button class="btn btn-cancel" @click="respondPair(pairReq.pair_id, false)">取消</button>
       </div>
@@ -32,10 +34,12 @@ const { pairReq, transReq, respondPair, respondTransfer } = useLt();
     <div v-else class="modal pair-modal receiver">
       <h3>配对请求</h3>
       <p><b>{{ pairReq.name }}</b> 请求配对</p>
-      <div class="code-container">
-        <p class="code">{{ pairReq.code }}</p>
+      <div class="pin-code-group">
+        <div v-for="(ch, idx) in (pairReq.code || '').slice(0, 4)" :key="idx" class="pin-box">
+          {{ ch }}
+        </div>
       </div>
-      <p class="hint">请在对方屏幕上核对这 6 位验证码是否一致</p>
+      <p class="hint">请在对方屏幕上核对这 4 位验证码是否一致</p>
       <div class="modal-actions">
         <button class="btn" @click="respondPair(pairReq.pair_id, false)">拒绝</button>
         <button class="btn primary" @click="respondPair(pairReq.pair_id, true)">验证码一致，接受</button>
@@ -147,23 +151,32 @@ const { pairReq, transReq, respondPair, respondTransfer } = useLt();
   100% { transform: scale(0.8); opacity: 0.9; }
 }
 
-/* 验证码卡片容器 */
-.code-container {
-  display: inline-flex;
+/* 4 位独立立体方框验证码容器（与 Android 手机端风格完全一致） */
+.pin-code-group {
+  display: flex;
   justify-content: center;
-  background: rgba(79, 142, 247, 0.05);
-  border: 1px dashed rgba(79, 142, 247, 0.35);
-  border-radius: 12px;
-  padding: 8px 24px;
-  margin: 12px auto;
+  gap: 12px;
+  margin: 16px auto;
 }
-.code {
+.pin-box {
+  width: 52px;
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(37, 99, 235, 0.08);
+  border: 1.5px solid rgba(37, 99, 235, 0.45);
+  border-radius: 12px;
   font-size: 28px;
-  letter-spacing: 8px;
   font-weight: 700;
-  margin: 0 !important;
-  font-family: Consolas, 'SF Mono', monospace;
-  color: var(--primary, #4f8ef7);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  color: var(--accent, #2563eb);
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.08);
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+.pin-box:hover {
+  transform: translateY(-1px);
+  border-color: var(--accent, #2563eb);
 }
 
 .hint {

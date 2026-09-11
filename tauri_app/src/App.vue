@@ -12,6 +12,7 @@ import SendPanel from "./components/SendPanel.vue";
 import TaskPanel from "./components/TaskPanel.vue";
 import SettingsModal from "./components/SettingsModal.vue";
 import Modals from "./components/Modals.vue";
+import logoSvg from "./assets/logo.svg";
 
 const { version, toast, devices, connStates, progress, localInfo, localIpsText, start, stop } = useLt();
 const settingsOpen = ref(false);
@@ -95,8 +96,8 @@ function startDrag(e: PointerEvent) {
     <!-- 自定义标题栏 -->
     <div class="titlebar" data-tauri-drag-region>
       <div class="tb-brand" data-tauri-drag-region>
+        <img :src="logoSvg" alt="LocalTransfer" class="tb-logo" />
         <h1>LocalTransfer</h1>
-        <span class="tb-ver">v{{ version }}</span>
       </div>
       <div class="tb-right">
         <button class="tb-btn" title="设置" aria-label="设置" @click="settingsOpen = true">
@@ -207,7 +208,8 @@ body {
   background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
-.tb-brand { display: flex; align-items: baseline; gap: 8px; }
+.tb-brand { display: flex; align-items: center; gap: 8px; }
+.tb-logo { width: 22px; height: 16px; object-fit: contain; }
 .titlebar h1 {
   margin: 0;
   font-size: 15px;

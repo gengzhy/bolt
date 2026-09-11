@@ -28,7 +28,9 @@ android_app/local.properties
 .agents/
 
 # Temp scripts
+scratch/
 scripts/patch_dist.py
+scripts/patch_logo.py
 
 # logs
 *.log

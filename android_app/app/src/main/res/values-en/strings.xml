@@ -187,11 +187,11 @@
     <!-- ========================================== -->
     <string name="dialog_pair_initiator_title">Pairing…</string>
     <string name="dialog_pair_initiator_msg">Establishing secure pairing with \"%s\"</string>
-    <string name="dialog_pair_initiator_hint">Please verify that this 6-digit PIN matches the one on the other device and confirm.</string>
+    <string name="dialog_pair_initiator_hint">Please verify that this 4-digit PIN matches the one on the other device and confirm.</string>
 
     <string name="dialog_pair_receiver_title">Pairing Request</string>
     <string name="dialog_pair_receiver_msg">\"%s\" wants to pair with this device</string>
-    <string name="dialog_pair_receiver_hint">Please verify that the PIN matches the one on the peer device and accept.</string>
+    <string name="dialog_pair_receiver_hint">Please verify that the 4-digit PIN matches the one on the peer device and accept.</string>
     <string name="dialog_pair_btn_accept">PIN matches, Accept</string>
 
     <string name="dialog_transfer_title">Incoming Transfer</string>
@@ -276,4 +276,9 @@
     <!-- ========================================== -->
     <string name="perm_storage_toast">Files are saved to Download/LocalTransfer by default. Please grant \"All Files Access\" permission.</string>
     <string name="perm_storage_guide">Please grant \"All Files Access\" permission in system settings.</string>
+
+    <!-- Footer about and copyright -->
+    <string name="app_author">ian</string>
+    <string name="app_copyright">@%1$d %2$s</string>
+    <string name="app_version_fmt">v%s</string>
 </resources>

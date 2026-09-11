@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -82,6 +83,53 @@ fun SettingsScreen(modifier: Modifier) {
         DiscoveryModule(state)
         MaintenanceModule(state)
         AboutModule(state)
+
+        // 底部品牌展示区：logo、APP名称、版本、版权分别单独成行展示
+        val currentYear = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
+        val author = stringResource(R.string.app_author)
+        val appName = stringResource(R.string.app_name)
+        val appVersion = stringResource(R.string.app_version_fmt, state.version.ifEmpty { "0.1.0" })
+        val copyright = stringResource(R.string.app_copyright, currentYear, author)
+
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 10.dp, bottom = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            // 1. Logo
+            androidx.compose.foundation.Image(
+                painter = painterResource(R.drawable.ic_logo_brand),
+                contentDescription = "LocalTransfer Logo",
+                modifier = Modifier
+                    .padding(bottom = 4.dp)
+                    .size(width = 54.dp, height = 38.dp),
+                contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+            )
+            // 2. APP名称（粗体）
+            Text(
+                text = appName,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                color = MaterialTheme.colorScheme.onSurface,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            // 3. 版本
+            Text(
+                text = appVersion,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+            // 4. 版权（@当前年份 + 作者）
+            Text(
+                text = copyright,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            )
+        }
 
         Spacer(Modifier.height(16.dp))
     }

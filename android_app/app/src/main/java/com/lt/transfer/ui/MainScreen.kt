@@ -2,6 +2,8 @@ package com.lt.transfer.ui
 
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.unit.dp
 import com.lt.transfer.ui.components.motion.AnimatedPageHost
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -61,12 +63,24 @@ fun MainScreen() {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = stringResource(R.string.app_name),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.titleMedium,
-                    )
+                    androidx.compose.foundation.layout.Row(
+                        verticalAlignment = androidx.compose.ui.Alignment.CenterVertically,
+                        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp),
+                    ) {
+                        androidx.compose.foundation.Image(
+                            painter = painterResource(R.drawable.ic_logo_brand),
+                            contentDescription = "Logo",
+                            modifier = Modifier.size(width = 24.dp, height = 17.dp),
+                            contentScale = androidx.compose.ui.layout.ContentScale.Fit,
+                        )
+                        Text(
+                            text = stringResource(R.string.app_name),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                        )
+                    }
                 },
             )
         },

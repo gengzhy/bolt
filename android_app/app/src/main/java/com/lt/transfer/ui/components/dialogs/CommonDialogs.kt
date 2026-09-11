@@ -173,40 +173,40 @@ fun LtValueEditDialog(
 }
 
 /**
- * 6 位配对验证码立体卡槽展示组件：
- * 将配对验证码拆解为独立方格，具备高科技安全感。
+ * 4 位配对验证码独立卡槽展示组件：
+ * 将配对验证码拆解为 4 个独立方格包裹数字，舒展大气，居中展示。
  */
 @Composable
 fun PinCodeDisplay(
     pin: String,
     modifier: Modifier = Modifier,
 ) {
-    val chars = pin.take(6).padEnd(6, ' ').toCharArray()
+    val chars = pin.take(4).padEnd(4, ' ').toCharArray()
 
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .padding(vertical = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally),
+            .padding(vertical = 16.dp),
+        horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.CenterHorizontally),
     ) {
         chars.forEach { char ->
             Box(
                 modifier = Modifier
-                    .size(44.dp, 52.dp)
+                    .size(54.dp, 62.dp)
                     .background(
-                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.25f),
-                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.28f),
+                        shape = RoundedCornerShape(12.dp),
                     )
                     .border(
-                        width = 1.2.dp,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                        shape = RoundedCornerShape(10.dp),
+                        width = 1.5.dp,
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.55f),
+                        shape = RoundedCornerShape(12.dp),
                     ),
                 contentAlignment = Alignment.Center,
             ) {
                 Text(
                     text = char.toString(),
-                    style = MaterialTheme.typography.headlineSmall.copy(
+                    style = MaterialTheme.typography.headlineMedium.copy(
                         fontFamily = FontFamily.Monospace,
                         fontWeight = FontWeight.Bold,
                     ),

@@ -1,9 +1,9 @@
 //! 配对验证码（实施方案 5.2）。
 //!
-//! 由双端证书指纹（排序后拼接）经 BLAKE3 派生 6 位十进制码。
+//! 由双端证书指纹（排序后拼接）经 BLAKE3 派生 4 位十进制码。
 //! 双端独立计算结果一致；中间人伪造证书必然导致两侧验证码不一致。
 
-/// 由双方指纹派生 6 位验证码（指纹交换顺序不影响结果）。
+/// 由双方指纹派生 4 位验证码（指纹交换顺序不影响结果）。
 pub fn verification_code(fp_a: &str, fp_b: &str) -> String {
     let a = crate::fingerprint::normalize(fp_a);
     let b = crate::fingerprint::normalize(fp_b);
@@ -14,8 +14,8 @@ pub fn verification_code(fp_a: &str, fp_b: &str) -> String {
     input.extend_from_slice(y.as_bytes());
     let hash = blake3::hash(&input);
     let bytes = hash.as_bytes();
-    let n = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) % 1_000_000;
-    format!("{n:06}")
+    let n = u32::from_be_bytes([bytes[0], bytes[1], bytes[2], bytes[3]]) % 10_000;
+    format!("{n:04}")
 }
 
 #[cfg(test)]
@@ -31,7 +31,7 @@ mod tests {
         let a = fp(b"certA");
         let b = fp(b"certB");
         assert_eq!(verification_code(&a, &b), verification_code(&b, &a));
-        assert_eq!(verification_code(&a, &b).len(), 6);
+        assert_eq!(verification_code(&a, &b).len(), 4);
         assert!(verification_code(&a, &b)
             .chars()
             .all(|c| c.is_ascii_digit()));
