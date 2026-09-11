@@ -117,7 +117,7 @@ cd android_app
 ./gradlew.bat :app:assembleDebug
 
 # 4. 安装到设备
-adb install -r app/build/outputs/apk/debug/app-debug.apk
+adb install -r ./app/build/outputs/apk/debug/app-debug.apk
 ```
 
 ### 命令行联调（lt-cli）

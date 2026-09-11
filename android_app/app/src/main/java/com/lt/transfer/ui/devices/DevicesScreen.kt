@@ -29,7 +29,9 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import com.lt.transfer.R
-import androidx.compose.material3.Card
+import com.lt.transfer.ui.components.card.LtCard
+import com.lt.transfer.ui.components.feedback.EmptyStateView
+import com.lt.transfer.ui.components.motion.AnimatedCollapse
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -161,8 +163,8 @@ fun DevicesScreen(modifier: Modifier) {
             }
         }
 
-        // 扫描进度条：发现结果异步到达（数秒），期间给出明确反馈
-        if (state.scanning) {
+        // 扫描进度条：发现结果异步到达（数秒），期间平滑展开/折叠反馈
+        AnimatedCollapse(visible = state.scanning) {
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
 
@@ -172,6 +174,7 @@ fun DevicesScreen(modifier: Modifier) {
         ) {
             items(state.devices, key = { it.uuid }) { device ->
                 DeviceCard(
+                    modifier = Modifier.animateItem(),
                     device = device,
                     onToggleConnect = {
                         if (device.connState == ConnectionState.Connected) {
@@ -194,10 +197,12 @@ fun DevicesScreen(modifier: Modifier) {
             }
             if (state.devices.isEmpty()) {
                 item {
-                    Text(
-                        text = stringResource(R.string.devices_empty_hint),
-                        modifier = Modifier.padding(top = 24.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    EmptyStateView(
+                        icon = painterResource(R.drawable.ic_devices),
+                        title = stringResource(R.string.tab_devices),
+                        description = stringResource(R.string.devices_empty_hint),
+                        actionText = stringResource(R.string.devices_cd_refresh),
+                        onAction = { LtEngine.probeNetwork() },
                     )
                 }
             }
@@ -238,8 +243,9 @@ private fun DeviceCard(
     onToggleConnect: () -> Unit,
     onPickFiles: () -> Unit,
     onPickFolder: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
-    Card(Modifier.fillMaxWidth()) {
+    LtCard(modifier = modifier) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 val iconRes = when (device.deviceType) {

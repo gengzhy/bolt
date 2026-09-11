@@ -1,6 +1,8 @@
 package com.lt.transfer.ui
 
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import com.lt.transfer.ui.components.motion.AnimatedPageHost
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.filled.Settings
@@ -92,11 +94,15 @@ fun MainScreen() {
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
     ) { innerPadding ->
-        val modifier = Modifier.padding(innerPadding)
-        when (tab) {
-            0 -> DevicesScreen(modifier)
-            1 -> TransfersScreen(modifier)
-            else -> SettingsScreen(modifier)
+        AnimatedPageHost(
+            targetPage = tab,
+            modifier = Modifier.padding(innerPadding),
+        ) { page ->
+            when (page) {
+                0 -> DevicesScreen(Modifier.fillMaxSize())
+                1 -> TransfersScreen(Modifier.fillMaxSize())
+                else -> SettingsScreen(Modifier.fillMaxSize())
+            }
         }
     }
 

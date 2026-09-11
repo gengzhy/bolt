@@ -12,6 +12,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.lt.transfer.ui.components.dialogs.PinCodeDisplay
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -60,14 +61,7 @@ private fun PairRequestDialog(dialog: PendingDialog.PairRequest) {
             text = {
                 Column {
                     Text(stringResource(R.string.dialog_pair_initiator_msg, dialog.name))
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = dialog.code,
-                        fontSize = 32.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.height(8.dp))
+                    PinCodeDisplay(pin = dialog.code)
                     Text(stringResource(R.string.dialog_pair_initiator_hint))
                 }
             },
@@ -85,14 +79,7 @@ private fun PairRequestDialog(dialog: PendingDialog.PairRequest) {
             text = {
                 Column {
                     Text(stringResource(R.string.dialog_pair_receiver_msg, dialog.name))
-                    Spacer(Modifier.height(12.dp))
-                    Text(
-                        text = dialog.code,
-                        fontSize = 32.sp,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Spacer(Modifier.height(8.dp))
+                    PinCodeDisplay(pin = dialog.code)
                     Text(stringResource(R.string.dialog_pair_receiver_hint))
                 }
             },

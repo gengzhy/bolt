@@ -30,8 +30,19 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.lt.transfer.ui.components.card.LtCard
+import com.lt.transfer.ui.components.dialogs.LtConfirmDialog
+import com.lt.transfer.ui.components.feedback.EmptyStateView
+import com.lt.transfer.ui.components.feedback.SmoothProgressBar
+import com.lt.transfer.ui.components.feedback.StatusBadge
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.rememberVectorPainter
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
@@ -54,6 +65,7 @@ import java.net.URLConnection
 fun TransfersScreen(modifier: Modifier) {
     val state by LtEngine.uiState.collectAsState()
     val tasks = state.tasks.values.sortedByDescending { it.taskId }
+    var showClearConfirm by remember { mutableStateOf(false) }
 
     Column(modifier.fillMaxSize()) {
         Row(
@@ -64,7 +76,11 @@ fun TransfersScreen(modifier: Modifier) {
         ) {
             Text(stringResource(R.string.transfers_title), style = MaterialTheme.typography.titleMedium)
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
-                TextButton(onClick = { LtEngine.clearRecords() }) { Text(stringResource(R.string.transfers_btn_clear_records)) }
+                if (tasks.isNotEmpty()) {
+                    TextButton(onClick = { showClearConfirm = true }) {
+                        Text(stringResource(R.string.transfers_btn_clear_records))
+                    }
+                }
             }
         }
         LazyColumn(
@@ -72,23 +88,36 @@ fun TransfersScreen(modifier: Modifier) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             items(tasks, key = { it.taskId }) { task ->
-                TaskCard(task)
+                TaskCard(task = task, modifier = Modifier.animateItem())
             }
             if (tasks.isEmpty()) {
                 item {
-                    Text(
-                        text = stringResource(R.string.transfers_empty_hint),
-                        modifier = Modifier.padding(top = 24.dp),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    EmptyStateView(
+                        icon = rememberVectorPainter(Icons.AutoMirrored.Filled.List),
+                        title = stringResource(R.string.tab_transfers),
+                        description = stringResource(R.string.transfers_empty_hint),
                     )
                 }
             }
         }
     }
+
+    if (showClearConfirm) {
+        LtConfirmDialog(
+            title = stringResource(R.string.transfers_btn_clear_records),
+            message = stringResource(R.string.transfers_confirm_clear_msg),
+            isDestructive = true,
+            onConfirm = {
+                showClearConfirm = false
+                LtEngine.clearRecords()
+            },
+            onDismiss = { showClearConfirm = false },
+        )
+    }
 }
 
 @Composable
-private fun TaskCard(task: TaskUi) {
+private fun TaskCard(task: TaskUi, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val progress = if (task.totalSize > 0) {
         (task.doneBytes.toFloat() / task.totalSize).coerceIn(0f, 1f)
@@ -100,16 +129,9 @@ private fun TaskCard(task: TaskUi) {
 
     val isIncomingDone = task.incoming && task.state == TaskStates.DONE && task.currentFile.isNotEmpty()
 
-    Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .then(
-                if (isIncomingDone) {
-                    Modifier.clickable { openReceivedFile(context, task.currentFile) }
-                } else {
-                    Modifier
-                },
-            ),
+    LtCard(
+        modifier = modifier,
+        onClick = if (isIncomingDone) { { openReceivedFile(context, task.currentFile) } } else null,
     ) {
         Column(Modifier.padding(12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -129,24 +151,23 @@ private fun TaskCard(task: TaskUi) {
                     )
                 }
                 val stateResId = Format.stateResId(task.state)
-                Text(
-                    text = if (stateResId != 0) stringResource(stateResId) else task.state,
-                    style = MaterialTheme.typography.bodySmall,
-                    color = when (task.state) {
-                        TaskStates.DONE -> MaterialTheme.colorScheme.primary
-                        TaskStates.ERROR -> MaterialTheme.colorScheme.error
-                        TaskStates.CANCELLED, TaskStates.REJECTED ->
-                            MaterialTheme.colorScheme.onSurfaceVariant
-                        else -> MaterialTheme.colorScheme.tertiary
-                    },
+                val stateText = if (stateResId != 0) stringResource(stateResId) else task.state
+                val stateColor = when (task.state) {
+                    TaskStates.DONE -> MaterialTheme.colorScheme.primary
+                    TaskStates.ERROR -> MaterialTheme.colorScheme.error
+                    TaskStates.CANCELLED, TaskStates.REJECTED -> MaterialTheme.colorScheme.onSurfaceVariant
+                    else -> MaterialTheme.colorScheme.tertiary
+                }
+                StatusBadge(
+                    text = stateText,
+                    color = stateColor,
+                    hasDot = !TaskStates.isTerminal(task.state),
                 )
             }
 
-            LinearProgressIndicator(
-                progress = { progress },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp),
+            SmoothProgressBar(
+                progress = progress,
+                modifier = Modifier.padding(top = 8.dp),
             )
 
             if (!TaskStates.isTerminal(task.state)) {
