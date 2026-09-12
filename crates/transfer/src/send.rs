@@ -10,7 +10,7 @@ use std::time::{Duration, Instant};
 use file::reader::FileReader;
 use file::traverse::TransferItem;
 use utils::constants::*;
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 use crate::protocol::{Message, HASH_BLAKE3};
 use crate::session::{EngineEvent, EventSink, Session, WaitKey};
@@ -112,7 +112,7 @@ pub async fn send_files(
     items: Vec<TransferItem>,
     sink: EventSink,
     cancel: Arc<AtomicBool>,
-) -> LtResult<SendSummary> {
+) -> BtResult<SendSummary> {
     let total_size: u64 = items.iter().map(|i| i.size).sum();
     let file_count = items.len() as u32;
 
@@ -143,8 +143,8 @@ pub async fn send_files(
     let resp_rx = session.wait_resp(WaitKey::TransferResp(task_id));
     let resp = tokio::time::timeout(Duration::from_secs(600), resp_rx)
         .await
-        .map_err(|_| LtError::ConnectTimeout)?
-        .map_err(|_| LtError::ConnectTimeout)?;
+        .map_err(|_| BtError::ConnectTimeout)?
+        .map_err(|_| BtError::ConnectTimeout)?;
     match resp {
         Message::TransferResp { accept: true, .. } => {}
         _ => {
@@ -159,7 +159,7 @@ pub async fn send_files(
     }
 
     if cancel.load(Ordering::SeqCst) {
-        return Err(LtError::Cancelled);
+        return Err(BtError::Cancelled);
     }
 
     sink(EngineEvent::State {
@@ -215,7 +215,7 @@ pub async fn send_files(
                     fail_count.fetch_add(1, Ordering::SeqCst);
                 }
                 Err(e) => {
-                    if e == LtError::Cancelled {
+                    if e == BtError::Cancelled {
                         if !cancel_sent.swap(true, Ordering::SeqCst) {
                             let _ = session.send_control(task_id, Message::Cancel { reason: CANCEL_REASON_USER });
                         }
@@ -270,7 +270,7 @@ pub async fn send_files(
             rate_bps: 0,
             eta_secs: 0,
         });
-        return Err(LtError::Cancelled);
+        return Err(BtError::Cancelled);
     }
     sink(EngineEvent::Summary {
         conn_id: session.id,
@@ -292,7 +292,7 @@ async fn send_one_file(
     cancel: &AtomicBool,
     sink: &EventSink,
     tracker: Arc<std::sync::Mutex<TaskSendTracker>>,
-) -> LtResult<bool> {
+) -> BtResult<bool> {
     // 打开文件管道；无论成败（含中途任何 `?` 提前返回）都必须释放该管道：
     // 写句柄移除后写任务 FIN，QUIC 流配额才能归还（否则累计 64 个文件后
     // open_bi 因配额耗尽永久挂起）
@@ -317,7 +317,7 @@ async fn send_one_file_on_pipe(
     cancel: &AtomicBool,
     sink: &EventSink,
     tracker: Arc<std::sync::Mutex<TaskSendTracker>>,
-) -> LtResult<bool> {
+) -> BtResult<bool> {
     let file_start = Instant::now();
     // 1) 发送文件元数据帧（标准向前兼容格式）
     // 包含文件序号、大小、修改时间戳、相对路径以及推荐分片大小与校验算法
@@ -340,8 +340,8 @@ async fn send_one_file_on_pipe(
     });
     let meta_ack = tokio::time::timeout(TIMEOUT_FILE_META_ACK, meta_rx)
         .await
-        .map_err(|_| LtError::ConnectTimeout)?
-        .map_err(|_| LtError::ConnectTimeout)?;
+        .map_err(|_| BtError::ConnectTimeout)?
+        .map_err(|_| BtError::ConnectTimeout)?;
     let Message::FileMetaAck {
         accept: true,
         ..
@@ -379,7 +379,7 @@ async fn send_one_file_on_pipe(
                 .lock()
                 .unwrap()
                 .remove(&(task_id, file_seq));
-            return Err(LtError::Cancelled);
+            return Err(BtError::Cancelled);
         }
 
         // 背压：在途字节超窗口时先吸收 ACK 再继续，等待期间照常发进度
@@ -405,7 +405,7 @@ async fn send_one_file_on_pipe(
                         .lock()
                         .unwrap()
                         .remove(&(task_id, file_seq));
-                    return Err(LtError::ConnectTimeout);
+                    return Err(BtError::ConnectTimeout);
                 }
                 Err(_) => {} // 超时：回到循环顶部检查取消
             }
@@ -458,7 +458,7 @@ async fn send_one_file_on_pipe(
             res = &mut done_rx => {
                 match res {
                     Ok(msg) => break msg,
-                    Err(_) => return Err(LtError::ConnectTimeout),
+                    Err(_) => return Err(BtError::ConnectTimeout),
                 }
             }
             Some(v) = ack_rx.recv() => {
@@ -479,7 +479,7 @@ async fn send_one_file_on_pipe(
                         .lock()
                         .unwrap()
                         .remove(&(task_id, file_seq));
-                    return Err(LtError::Cancelled);
+                    return Err(BtError::Cancelled);
                 }
                 if tokio::time::Instant::now() > deadline {
                     session
@@ -487,7 +487,7 @@ async fn send_one_file_on_pipe(
                         .lock()
                         .unwrap()
                         .remove(&(task_id, file_seq));
-                    return Err(LtError::ConnectTimeout);
+                    return Err(BtError::ConnectTimeout);
                 }
             }
         }

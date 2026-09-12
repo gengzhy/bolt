@@ -10,20 +10,20 @@ use rustls::client::danger::{HandshakeSignatureValid, ServerCertVerified, Server
 use rustls::pki_types::{CertificateDer, ServerName, UnixTime};
 use rustls::{ClientConfig, DigitallySignedStruct, ServerConfig, SignatureScheme};
 
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 use crate::identity::DeviceIdentity;
 use crate::ALPN;
 
 /// 服务端配置：仅 TLS 1.3 + 自签证书。
-pub fn server_config(identity: &DeviceIdentity) -> LtResult<ServerConfig> {
+pub fn server_config(identity: &DeviceIdentity) -> BtResult<ServerConfig> {
     crate::ensure_provider();
     let mut cfg = ServerConfig::builder_with_protocol_versions(&[&rustls::version::TLS13])
         .with_no_client_auth()
         .with_single_cert(identity.cert_chain(), identity.private_key())
         .map_err(|e| {
             tracing::error!(error = %e, "tls server config failed");
-            LtError::Internal
+            BtError::Internal
         })?;
     // QUIC 要求服务端也声明 ALPN，否则握手报 "peer doesn't support any known protocol"
     cfg.alpn_protocols = vec![ALPN.to_vec()];
@@ -31,7 +31,7 @@ pub fn server_config(identity: &DeviceIdentity) -> LtResult<ServerConfig> {
 }
 
 /// 客户端配置：接受任意自签证书（指纹在应用层校验），并出示自身证书。
-pub fn client_config(identity: &DeviceIdentity) -> LtResult<ClientConfig> {
+pub fn client_config(identity: &DeviceIdentity) -> BtResult<ClientConfig> {
     crate::ensure_provider();
     let mut cfg = ClientConfig::builder_with_protocol_versions(&[&rustls::version::TLS13])
         .dangerous()
@@ -39,7 +39,7 @@ pub fn client_config(identity: &DeviceIdentity) -> LtResult<ClientConfig> {
         .with_client_auth_cert(identity.cert_chain(), identity.private_key())
         .map_err(|e| {
             tracing::error!(error = %e, "tls client config failed");
-            LtError::Internal
+            BtError::Internal
         })?;
     cfg.alpn_protocols = vec![ALPN.to_vec()];
     cfg.enable_early_data = false;
@@ -47,7 +47,7 @@ pub fn client_config(identity: &DeviceIdentity) -> LtResult<ClientConfig> {
 }
 
 /// QUIC 客户端专用（附加 ALPN；quinn 要求非空）。
-pub fn quic_client_config(identity: &DeviceIdentity) -> LtResult<ClientConfig> {
+pub fn quic_client_config(identity: &DeviceIdentity) -> BtResult<ClientConfig> {
     client_config(identity)
 }
 
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn builds_configs() {
-        let tmp = std::env::temp_dir().join(format!("lt-tls-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("bt-tls-{}", std::process::id()));
         let id = DeviceIdentity::load_or_create(&tmp, "tls-test").unwrap();
         assert!(server_config(&id).is_ok());
         assert!(client_config(&id).is_ok());

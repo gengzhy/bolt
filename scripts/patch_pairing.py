@@ -7,7 +7,7 @@ css_file = 'tauri_app/dist/assets/index-mi7y1Qz8.css'
 with open(js_file, 'r', encoding='utf-8') as f:
     js = f.read()
 
-# 1. Patch useLt event handler for case 2, case 3, case 8
+# 1. Patch useBt event handler for case 2, case 3, case 8
 old_case2_3 = 'x.state==="connected"?e(`已连接 ${x.name??O}（${x.transport??"?"}）`):x.err?e(`连接断开：${x.err}`):e("已断开");break}case 3:Bn.value={pair_id:x.pair_id,uuid:x.uuid,name:x.name,code:x.code};break;'
 new_case2_3 = 'x.state==="connected"?e(`已连接 ${x.name??O}（${x.transport??"?"}）`):x.err?e(`连接断开：${x.err}`):e("已断开");Bn.value&&Bn.value.uuid===O&&(Bn.value=null);break}case 3:Bn.value={pair_id:x.pair_id,uuid:x.uuid,name:x.name,code:x.code,is_initiator:Boolean(x.is_initiator)};break;'
 

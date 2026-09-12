@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <paths>
-    <!-- Rust 核心数据目录（filesDir/lt）：received 为接收落盘目录 -->
-    <files-path name="lt" path="lt/" />
-    <!-- 公共存储（默认接收目录 Download/LocalTransfer 所在）：分享接收文件用 -->
+    <!-- Rust 核心数据目录（filesDir/bolt）：received 为接收落盘目录 -->
+    <files-path name="bolt" path="bolt/" />
+    <!-- 公共存储（默认接收目录 Download/Bolt 所在）：分享接收文件用 -->
     <external-path name="download" path="." />
 </paths>

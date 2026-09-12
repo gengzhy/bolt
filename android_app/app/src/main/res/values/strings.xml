@@ -4,7 +4,7 @@
     <!-- 1. 应用与基础通用                           -->
     <!-- ========================================== -->
     <!-- 应用名称 -->
-    <string name="app_name">LocalTransfer</string>
+    <string name="app_name">Bolt</string>
 
     <!-- 通用按钮与操作标签 -->
     <string name="common_confirm">确定</string>
@@ -134,7 +134,7 @@
 
     <!-- 文件接收分组 -->
     <string name="setting_save_dir_title">保存目录</string>
-    <string name="setting_save_dir_desc">选择的文件夹为父目录，末级目录自动固定为 /LocalTransfer</string>
+    <string name="setting_save_dir_desc">选择的文件夹为父目录，末级目录自动固定为 /Bolt</string>
     <string name="setting_save_dir_btn_change">📁 更改</string>
     <string name="setting_save_dir_updated_toast">接收目录已更新为：%s</string>
     <string name="setting_save_dir_invalid_toast">未能识别该目录，请选择内部存储中的有效文件夹</string>
@@ -173,7 +173,7 @@
     <string name="setting_fingerprint_show">显示安全指纹</string>
     <string name="setting_fingerprint_hide">隐藏安全指纹</string>
     <string name="setting_engine_ver_title">传输引擎版本</string>
-    <string name="setting_engine_ver_desc">LocalTransfer Rust P2P Core 核心底层引擎</string>
+    <string name="setting_engine_ver_desc">Bolt Rust P2P Core 核心底层引擎</string>
 
     <!-- 设置弹窗 -->
     <string name="dialog_edit_name_title">修改设备名称</string>
@@ -234,8 +234,8 @@
     <!-- ========================================== -->
     <!-- 常驻通知 (PersistentNotification) -->
     <string name="notif_channel_persistent_name">后台常驻运行</string>
-    <string name="notif_channel_persistent_desc">保持 LocalTransfer 后台运行并随时快捷访问</string>
-    <string name="notif_persistent_content">LocalTransfer 运行中，点击快速进入</string>
+    <string name="notif_channel_persistent_desc">保持 Bolt 后台运行并随时快捷访问</string>
+    <string name="notif_persistent_content">Bolt 运行中，点击快速进入</string>
 
     <!-- 前台传输通知 (TransferService) -->
     <string name="notif_channel_transfer_name">文件传输</string>
@@ -274,7 +274,7 @@
     <!-- ========================================== -->
     <!-- 9. 权限申请与引导 (MainActivity)            -->
     <!-- ========================================== -->
-    <string name="perm_storage_toast">接收文件默认保存到 Download/LocalTransfer，请授予「所有文件访问」权限</string>
+    <string name="perm_storage_toast">接收文件默认保存到 Download/Bolt，请授予「所有文件访问」权限</string>
     <string name="perm_storage_guide">请在系统设置中授予「所有文件访问」权限</string>
 
     <!-- 底部关于与版权信息 -->

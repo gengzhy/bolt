@@ -4,7 +4,7 @@
     <!-- 1. Application & Base Common               -->
     <!-- ========================================== -->
     <!-- Application Name -->
-    <string name="app_name">LocalTransfer</string>
+    <string name="app_name">Bolt</string>
 
     <!-- Common Button & Action Labels -->
     <string name="common_confirm">OK</string>
@@ -134,7 +134,7 @@
 
     <!-- Receiving Section -->
     <string name="setting_save_dir_title">Destination Directory</string>
-    <string name="setting_save_dir_desc">Selected folder serves as the parent directory; files are saved to /LocalTransfer</string>
+    <string name="setting_save_dir_desc">Selected folder serves as the parent directory; files are saved to /Bolt</string>
     <string name="setting_save_dir_btn_change">📁 Change</string>
     <string name="setting_save_dir_updated_toast">Destination directory updated to: %s</string>
     <string name="setting_save_dir_invalid_toast">Invalid directory. Please select a valid folder in internal storage.</string>
@@ -173,7 +173,7 @@
     <string name="setting_fingerprint_show">Show security fingerprint</string>
     <string name="setting_fingerprint_hide">Hide security fingerprint</string>
     <string name="setting_engine_ver_title">Transfer Engine Version</string>
-    <string name="setting_engine_ver_desc">LocalTransfer Rust P2P Core Engine</string>
+    <string name="setting_engine_ver_desc">Bolt Rust P2P Core Engine</string>
 
     <!-- Dialogs -->
     <string name="dialog_edit_name_title">Edit Device Name</string>
@@ -234,8 +234,8 @@
     <!-- ========================================== -->
     <!-- Persistent Notification (PersistentNotification) -->
     <string name="notif_channel_persistent_name">Background Service</string>
-    <string name="notif_channel_persistent_desc">Keeps LocalTransfer running in the background for quick access</string>
-    <string name="notif_persistent_content">LocalTransfer is active. Tap to open.</string>
+    <string name="notif_channel_persistent_desc">Keeps Bolt running in the background for quick access</string>
+    <string name="notif_persistent_content">Bolt is active. Tap to open.</string>
 
     <!-- Foreground Transfer Notifications (TransferService) -->
     <string name="notif_channel_transfer_name">File Transfers</string>
@@ -274,7 +274,7 @@
     <!-- ========================================== -->
     <!-- 9. Permissions & Onboarding (MainActivity) -->
     <!-- ========================================== -->
-    <string name="perm_storage_toast">Files are saved to Download/LocalTransfer by default. Please grant \"All Files Access\" permission.</string>
+    <string name="perm_storage_toast">Files are saved to Download/Bolt by default. Please grant \"All Files Access\" permission.</string>
     <string name="perm_storage_guide">Please grant \"All Files Access\" permission in system settings.</string>
 
     <!-- Footer about and copyright -->

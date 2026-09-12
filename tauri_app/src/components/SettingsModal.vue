@@ -8,11 +8,11 @@
 // 6. 立体科技视觉：微投影卡片、高亮垂直色标、精致 Badge。
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { open as pickDialog } from "@tauri-apps/plugin-dialog";
-import { useLt } from "../composables/useLt";
+import { useBt } from "../composables/useBt";
 import logoSvg from "../assets/logo.svg";
 import appConfig from "../config/app.json";
 
-const appName = appConfig.appName || "LocalTransfer";
+const appName = appConfig.appName || "Bolt";
 const appAuthor = appConfig.author || "ian";
 const currentYear = new Date().getFullYear();
 const copyright = `@${currentYear} ${appAuthor}`;
@@ -31,7 +31,7 @@ const {
   clearTempCache,
   showToast,
   refreshLocalInfo,
-} = useLt();
+} = useBt();
 
 const loaded = ref(false);
 
@@ -118,8 +118,8 @@ async function pickSaveDir() {
   const picked = await pickDialog({ directory: true, title: "选择接收文件保存目录" });
   if (picked && !Array.isArray(picked)) {
     let clean = picked.replace(/[/\\]+$/, "");
-    if (!/[/\\]LocalTransfer$/i.test(clean)) {
-      clean = clean + "\\LocalTransfer";
+    if (!/[/\\]Bolt$/i.test(clean)) {
+      clean = clean + "\\Bolt";
     }
     saveDir.value = clean;
     await updateConfig({ save_dir: clean });
@@ -339,7 +339,7 @@ async function copyFingerprint() {
                     </div>
                   </div>
                 </div>
-                <div class="setting-desc">选择的文件夹为父目录，末级目录自动固定为 /LocalTransfer</div>
+                <div class="setting-desc">选择的文件夹为父目录，末级目录自动固定为 /Bolt</div>
               </div>
 
               <!-- 同名冲突策略 -->
@@ -504,14 +504,14 @@ async function copyFingerprint() {
                     </div>
                   </div>
                 </div>
-                <div class="setting-desc">LocalTransfer Rust P2P Core 核心底层引擎</div>
+                <div class="setting-desc">Bolt Rust P2P Core 核心底层引擎</div>
               </div>
             </div>
           </section>
 
           <!-- 底部品牌展示区：logo、APP名称、版本、版权分别单独成行展示 -->
           <div class="footer-info">
-            <img :src="logoSvg" alt="LocalTransfer" class="footer-logo" />
+            <img :src="logoSvg" alt="Bolt" class="footer-logo" />
             <span class="app-name">{{ appName }}</span>
             <span class="app-ver">v{{ version || appConfig.version || "0.1.0" }}</span>
             <span class="app-copyright">{{ copyright }}</span>

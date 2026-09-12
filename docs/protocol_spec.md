@@ -1,6 +1,6 @@
-# LocalTransfer 传输协议规范（Protocol V2）
+# Bolt 传输协议规范（Protocol V2）
 
-> 对应实施方案 LT-RUST-IMPL-20260828。本文档描述 `lt-` 各 crate
+> 对应实施方案。本文档描述各 crate
 > 实际实现的线上格式。所有多字节整数均为**大端**。
 
 ## 1. 帧格式（通用）
@@ -21,7 +21,7 @@
 | 码 | 名称 | 方向 | 说明 |
 |----|------|------|------|
 | 0x01 | HELLO | 双向 | 协议版本、能力位、UUID、设备名、设备类型、BLAKE3 证书指纹 |
-| 0x02 | PAIR_REQ | C→S | 16B nonce；触发 6 位验证码展示 |
+| 0x02 | PAIR_REQ | C→S | 16B nonce；触发 4 位验证码展示 |
 | 0x03 | PAIR_RESP | S→C | accept(bool) + 16B nonce |
 | 0x04 | TRANSFER_REQ | S→R | file_count、total_size、sender_name；入站任务 ID = 本帧会话 ID |
 | 0x05 | TRANSFER_RESP | R→S | accept(bool) |
@@ -51,7 +51,7 @@
    - 指纹与信任库不匹配（TOFU Changed）→ `ERROR(-14)`，断开。
 3. 配对（双方任一信任状态为 Unknown）：
    - 拨号方发 PAIR_REQ；被叫方在握手期直接读取该帧并回 PAIR_RESP。
-   - 双方各自展示 6 位验证码（`verification_code(fp_a, fp_b)`，BLAKE3 指纹派生，两侧一致）。
+   - 双方各自展示 4 位验证码（`verification_code(fp_a, fp_b)`，BLAKE3 指纹派生，两侧一致）。
    - 被叫方用户确认后 PAIR_RESP{accept:true}，双方写入信任库。
    - 拨号方在握手期直接读控制流等待 PAIR_RESP，期间应答 PING（防心跳误杀）。
    - 拒绝 → 拨号方 `-11`。
@@ -117,11 +117,11 @@
 
 ## 9. 发现（mDNS + UDP 探测）
 
-- 服务类型 `_lt._udp.local.`，实例 `lt-{uuid}`，TXT 属性：
+- 服务类型 `_bolt._udp.local.`，实例 `bolt-{uuid}`，TXT 属性：
   `uuid/name/dt/qport/tport/ver/stealth`。
-- UDP 广播探测 `255.255.255.255:8951`（独立端口，避开 QUIC 端口池）：魔数 `LTQ1`（查询）/ `LTP1`（应答+设备 JSON），
+- UDP 广播探测 `255.255.255.255:8951`（独立端口，避开 QUIC 端口池）：魔数 `BTQ1`（查询）/ `BTP1`（应答+设备 JSON），
   3s 周期广播，10s 过期，UUID 去重；回复单播，不回自身。
-- 端口池 8899 → 8950 自动避让；Android 侧用 NSD API 桥接（`lt_nsd_inject_device`）。
+- 端口池 8899 → 8950 自动避让；Android 侧用 NSD API 桥接（`bt_nsd_inject_device`）。
 - 存在活跃连接的设备在列表中被钉住，TTL 清扫不移除；连接 HELLO 以真实 uuid 校正手动连接占位条目。
 - 隐身模式：停广播与应答，仅被动发现他人。
 
@@ -129,6 +129,6 @@
 
 - TLS 1.3 强制（rustls+ring），Ed25519 自签证书（10 年），无明文模式。
 - 设备身份 = 证书 BLAKE3 指纹（冒号分隔）；HELLO 交换指纹。
-- 信任链：信道加密（TLS）+ 6 位验证码人工比对 + TOFU 信任库（指纹变更 → `-14` 硬拒绝）。
+- 信任链：信道加密（TLS）+ 4 位验证码人工比对 + TOFU 信任库（指纹变更 → `-14` 硬拒绝）。
 - 接收方必须确认传输请求（自动接收仅限已信任设备且显式开启）。
 - 日志不含文件内容与密钥材料；无任何外部网络请求。

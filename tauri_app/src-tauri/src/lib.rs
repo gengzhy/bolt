@@ -1,7 +1,7 @@
-//! LocalTransfer 桌面端入口（Tauri v2）。
+//! Bolt 桌面端入口（Tauri v2）。
 //!
-//! 核心能力全部经 lt-ffi 的 C ABI 使用（与 Android 端共用同一动态库语义）；
-//! FFI 事件回调经 tauri `Emitter` 转发到前端（事件名 `lt://event`）。
+//! 核心能力全部经 bt_ffi 的 C ABI 使用（与 Android 端共用同一动态库语义）；
+//! FFI 事件回调经 tauri `Emitter` 转发到前端（事件名 `bt://event`）。
 
 use tauri::menu::{Menu, MenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};

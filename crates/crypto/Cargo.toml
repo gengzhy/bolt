@@ -1,6 +1,6 @@
 [package]
 name = "crypto"
-description = "LocalTransfer 安全层：证书身份、TLS1.3 配置、BLAKE3 指纹、配对验证码、TOFU 信任库"
+description = "Bolt 安全层：证书身份、TLS1.3 配置、BLAKE3 指纹、配对验证码、TOFU 信任库"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

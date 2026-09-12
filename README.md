@@ -1,7 +1,7 @@
-# LocalTransfer
+# Bolt
 
 <p align="center">
-  <img src="docs/LT.png" width="128" alt="LocalTransfer Logo" />
+  <img src="docs/bolt.png" width="128" alt="Bolt Logo" />
 </p>
 
 <p align="center">
@@ -13,7 +13,7 @@
 
 ## 📖 项目简介
 
-LocalTransfer 是一款基于 **Rust** 构建的局域网文件传输工具，支持 Windows 与 Android 双平台互传。
+Bolt 是一款基于 **Rust** 构建的局域网文件传输工具，支持 Windows 与 Android 双平台互传。
 无需任何服务器、账号或互联网连接，设备处于同一局域网即可快速安全地传输文件。
 
 ## ✨ 核心优势
@@ -22,7 +22,7 @@ LocalTransfer 是一款基于 **Rust** 构建的局域网文件传输工具，�
 - **点对点直连**：QUIC 优先，自动降级 TCP，无中转服务器，数据不经第三方
 - **全程加密**：TLS 1.3 强制加密（rustls + ring），Ed25519 自签证书，传输内容零泄漏
 - **零配置发现**：mDNS + UDP 广播双通道自动发现，开箱即用无需手动输入 IP
-- **安全配对**：BLAKE3 指纹 + 6 位验证码人工比对 + TOFU 信任库，三重身份校验
+- **安全配对**：BLAKE3 指纹 + 4 位验证码人工比对 + TOFU 信任库，三重身份校验
 - **完整性校验**：BLAKE3 全文件哈希校验，确保传输内容字节级一致
 - **隐私至上**：无服务器、无账户、无外网请求、无遥测、日志不含文件内容与密钥
 
@@ -49,7 +49,7 @@ crates/
   discovery       设备模型、mDNS、UDP 探测、NSD 桥、发现管理器
   transfer        传输引擎：QUIC+TCP 双栈、会话状态机、收发流水线
   task            应用门面：事件驱动、任务管理、配置、编排调度
-  ffi             C ABI 导出（Windows lt_ffi.dll / Android liblt_ffi.so）
+  ffi             C ABI 导出（Windows bt_ffi.dll / Android libbt_ffi.so）
 
 tools/cli         命令行联调工具（serve / send / discover）
 tauri_app/        Windows 桌面客户端（Tauri v2 + Vue 3）
@@ -88,13 +88,13 @@ scripts/          构建与测试脚本
   ```bash
   cd tauri_app/src-tauri
   cargo build --release
-  # 产物输出于：tauri_app/src-tauri/target/release/lt-tauri.exe
+  # 产物输出于：tauri_app/src-tauri/target/release/bolt.exe
   ```
 
 - **编译 Windows FFI 动态库与 CLI 工具**：
   ```cmd
   scripts\build_rust_lib.bat
-  # 产物输出于：lib/win64/lt_ffi.dll 及 target/release/cli.exe
+  # 产物输出于：lib/win64/bt_ffi.dll 及 target/release/bolt-cli.exe
   ```
 
 - **完整前端热重载开发 / NSIS 打包（需 Node.js）**：
@@ -117,22 +117,22 @@ cd android_app
 ./gradlew.bat :app:assembleDebug
 
 # 4. 安装到设备
-adb install -r ./app/build/outputs/apk/debug/app-debug.apk
+adb install -r ./app/build/outputs/apk/debug/bolt.apk
 ```
 
-### 命令行联调（cli）
+### 命令行联调（bolt-cli）
 
 ```bash
-cargo build -p cli
+cargo build -p bolt-cli
 
 # 接收端
-./target/debug/cli.exe serve --port 8899 --data-dir target/cli_a
+./target/debug/bolt-cli.exe serve --port 8899 --data-dir target/cli_a
 
 # 发送端
-./target/debug/cli.exe send --data-dir target/cli_b 127.0.0.1:8899 ./file.zip
+./target/debug/bolt-cli.exe send --data-dir target/cli_b 127.0.0.1:8899 ./file.zip
 
 # 浏览局域网设备
-./target/debug/cli.exe discover
+./target/debug/bolt-cli.exe discover
 ```
 
 ## 📱 使用说明
@@ -140,7 +140,7 @@ cargo build -p cli
 1. **确保设备在同一局域网**（Wi-Fi 或有线均可）
 2. **启动双端应用**：Windows 端运行桌面客户端，Android 端打开 App
 3. **自动发现**：设备列表自动显示对方设备
-4. **首次配对**：点击设备名连接，双方屏幕显示 6 位验证码，确认一致后信任
+4. **首次配对**：点击设备名连接，双方屏幕显示 4 位验证码，确认一致后信任
 5. **选择文件发送**：选择文件或文件夹，点击发送，对方确认接收即开始传输
 6. **传输完成**：自动 BLAKE3 校验，确保文件完整无损
 
@@ -150,7 +150,7 @@ cargo build -p cli
 |------|------|
 | **传输加密** | TLS 1.3 强制，无明文模式 |
 | **设备身份** | Ed25519 自签证书（10 年有效期） |
-| **身份验证** | BLAKE3 指纹 + 6 位验证码 + TOFU 信任库 |
+| **身份验证** | BLAKE3 指纹 + 4 位验证码 + TOFU 信任库 |
 | **文件校验** | BLAKE3 全文件哈希，字节级一致性保证 |
 | **隐私保护** | 零外网请求、零遥测、日志不含文件内容与密钥 |
 
@@ -168,10 +168,10 @@ bash scripts/smoke_loopback.sh       # 环回冒烟测试（QUIC + TCP + 校验�
 | 文档 | 说明 |
 |------|------|
 | [传输协议规范](docs/protocol_spec.md) | 帧格式、指令码、握手流程、错误码 |
-| [FFI API 参考](docs/ffi_api.md) | `lt_*` C ABI 接口与事件定义 |
+| [FFI API 参考](docs/ffi_api.md) | `bt_*` C ABI 接口与事件定义 |
 | [开发指南](docs/dev_guide.md) | 架构速览、环境配置、构建步骤、测试约定 |
 | [QUIC 性能优化](docs/QUIC性能优化执行计划.md) | 传输层调优方案与实测验证 |
-| [可行性实施方案](docs/LocalTransfer-可行性实施方案.txt) | 原始设计方案 |
+| [可行性实施方案](docs/Bolt-可行性实施方案.txt) | 原始设计方案 |
 
 ## 📜 许可
 

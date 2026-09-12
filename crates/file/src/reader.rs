@@ -8,7 +8,7 @@ use std::path::Path;
 
 use memmap2::Mmap;
 
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 /// mmap 分片读取器（只读，顺序推进）。
 pub struct FileReader {
@@ -21,14 +21,14 @@ pub struct FileReader {
 
 impl FileReader {
     /// 打开文件并建立内存映射。空文件不建映射（哈希为空的 BLAKE3）。
-    pub fn open(path: &Path) -> LtResult<FileReader> {
-        let file = File::open(path).map_err(|_| LtError::FileNotAccessible)?;
+    pub fn open(path: &Path) -> BtResult<FileReader> {
+        let file = File::open(path).map_err(|_| BtError::FileNotAccessible)?;
         let size = file
             .metadata()
-            .map_err(|_| LtError::FileNotAccessible)?
+            .map_err(|_| BtError::FileNotAccessible)?
             .len();
         let mmap = if size > 0 {
-            Some(unsafe { Mmap::map(&file).map_err(|_| LtError::MmapFailed)? })
+            Some(unsafe { Mmap::map(&file).map_err(|_| BtError::MmapFailed)? })
         } else {
             None
         };
@@ -51,7 +51,7 @@ impl FileReader {
 
     /// 读取下一分片（≤chunk_size），同时更新全文件哈希。
     /// 返回 None 表示已到文件尾。
-    pub fn next_chunk(&mut self, chunk_size: usize) -> LtResult<Option<&[u8]>> {
+    pub fn next_chunk(&mut self, chunk_size: usize) -> BtResult<Option<&[u8]>> {
         if self.pos >= self.size {
             return Ok(None);
         }
@@ -79,7 +79,7 @@ mod tests {
 
     #[test]
     fn chunked_read_matches_full_hash() {
-        let dir = std::env::temp_dir().join(format!("lt-reader-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("bt-reader-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("data.bin");
@@ -99,7 +99,7 @@ mod tests {
 
     #[test]
     fn empty_file() {
-        let dir = std::env::temp_dir().join(format!("lt-reader2-{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("bt-reader2-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         let path = dir.join("empty.bin");

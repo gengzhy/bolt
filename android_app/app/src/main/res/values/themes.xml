@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- 应用主题：UI 全部由 Compose 渲染，这里仅用系统主题去掉 ActionBar -->
-    <style name="Theme.LocalTransfer" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.Bolt" parent="android:Theme.Material.Light.NoActionBar" />
 </resources>

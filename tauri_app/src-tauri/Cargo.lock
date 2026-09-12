@@ -3,20 +3,6 @@
 version = 4
 
 [[package]]
-name = "LocalTransfer"
-version = "0.1.0"
-dependencies = [
- "ffi",
- "file",
- "serde",
- "serde_json",
- "tauri",
- "tauri-build",
- "tauri-plugin-dialog",
- "tauri-plugin-single-instance",
-]
-
-[[package]]
 name = "adler2"
 version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -416,6 +402,20 @@ dependencies = [
  "futures-io",
  "futures-lite",
  "piper",
+]
+
+[[package]]
+name = "bolt"
+version = "0.1.0"
+dependencies = [
+ "ffi",
+ "file",
+ "serde",
+ "serde_json",
+ "tauri",
+ "tauri-build",
+ "tauri-plugin-dialog",
+ "tauri-plugin-single-instance",
 ]
 
 [[package]]

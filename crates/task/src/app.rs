@@ -1,4 +1,4 @@
-//! App 门面：lt-task 对上层（FFI / CLI）的唯一入口（实施方案第九节）。
+//! App 门面：task 对上层（FFI / CLI）的唯一入口（实施方案第九节）。
 //!
 //! 汇聚配置、身份、信任库、传输引擎、发现、任务队列与事件总线。
 //! 所有公共方法线程安全，可从任意线程（含 FFI 回调线程）调用。
@@ -22,14 +22,14 @@ use transfer::session::{
     TransportKind,
 };
 use utils::constants::*;
-use utils::{AppConfig, LtError, LtResult};
+use utils::{AppConfig, BtError, BtResult};
 
-use crate::events::LtEvent;
+use crate::events::BtEvent;
 use crate::task::{Direction, TaskRecord, TaskState};
 
-type EventSink = Box<dyn Fn(LtEvent) + Send + Sync>;
+type EventSink = Box<dyn Fn(BtEvent) + Send + Sync>;
 
-/// LocalTransfer 应用门面。
+/// Bolt 应用门面。
 pub struct App {
     rt: tokio::runtime::Runtime,
     cfg: Mutex<AppConfig>,
@@ -66,14 +66,14 @@ pub struct App {
 impl App {
     /// 初始化：加载配置/身份/信任库，启动引擎与发现。
     /// `data_dir` 为 None 时使用系统默认数据目录。
-    pub fn init(data_dir: Option<PathBuf>) -> LtResult<Arc<App>> {
+    pub fn init(data_dir: Option<PathBuf>) -> BtResult<Arc<App>> {
         crypto::ensure_provider();
         let dir = data_dir.unwrap_or_else(utils::config::default_data_dir);
         let cfg = AppConfig::load(&dir);
         Self::init_with(cfg)
     }
 
-    fn init_with(cfg: AppConfig) -> LtResult<Arc<App>> {
+    fn init_with(cfg: AppConfig) -> BtResult<Arc<App>> {
         let cfg_data_dir = cfg.data_dir.clone();
         std::fs::create_dir_all(&cfg.data_dir).ok();
         std::fs::create_dir_all(&cfg.save_dir).ok();
@@ -93,9 +93,9 @@ impl App {
 
         let rt = tokio::runtime::Builder::new_multi_thread()
             .enable_all()
-            .thread_name("lt-rt")
+            .thread_name("bt-rt")
             .build()
-            .map_err(|_| LtError::Internal)?;
+            .map_err(|_| BtError::Internal)?;
 
         let app = Arc::new(App {
             rt,
@@ -123,7 +123,7 @@ impl App {
         app.devices.set_change_callback(move |devices| {
             if let Some(app) = weak.upgrade() {
                 let json = serde_json::to_string(devices).unwrap_or_else(|_| "[]".into());
-                app.emit(LtEvent::DeviceList { devices_json: json });
+                app.emit(BtEvent::DeviceList { devices_json: json });
             }
         });
 
@@ -152,7 +152,7 @@ impl App {
         Ok(app)
     }
 
-    fn start_engine(self: &Arc<App>) -> LtResult<()> {
+    fn start_engine(self: &Arc<App>) -> BtResult<()> {
         let cfg = self.cfg.lock().unwrap().clone();
         let engine_cfg = Self::engine_config_from(&cfg);
         std::fs::create_dir_all(&engine_cfg.session.tmp_dir).ok();
@@ -275,13 +275,13 @@ impl App {
         }
         let me = Arc::clone(self);
         let r = std::thread::Builder::new()
-            .name("lt-disc-restart".into())
+            .name("bt-disc-restart".into())
             .spawn(move || {
                 let dcfg = me.discovery_config();
                 if let Err(e) = me.discovery.start(dcfg) {
-                    me.emit(LtEvent::Error {
+                    me.emit(BtEvent::Error {
                         task_id: None,
-                        code: LtError::DiscoveryUnavailable.code(),
+                        code: BtError::DiscoveryUnavailable.code(),
                         message: format!("发现通道启动失败：{e}"),
                     });
                 }
@@ -303,11 +303,11 @@ impl App {
 
     // ---------------- 事件 ----------------
 
-    pub fn set_event_sink(&self, sink: impl Fn(LtEvent) + Send + Sync + 'static) {
+    pub fn set_event_sink(&self, sink: impl Fn(BtEvent) + Send + Sync + 'static) {
         *self.sink.lock().unwrap() = Some(Box::new(sink));
     }
 
-    fn emit(&self, ev: LtEvent) {
+    fn emit(&self, ev: BtEvent) {
         if let Some(sink) = self.sink.lock().unwrap().as_ref() {
             sink(ev);
         }
@@ -329,18 +329,18 @@ impl App {
         self.discovery.add_manual(ip, port);
     }
 
-    fn engine(&self) -> LtResult<Arc<TransferEngine>> {
-        self.engine.lock().unwrap().clone().ok_or(LtError::Internal)
+    fn engine(&self) -> BtResult<Arc<TransferEngine>> {
+        self.engine.lock().unwrap().clone().ok_or(BtError::Internal)
     }
 
-    fn device_addr(&self, uuid: &str) -> LtResult<std::net::SocketAddr> {
+    fn device_addr(&self, uuid: &str) -> BtResult<std::net::SocketAddr> {
         let device = self
             .devices
             .snapshot()
             .into_iter()
             .find(|d| d.uuid == uuid)
-            .ok_or(LtError::InvalidArgument)?;
-        let ip: std::net::IpAddr = device.ip.parse().map_err(|_| LtError::InvalidArgument)?;
+            .ok_or(BtError::InvalidArgument)?;
+        let ip: std::net::IpAddr = device.ip.parse().map_err(|_| BtError::InvalidArgument)?;
         let port = if device.quic_port != 0 {
             device.quic_port
         } else {
@@ -352,13 +352,13 @@ impl App {
     /// 拨号协议由**发送端（拨号方）自己的设置**决定：本机选 TCP 即走 TCP，
     /// 否则走 QUIC（默认）。接收端双协议并听、来者不拒。协议以发送端
     /// 为准：A→B 用 A 的设置，B→A 用 B 的设置。
-    /// `LT_FORCE_TCP` 环境变量在引擎层兜底（联调/排障）。
+    /// `BT_FORCE_TCP` 环境变量在引擎层兜底（联调/排障）。
     fn dial_force_tcp(&self) -> bool {
         !self.cfg.lock().unwrap().prefer_quic
     }
 
     /// 连接设备（异步发起）。结果经 EVT_CONN_STATE / EVT_ERROR 通知。
-    pub fn connect(self: &Arc<App>, uuid: &str) -> LtResult<()> {
+    pub fn connect(self: &Arc<App>, uuid: &str) -> BtResult<()> {
         if self.conns.lock().unwrap().contains_key(uuid) {
             return Ok(());
         }
@@ -383,17 +383,17 @@ impl App {
                         }
                         drop(sessions);
 
-                        app.emit(LtEvent::ConnState {
+                        app.emit(BtEvent::ConnState {
                             uuid: uuid_owned.clone(),
                             name: String::new(),
                             state: "disconnected".into(),
                             conn_id: 0,
                             transport: String::new(),
-                            err: if e == LtError::Cancelled { None } else { Some(e.code()) },
+                            err: if e == BtError::Cancelled { None } else { Some(e.code()) },
                         });
 
-                        if e != LtError::Cancelled {
-                            app.emit(LtEvent::Error {
+                        if e != BtError::Cancelled {
+                            app.emit(BtEvent::Error {
                                 task_id: None,
                                 code: e.code(),
                                 message: format!("连接 {uuid_owned} 失败"),
@@ -407,10 +407,10 @@ impl App {
     }
 
     /// 直连任意地址（不经设备列表）。
-    pub fn connect_addr(self: &Arc<App>, ip: &str, port: u16) -> LtResult<()> {
+    pub fn connect_addr(self: &Arc<App>, ip: &str, port: u16) -> BtResult<()> {
         let addr: std::net::SocketAddr = format!("{ip}:{port}")
             .parse()
-            .map_err(|_| LtError::InvalidArgument)?;
+            .map_err(|_| BtError::InvalidArgument)?;
         self.add_manual_device(ip, port);
         let force_tcp = self.dial_force_tcp();
         let engine = self.engine()?;
@@ -432,17 +432,17 @@ impl App {
                         }
                         drop(sessions);
 
-                        app.emit(LtEvent::ConnState {
+                        app.emit(BtEvent::ConnState {
                             uuid: String::new(),
                             name: addr_str.clone(),
                             state: "disconnected".into(),
                             conn_id: 0,
                             transport: String::new(),
-                            err: if e == LtError::Cancelled { None } else { Some(e.code()) },
+                            err: if e == BtError::Cancelled { None } else { Some(e.code()) },
                         });
 
-                        if e != LtError::Cancelled {
-                            app.emit(LtEvent::Error {
+                        if e != BtError::Cancelled {
+                            app.emit(BtEvent::Error {
                                 task_id: None,
                                 code: e.code(),
                                 message: format!("连接 {addr} 失败"),
@@ -456,7 +456,7 @@ impl App {
     }
 
     /// 断开与某设备的会话。
-    pub fn disconnect(&self, uuid: &str) -> LtResult<()> {
+    pub fn disconnect(&self, uuid: &str) -> BtResult<()> {
         let conn_id = self.conns.lock().unwrap().get(uuid).copied();
         let session = if let Some(conn_id) = conn_id {
             self.sessions.lock().unwrap().get(&conn_id).cloned()
@@ -519,7 +519,7 @@ impl App {
         }
         drop(tasks);
         // 接收任务接受/拒绝后通知上层刷新（此前无事件，UI 看不到状态变化）
-        self.emit(LtEvent::TaskState {
+        self.emit(BtEvent::TaskState {
             task_id: req_id,
             incoming: true,
             state: if accept { "transferring" } else { "cancelled" }.into(),
@@ -529,11 +529,11 @@ impl App {
     // ---------------- 发送 ----------------
 
     /// 发送文件给某设备（未连接时自动连接）。返回任务 ID。
-    pub fn send_files(self: &Arc<App>, uuid: &str, paths: &[String]) -> LtResult<u64> {
+    pub fn send_files(self: &Arc<App>, uuid: &str, paths: &[String]) -> BtResult<u64> {
         let items =
             file::traverse::traverse(&paths.iter().map(PathBuf::from).collect::<Vec<_>>())?;
         if items.items.is_empty() {
-            return Err(LtError::InvalidArgument);
+            return Err(BtError::InvalidArgument);
         }
         let engine = self.engine()?;
         let task_id = self.next_task_id.fetch_add(1, Ordering::SeqCst);
@@ -571,7 +571,7 @@ impl App {
         let gen = record.generation;
         self.tasks.lock().unwrap().insert(task_id, record);
         // 立即通知上层建档（否则 UI 要等首个状态事件才能看到任务行）
-        self.emit(LtEvent::TaskState {
+        self.emit(BtEvent::TaskState {
             task_id,
             incoming: false,
             state: "waiting_accept".into(),
@@ -600,7 +600,7 @@ impl App {
                         t.state = TaskState::Error;
                     }
                     drop(tasks);
-                    app.emit(LtEvent::Error {
+                    app.emit(BtEvent::Error {
                         task_id: Some(task_id),
                         code: e.code(),
                         message: "发送失败：无法连接对端".into(),
@@ -678,7 +678,7 @@ impl App {
                 Err(e) => {
                     let was_cancelled = t.state == TaskState::Cancelled;
                     if !was_cancelled {
-                        t.state = if e == LtError::Cancelled {
+                        t.state = if e == BtError::Cancelled {
                             TaskState::Cancelled
                         } else {
                             TaskState::Error
@@ -692,8 +692,8 @@ impl App {
                         }
                     }
                     drop(tasks);
-                    if !was_cancelled && e != LtError::Cancelled {
-                        app.emit(LtEvent::Error {
+                    if !was_cancelled && e != BtError::Cancelled {
+                        app.emit(BtEvent::Error {
                             task_id: Some(task_id),
                             code: e.code(),
                             message: format!("发送任务失败（对端 {peer_uuid}）"),
@@ -707,13 +707,13 @@ impl App {
     // ---------------- 任务控制 ----------------
 
     /// 取消任务。
-    pub fn cancel_task(&self, task_id: u64) -> LtResult<()> {
+    pub fn cancel_task(&self, task_id: u64) -> BtResult<()> {
         let (incoming, peer_uuid);
         {
             let mut tasks = self.tasks.lock().unwrap();
-            let task = tasks.get_mut(&task_id).ok_or(LtError::InvalidArgument)?;
+            let task = tasks.get_mut(&task_id).ok_or(BtError::InvalidArgument)?;
             if matches!(task.state, TaskState::Done | TaskState::Cancelled) {
-                return Err(LtError::InvalidArgument);
+                return Err(BtError::InvalidArgument);
             }
             task.state = TaskState::Cancelled;
             let now = crate::task::now_millis();
@@ -740,7 +740,7 @@ impl App {
                 .map(|(&(_c, wire), _)| wire);
             let Some(wire) = found else {
                 // 映射已清理（任务已收尾）：本地置取消态即可，无需通知对端
-                self.emit(LtEvent::TaskState {
+                self.emit(BtEvent::TaskState {
                     task_id,
                     incoming,
                     state: "cancelled".into(),
@@ -760,7 +760,7 @@ impl App {
         if let Some(s) = session {
             s.cancel_task(wire_id, CANCEL_REASON_USER);
         }
-        self.emit(LtEvent::TaskState {
+        self.emit(BtEvent::TaskState {
             task_id,
             incoming,
             state: TASK_STATE_CANCELLED.into(),
@@ -806,11 +806,11 @@ impl App {
     }
 
     /// 清理临时缓存（临时目录），实施方案 9.3。
-    pub fn clear_temp_cache(&self) -> LtResult<()> {
+    pub fn clear_temp_cache(&self) -> BtResult<()> {
         let cfg = self.cfg.lock().unwrap().clone();
         let tmp = cfg.data_dir.join("tmp");
         if tmp.exists() {
-            std::fs::remove_dir_all(&tmp).map_err(|_| LtError::FileNotAccessible)?;
+            std::fs::remove_dir_all(&tmp).map_err(|_| BtError::FileNotAccessible)?;
         }
         std::fs::create_dir_all(&tmp).ok();
         Ok(())
@@ -826,7 +826,7 @@ impl App {
     /// 会话参数（分片/并发/保存目录/冲突策略/传输协议）在此后新建的连接生效，
     /// 发现通道按新配置重启；端口变更空闲立即重启引擎，有任务在途则挂起，
     /// 任务到达终态后补执行（见 maybe_deferred_engine_restart）。
-    pub fn set_config(self: &Arc<App>, json: &str) -> LtResult<()> {
+    pub fn set_config(self: &Arc<App>, json: &str) -> BtResult<()> {
         let (merged, old_port) = {
             let base = self.cfg.lock().unwrap().clone();
             (AppConfig::merge_json(base.clone(), json)?, base.listen_port)
@@ -952,7 +952,7 @@ impl App {
                     );
                 }
                 drop(tasks);
-                self.emit(LtEvent::TaskState {
+                self.emit(BtEvent::TaskState {
                     task_id,
                     incoming,
                     state,
@@ -988,7 +988,7 @@ impl App {
                         }
                     }
                 }
-                self.emit(LtEvent::TaskProgress {
+                self.emit(BtEvent::TaskProgress {
                     task_id,
                     incoming,
                     rel_path,
@@ -1057,7 +1057,7 @@ impl App {
                 };
                 self.cancel_tokens.lock().unwrap().remove(&task_id);
                 self.pending_recv.lock().unwrap().remove(&task_id);
-                self.emit(LtEvent::TaskSummary {
+                self.emit(BtEvent::TaskSummary {
                     task_id,
                     incoming,
                     ok,
@@ -1092,13 +1092,13 @@ impl App {
                         }
                     }
                     drop(tasks);
-                    self.emit(LtEvent::TaskState {
+                    self.emit(BtEvent::TaskState {
                         task_id: tid,
                         incoming,
                         state: "error".into(),
                     });
                 }
-                self.emit(LtEvent::Error {
+                self.emit(BtEvent::Error {
                     task_id,
                     code,
                     message,
@@ -1153,7 +1153,7 @@ impl App {
         self.devices.remove(&format!("manual:{ip}"));
         self.devices.pin(&info.peer_uuid);
 
-        self.emit(LtEvent::ConnState {
+        self.emit(BtEvent::ConnState {
             uuid: info.peer_uuid.clone(),
             name: info.peer_name.clone(),
             state: "connected".into(),
@@ -1173,7 +1173,7 @@ impl App {
         is_initiator: bool,
     ) {
         self.sessions.lock().unwrap().insert(info.conn_id, session);
-        self.emit(LtEvent::PairRequest {
+        self.emit(BtEvent::PairRequest {
             pair_id,
             uuid: info.peer_uuid,
             name: info.peer_name,
@@ -1254,7 +1254,7 @@ impl App {
                 t.state = TaskState::Transferring;
             }
             // 【关键补充】：向 UI 发射 transferring 状态事件，使接收端卡片状态平滑扭转为传输中
-            self.emit(LtEvent::TaskState {
+            self.emit(BtEvent::TaskState {
                 task_id: local_id,
                 incoming: true,
                 state: "transferring".into(),
@@ -1268,12 +1268,12 @@ impl App {
         self.sessions.lock().unwrap().insert(req.conn_id, session);
         // 【关键修复：通知 UI 任务状态】：
         // 无论新建还是复用，非免密自动接收时均需向 UI 发射 waiting_accept 状态事件以刷新卡片
-        self.emit(LtEvent::TaskState {
+        self.emit(BtEvent::TaskState {
             task_id: local_id,
             incoming: true,
             state: "waiting_accept".into(),
         });
-        self.emit(LtEvent::TransferRequest {
+        self.emit(BtEvent::TransferRequest {
             req_id: local_id,
             uuid: req.sender_uuid,
             name: req.sender_name,
@@ -1314,7 +1314,7 @@ impl App {
             for (id, t) in tasks.iter_mut() {
                 if t.peer_uuid == *u && matches!(t.state, TaskState::Transferring | TaskState::WaitingAccept) {
                     t.state = TaskState::Error;
-                    self.emit(LtEvent::TaskState {
+                    self.emit(BtEvent::TaskState {
                         task_id: *id,
                         incoming: t.direction == Direction::Recv,
                         state: "error".into(),
@@ -1327,7 +1327,7 @@ impl App {
                 }
             }
         }
-        self.emit(LtEvent::ConnState {
+        self.emit(BtEvent::ConnState {
             uuid: uuid.unwrap_or_default(),
             name,
             state: "disconnected".into(),
@@ -1402,7 +1402,7 @@ mod tests {
     #[test]
     fn app_init_loopback() {
         // 完整启动：身份生成、引擎监听、发现启动；验证指纹与端口可用
-        let dir = std::env::temp_dir().join(format!("lt_task_test_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("bt_task_test_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let app = App::init(Some(dir.clone())).expect("init");
         assert!(!app.local_fingerprint().is_empty());
@@ -1421,7 +1421,7 @@ mod tests {
     /// A→B 用 A 的设置，B→A 用 B 的设置；接收端双协议并听、来者不拒。
     #[test]
     fn protocol_sender_driven() {
-        let dir = std::env::temp_dir().join(format!("lt_proto_{}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("bt_proto_{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         let app = App::init(Some(dir.clone())).expect("init");
 

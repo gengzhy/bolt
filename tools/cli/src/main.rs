@@ -1,23 +1,23 @@
-//! cli：命令行测试端（M1 协议联调 / 双机对传，实施方案第十三节）。
+//! bolt-cli：命令行测试端（M1 协议联调 / 双机对传，实施方案第十三节）。
 //!
 //! 用法：
 //! ```text
-//! cli serve  [--port 8899] [--name 名称] [--data-dir DIR]   # 监听并接收
-//! cli discover [--data-dir DIR]                              # 仅浏览设备
-//! cli send [--data-dir DIR] [--port 8902] <uuid|ip[:port]> <文件...>
+//! bolt-cli serve  [--port 8899] [--name 名称] [--data-dir DIR]   # 监听并接收
+//! bolt-cli discover [--data-dir DIR]                              # 仅浏览设备
+//! bolt-cli send [--data-dir DIR] [--port 8902] <uuid|ip[:port]> <文件...>
 //! ```
 //!
 //! 环回冒烟（同机两实例）：
 //! ```text
-//! cli serve --port 8901 --data-dir target\\data_a
-//! cli send  --port 8902 --data-dir target\\data_b 127.0.0.1:8901 some.bin
+//! bolt-cli serve --port 8901 --data-dir target\\data_a
+//! bolt-cli send  --port 8902 --data-dir target\\data_b 127.0.0.1:8901 some.bin
 //! ```
 
 use std::io::{BufRead, Write};
 use std::path::PathBuf;
 use std::sync::mpsc;
 
-use task::{App, LtEvent};
+use task::{App, BtEvent};
 
 struct Args {
     data_dir: Option<PathBuf>,
@@ -127,11 +127,11 @@ fn print_devices(json: &str) {
     }
 }
 
-fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<LtEvent>, mode: Mode) -> i32 {
+fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<BtEvent>, mode: Mode) -> i32 {
     while let Ok(ev) = rx.recv() {
         match ev {
-            LtEvent::DeviceList { devices_json } => print_devices(&devices_json),
-            LtEvent::ConnState {
+            BtEvent::DeviceList { devices_json } => print_devices(&devices_json),
+            BtEvent::ConnState {
                 uuid,
                 name,
                 state,
@@ -141,7 +141,7 @@ fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<LtEvent>, mode: 
             } => {
                 eprintln!("[连接] {name}({uuid}) {state} {transport} err={err:?}");
             }
-            LtEvent::PairRequest {
+            BtEvent::PairRequest {
                 pair_id,
                 uuid,
                 name,
@@ -163,7 +163,7 @@ fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<LtEvent>, mode: 
                     }
                 }
             }
-            LtEvent::TransferRequest {
+            BtEvent::TransferRequest {
                 req_id,
                 uuid,
                 name,
@@ -180,7 +180,7 @@ fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<LtEvent>, mode: 
                     app.respond_transfer(req_id, false);
                 }
             }
-            LtEvent::TaskState {
+            BtEvent::TaskState {
                 task_id,
                 incoming,
                 state,
@@ -195,7 +195,7 @@ fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<LtEvent>, mode: 
                     return if state == "done" { 0 } else { 1 };
                 }
             }
-            LtEvent::TaskProgress {
+            BtEvent::TaskProgress {
                 task_id: _,
                 incoming,
                 rel_path,
@@ -221,7 +221,7 @@ fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<LtEvent>, mode: 
                 );
                 let _ = std::io::stdout().flush();
             }
-            LtEvent::TaskSummary {
+            BtEvent::TaskSummary {
                 task_id,
                 incoming,
                 ok,
@@ -237,7 +237,7 @@ fn run_event_loop(app: &std::sync::Arc<App>, rx: mpsc::Receiver<LtEvent>, mode: 
                     return if failed == 0 { 0 } else { 1 };
                 }
             }
-            LtEvent::Error {
+            BtEvent::Error {
                 task_id,
                 code,
                 message,
@@ -279,7 +279,7 @@ fn main() -> anyhow::Result<()> {
     match cmd.as_str() {
         "serve" | "discover" | "send" => {}
         _ => {
-            eprintln!("用法：cli <serve|discover|send> [参数]");
+            eprintln!("用法：bolt-cli <serve|discover|send> [参数]");
             eprintln!("  serve    [--port N] [--name X] [--data-dir DIR]");
             eprintln!("  discover [--data-dir DIR]");
             eprintln!("  send     [--data-dir DIR] [--port N] <uuid|ip[:port]> <文件...>");
@@ -288,7 +288,7 @@ fn main() -> anyhow::Result<()> {
     }
 
     // 事件队列（回调线程 → 主线程交互）
-    let (tx, rx) = mpsc::channel::<LtEvent>();
+    let (tx, rx) = mpsc::channel::<BtEvent>();
     let app = make_app(&args)?;
     app.set_event_sink(move |ev| {
         let _ = tx.send(ev);

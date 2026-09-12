@@ -4,9 +4,9 @@
 
 use thiserror::Error;
 
-/// LocalTransfer 统一错误码枚举。数值与文档一一对应。
+/// Bolt 统一错误码枚举。数值与文档一一对应。
 #[derive(Error, Debug, Clone, PartialEq, Eq)]
-pub enum LtError {
+pub enum BtError {
     /// -1 参数非法
     #[error("参数非法")]
     InvalidArgument,
@@ -57,68 +57,68 @@ pub enum LtError {
     Other(String),
 }
 
-impl LtError {
+impl BtError {
     /// 错误码数值（0 表示成功，错误均为负值）。
     #[inline]
     pub fn code(&self) -> i32 {
         match self {
-            LtError::InvalidArgument => -1,
-            LtError::PortUnavailable => -2,
-            LtError::ConnectTimeout => -3,
-            LtError::FileNotAccessible => -4,
-            LtError::DiskFull => -5,
-            LtError::ChecksumMismatch => -6,
-            LtError::DiscoveryUnavailable => -7,
-            LtError::MmapFailed => -8,
-            LtError::Cancelled => -9,
-            LtError::PermissionDenied => -10,
-            LtError::PairingFailed => -11,
-            LtError::TransferRejected => -12,
-            LtError::ProtocolIncompatible => -13,
-            LtError::FingerprintChanged => -14,
-            LtError::Internal => -15,
-            LtError::Other(_) => -15,
+            BtError::InvalidArgument => -1,
+            BtError::PortUnavailable => -2,
+            BtError::ConnectTimeout => -3,
+            BtError::FileNotAccessible => -4,
+            BtError::DiskFull => -5,
+            BtError::ChecksumMismatch => -6,
+            BtError::DiscoveryUnavailable => -7,
+            BtError::MmapFailed => -8,
+            BtError::Cancelled => -9,
+            BtError::PermissionDenied => -10,
+            BtError::PairingFailed => -11,
+            BtError::TransferRejected => -12,
+            BtError::ProtocolIncompatible => -13,
+            BtError::FingerprintChanged => -14,
+            BtError::Internal => -15,
+            BtError::Other(_) => -15,
         }
     }
 
     /// 由数值还原错误码（未知数值归入内部错误）。
     #[inline]
-    pub fn from_code(code: i32) -> LtError {
+    pub fn from_code(code: i32) -> BtError {
         match code {
-            -1 => LtError::InvalidArgument,
-            -2 => LtError::PortUnavailable,
-            -3 => LtError::ConnectTimeout,
-            -4 => LtError::FileNotAccessible,
-            -5 => LtError::DiskFull,
-            -6 => LtError::ChecksumMismatch,
-            -7 => LtError::DiscoveryUnavailable,
-            -8 => LtError::MmapFailed,
-            -9 => LtError::Cancelled,
-            -10 => LtError::PermissionDenied,
-            -11 => LtError::PairingFailed,
-            -12 => LtError::TransferRejected,
-            -13 => LtError::ProtocolIncompatible,
-            -14 => LtError::FingerprintChanged,
-            -15 => LtError::Internal,
-            0 => LtError::Other("success".into()),
-            _ => LtError::Internal,
+            -1 => BtError::InvalidArgument,
+            -2 => BtError::PortUnavailable,
+            -3 => BtError::ConnectTimeout,
+            -4 => BtError::FileNotAccessible,
+            -5 => BtError::DiskFull,
+            -6 => BtError::ChecksumMismatch,
+            -7 => BtError::DiscoveryUnavailable,
+            -8 => BtError::MmapFailed,
+            -9 => BtError::Cancelled,
+            -10 => BtError::PermissionDenied,
+            -11 => BtError::PairingFailed,
+            -12 => BtError::TransferRejected,
+            -13 => BtError::ProtocolIncompatible,
+            -14 => BtError::FingerprintChanged,
+            -15 => BtError::Internal,
+            0 => BtError::Other("success".into()),
+            _ => BtError::Internal,
         }
     }
 }
 
 /// 统一结果类型。
-pub type LtResult<T> = Result<T, LtError>;
+pub type BtResult<T> = Result<T, BtError>;
 
-impl From<std::io::Error> for LtError {
+impl From<std::io::Error> for BtError {
     fn from(e: std::io::Error) -> Self {
         match e.kind() {
-            std::io::ErrorKind::NotFound => LtError::FileNotAccessible,
-            std::io::ErrorKind::PermissionDenied => LtError::PermissionDenied,
-            std::io::ErrorKind::AddrInUse => LtError::PortUnavailable,
-            std::io::ErrorKind::TimedOut => LtError::ConnectTimeout,
+            std::io::ErrorKind::NotFound => BtError::FileNotAccessible,
+            std::io::ErrorKind::PermissionDenied => BtError::PermissionDenied,
+            std::io::ErrorKind::AddrInUse => BtError::PortUnavailable,
+            std::io::ErrorKind::TimedOut => BtError::ConnectTimeout,
             _ => {
                 tracing::debug!(error = %e, "io error mapped to Internal");
-                LtError::Internal
+                BtError::Internal
             }
         }
     }
@@ -131,15 +131,15 @@ mod tests {
     #[test]
     fn code_roundtrip() {
         for code in -15..=-1 {
-            let err = LtError::from_code(code);
+            let err = BtError::from_code(code);
             assert_eq!(err.code(), code, "code {code} roundtrip failed");
         }
     }
 
     #[test]
     fn known_codes() {
-        assert_eq!(LtError::ChecksumMismatch.code(), -6);
-        assert_eq!(LtError::FingerprintChanged.code(), -14);
-        assert_eq!(LtError::Other("x".into()).code(), -15);
+        assert_eq!(BtError::ChecksumMismatch.code(), -6);
+        assert_eq!(BtError::FingerprintChanged.code(), -14);
+        assert_eq!(BtError::Other("x".into()).code(), -15);
     }
 }

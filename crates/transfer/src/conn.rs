@@ -4,7 +4,7 @@
 
 use tokio::io::{AsyncRead, AsyncReadExt, AsyncWrite, AsyncWriteExt};
 
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 use crate::protocol::{self, CodecError, Message, MAX_FRAME_LEN};
 
@@ -15,7 +15,7 @@ pub enum Incoming {
 }
 
 /// 读取一帧。EOF 返回 Ok(None)。
-pub async fn read_frame<R: AsyncRead + Unpin + ?Sized>(r: &mut R) -> LtResult<Option<Incoming>> {
+pub async fn read_frame<R: AsyncRead + Unpin + ?Sized>(r: &mut R) -> BtResult<Option<Incoming>> {
     let mut len_buf = [0u8; 4];
     match r.read_exact(&mut len_buf).await {
         Ok(_) => {}
@@ -24,11 +24,11 @@ pub async fn read_frame<R: AsyncRead + Unpin + ?Sized>(r: &mut R) -> LtResult<Op
     }
     let len = u32::from_be_bytes(len_buf);
     if !(9..=MAX_FRAME_LEN).contains(&len) {
-        return Err(LtError::ProtocolIncompatible);
+        return Err(BtError::ProtocolIncompatible);
     }
     let mut body = bytes::BytesMut::with_capacity(len as usize);
     while body.len() < len as usize {
-        if r.read_buf(&mut body).await.map_err(LtError::from)? == 0 {
+        if r.read_buf(&mut body).await.map_err(BtError::from)? == 0 {
             return Ok(None);
         }
     }
@@ -48,7 +48,7 @@ pub async fn write_frame<W: AsyncWrite + Unpin + ?Sized>(
     w: &mut W,
     session: u64,
     msg: &Message,
-) -> LtResult<()> {
+) -> BtResult<()> {
     match msg {
         Message::Data {
             file_seq,
@@ -66,13 +66,13 @@ pub async fn write_frame<W: AsyncWrite + Unpin + ?Sized>(
             header[13..17].copy_from_slice(&file_seq.to_be_bytes());
             header[17..25].copy_from_slice(&chunk_seq.to_be_bytes());
 
-            w.write_all(&header).await.map_err(LtError::from)?;
-            w.write_all(payload).await.map_err(LtError::from)?;
+            w.write_all(&header).await.map_err(BtError::from)?;
+            w.write_all(payload).await.map_err(BtError::from)?;
             Ok(())
         }
         _ => {
             let frame = protocol::encode(msg, session);
-            w.write_all(&frame).await.map_err(LtError::from)?;
+            w.write_all(&frame).await.map_err(BtError::from)?;
             Ok(())
         }
     }

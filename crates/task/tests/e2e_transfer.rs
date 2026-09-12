@@ -5,7 +5,7 @@ use task::App;
 fn test_two_windows_apps_transfer_and_resume() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("lt_e2e_{}_{}", std::process::id(), fastrand()));
+    let temp_root = std::env::temp_dir().join(format!("bt_e2e_{}_{}", std::process::id(), fastrand()));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -124,7 +124,7 @@ fn test_two_windows_apps_transfer_and_resume() {
 fn test_two_windows_apps_cancel_task() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("lt_e2e_cancel_{}_{}", std::process::id(), fastrand()));
+    let temp_root = std::env::temp_dir().join(format!("bt_e2e_cancel_{}_{}", std::process::id(), fastrand()));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -192,7 +192,7 @@ fn test_two_windows_apps_cancel_task() {
 fn test_multi_files_batch_transfer() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("lt_e2e_multi_{}_{}", std::process::id(), fastrand()));
+    let temp_root = std::env::temp_dir().join(format!("bt_e2e_multi_{}_{}", std::process::id(), fastrand()));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -283,7 +283,7 @@ fn test_multi_files_batch_transfer() {
 fn test_auto_rename_on_collision_and_smooth_progress() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("lt_e2e_collision_{}_{}", std::process::id(), fastrand()));
+    let temp_root = std::env::temp_dir().join(format!("bt_e2e_collision_{}_{}", std::process::id(), fastrand()));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);

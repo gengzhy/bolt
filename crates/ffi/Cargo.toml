@@ -1,13 +1,13 @@
 [package]
 name = "ffi"
-description = "LocalTransfer 统一 C 风格 FFI（lt_* 接口，cbindgen 生成 lt_api.h）"
+description = "Bolt 统一 C 风格 FFI（bt_* 接口，cbindgen 生成 bt_api.h）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
 [lib]
-name = "lt_ffi"
+name = "bt_ffi"
 crate-type = ["cdylib", "staticlib", "rlib"]
 
 [dependencies]

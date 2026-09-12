@@ -59,7 +59,7 @@
     </queries>
 
     <application
-        android:name=".LtApplication"
+        android:name=".BtApplication"
         android:allowBackup="false"
         android:requestLegacyExternalStorage="true"
         android:icon="@mipmap/ic_launcher"
@@ -68,7 +68,7 @@
         android:supportsRtl="true"
         android:localeConfig="@xml/locales_config"
         android:enableOnBackInvokedCallback="true"
-        android:theme="@style/Theme.LocalTransfer">
+        android:theme="@style/Theme.Bolt">
 
         <activity
             android:name=".MainActivity"

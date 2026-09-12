@@ -27,7 +27,7 @@
 
 ## 二、最终参数方案（生产验证）
 
-### QUIC 传输层（`crates/lt-transfer/src/quic.rs`）
+### QUIC 传输层（`crates/transfer/src/quic.rs`）
 
 | 参数 | 最终值 | 说明 |
 |------|--------|------|
@@ -41,7 +41,7 @@
 | `max_idle_timeout` | 90s | 空闲断连阈值 |
 | 最大并发流 | 64 | 双向/单向 |
 
-### 应用层常量（`crates/lt-utils/src/constants.rs`）
+### 应用层常量（`crates/utils/src/constants.rs`）
 
 | 常量 | 值 | 说明 |
 |------|----|------|
@@ -93,13 +93,13 @@ in_flight_window (4MB) ÷ chunk_size (256KB) = 16 个分片在途
 
 | 模块 | 文件 | 核心改动 |
 |------|------|----------|
-| `lt-utils` | `constants.rs` | 全局统一常量定义（窗口/分片/超时/状态） |
-| `lt-transfer` | `quic.rs` | 1MB 流窗口 + VarInt::MAX 连接窗口 + 1200 MTU + BBR |
-| `lt-transfer` | `protocol.rs` | `Message::Data` 改用 `bytes::Bytes` 零拷贝 |
-| `lt-transfer` | `conn.rs` | DATA 两段向量化写入，移除帧级 flush |
-| `lt-transfer` | `send.rs` | 4MB 在途窗口 + 背压等待机制 |
-| `lt-transfer` | `recv.rs` | 256KB 阈值即时 ACK + 200ms 保底 |
-| `lt-file` | `writer.rs` | current_offset 免 seek + set_len 预分配 |
+| `utils` | `constants.rs` | 全局统一常量定义（窗口/分片/超时/状态） |
+| `transfer` | `quic.rs` | 1MB 流窗口 + VarInt::MAX 连接窗口 + 1200 MTU + BBR |
+| `transfer` | `protocol.rs` | `Message::Data` 改用 `bytes::Bytes` 零拷贝 |
+| `transfer` | `conn.rs` | DATA 两段向量化写入，移除帧级 flush |
+| `transfer` | `send.rs` | 4MB 在途窗口 + 背压等待机制 |
+| `transfer` | `recv.rs` | 256KB 阈值即时 ACK + 200ms 保底 |
+| `file` | `writer.rs` | current_offset 免 seek + set_len 预分配 |
 
 ---
 
@@ -111,7 +111,7 @@ in_flight_window (4MB) ÷ chunk_size (256KB) = 16 个分片在途
 | 100MB+ 文件传输 | ✅ 无断连，哈希 100% 一致 |
 | 小文件批量传输（数十个 < 1MB） | ✅ 全部成功 |
 | BLAKE3 全文件校验 | ✅ 100% 一致 |
-| 单元测试 | ✅ lt-transfer + lt-task 全部通过 |
+| 单元测试 | ✅ transfer + task 全部通过 |
 
 ---
 

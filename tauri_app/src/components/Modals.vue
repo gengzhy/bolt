@@ -1,10 +1,10 @@
 <script setup lang="ts">
 // 模态弹窗：配对验证码比对 + 接收文件确认。
 // 完成/失败状态不做弹窗，一律在右侧传输任务列表实时呈现。
-import { useLt } from "../composables/useLt";
+import { useBt } from "../composables/useBt";
 import { human } from "../utils/format";
 
-const { pairReq, transReq, respondPair, respondTransfer } = useLt();
+const { pairReq, transReq, respondPair, respondTransfer } = useBt();
 </script>
 
 <template>

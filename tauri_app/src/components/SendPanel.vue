@@ -7,12 +7,12 @@ import { computed, onMounted, onUnmounted, ref } from "vue";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { useLt } from "../composables/useLt";
+import { useBt } from "../composables/useBt";
 import { targetUuid } from "../composables/selection";
 import { human } from "../utils/format";
 import type { PendingItem } from "../types";
 
-const { devices, sendFiles, showToast } = useLt();
+const { devices, sendFiles, showToast } = useBt();
 
 const pending = ref<PendingItem[]>([]);
 const dragOver = ref(false);

@@ -10,7 +10,7 @@ use std::sync::Mutex;
 
 use serde::{Deserialize, Serialize};
 
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 /// 一条配对信任记录。
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +44,7 @@ pub struct TrustStore {
 
 impl TrustStore {
     /// 从磁盘加载（不存在则为空）。
-    pub fn load(data_dir: &Path) -> LtResult<TrustStore> {
+    pub fn load(data_dir: &Path) -> BtResult<TrustStore> {
         let path = data_dir.join("trusted_devices.json");
         let mut devices = HashMap::new();
         if path.exists() {
@@ -69,13 +69,13 @@ impl TrustStore {
         })
     }
 
-    fn persist(&self, devices: &HashMap<String, TrustedDevice>) -> LtResult<()> {
+    fn persist(&self, devices: &HashMap<String, TrustedDevice>) -> BtResult<()> {
         if let Some(parent) = self.path.parent() {
-            fs::create_dir_all(parent).map_err(|_| LtError::Internal)?;
+            fs::create_dir_all(parent).map_err(|_| BtError::Internal)?;
         }
         let list: Vec<&TrustedDevice> = devices.values().collect();
-        let s = serde_json::to_string_pretty(&list).map_err(|_| LtError::Internal)?;
-        fs::write(&self.path, s).map_err(|_| LtError::Internal)
+        let s = serde_json::to_string_pretty(&list).map_err(|_| BtError::Internal)?;
+        fs::write(&self.path, s).map_err(|_| BtError::Internal)
     }
 
     /// 校验设备指纹：已配对比对 / 未知 / 变更。
@@ -90,7 +90,7 @@ impl TrustStore {
     }
 
     /// 配对成功后写入/更新记录。
-    pub fn add(&self, uuid: &str, fingerprint: &str, name: &str) -> LtResult<()> {
+    pub fn add(&self, uuid: &str, fingerprint: &str, name: &str) -> BtResult<()> {
         let mut devices = self.devices.lock().unwrap();
         devices.insert(
             uuid.to_string(),
@@ -109,13 +109,13 @@ impl TrustStore {
     }
 
     /// 设置/关闭某设备的"自动接收"。
-    pub fn set_auto_receive(&self, uuid: &str, enabled: bool) -> LtResult<()> {
+    pub fn set_auto_receive(&self, uuid: &str, enabled: bool) -> BtResult<()> {
         let mut devices = self.devices.lock().unwrap();
         if let Some(d) = devices.get_mut(uuid) {
             d.auto_receive = enabled;
             return self.persist(&devices);
         }
-        Err(LtError::InvalidArgument)
+        Err(BtError::InvalidArgument)
     }
 
     pub fn is_auto_receive(&self, uuid: &str) -> bool {
@@ -134,14 +134,14 @@ impl TrustStore {
     }
 
     /// 清除单条配对记录（设置页）。
-    pub fn remove(&self, uuid: &str) -> LtResult<()> {
+    pub fn remove(&self, uuid: &str) -> BtResult<()> {
         let mut devices = self.devices.lock().unwrap();
         devices.remove(uuid);
         self.persist(&devices)
     }
 
     /// 清除全部配对记录。
-    pub fn clear(&self) -> LtResult<()> {
+    pub fn clear(&self) -> BtResult<()> {
         let mut devices = self.devices.lock().unwrap();
         devices.clear();
         self.persist(&devices)
@@ -159,7 +159,7 @@ mod tests {
 
     #[test]
     fn trust_lifecycle() {
-        let tmp = std::env::temp_dir().join(format!("lt-trust-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("bt-trust-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         fs::create_dir_all(&tmp).unwrap();
 

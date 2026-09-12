@@ -4,7 +4,7 @@
 // 设备卡片：图标 + 名称 + 信息行 + 状态 + 连接/断开；
 // 去除底端常驻输入框与多余单选按钮，悬停微立体阴影，防止边缘截断。
 import { ref, watch } from "vue";
-import { useLt } from "../composables/useLt";
+import { useBt } from "../composables/useBt";
 import { targetUuid } from "../composables/selection";
 import type { ConnState, Device } from "../types";
 
@@ -20,7 +20,7 @@ const {
   addManualDevice,
   probeNetwork,
   showToast,
-} = useLt();
+} = useBt();
 
 const manualModalOpen = ref(false);
 const manualIp = ref("");

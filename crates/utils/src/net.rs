@@ -2,13 +2,13 @@
 
 use std::net::{IpAddr, Ipv4Addr, SocketAddr, TcpListener, UdpSocket};
 
-use crate::error::{LtError, LtResult};
+use crate::error::{BtError, BtResult};
 use crate::{DEFAULT_PORT, MAX_PORT};
 
 /// 在端口池内寻找第一个可同时绑定 TCP 与 UDP 的端口。
 ///
-/// 返回实际端口；若端口池耗尽返回 `LtError::PortUnavailable`。
-pub fn find_available_port(preferred: u16, bind_addr: IpAddr) -> LtResult<u16> {
+/// 返回实际端口；若端口池耗尽返回 `BtError::PortUnavailable`。
+pub fn find_available_port(preferred: u16, bind_addr: IpAddr) -> BtResult<u16> {
     let start = if preferred == 0 {
         DEFAULT_PORT
     } else {
@@ -21,7 +21,7 @@ pub fn find_available_port(preferred: u16, bind_addr: IpAddr) -> LtResult<u16> {
             return Ok(port);
         }
     }
-    Err(LtError::PortUnavailable)
+    Err(BtError::PortUnavailable)
 }
 
 /// 判断 TCP 端口当前是否可绑定。
@@ -85,14 +85,14 @@ fn probe_egress_ipv4() -> Option<Ipv4Addr> {
 }
 
 /// 解析 "IP" 或 "IP:port" 形式的目标地址（手动 IP 直连入口）。
-pub fn parse_target(target: &str, default_port: u16) -> LtResult<SocketAddr> {
+pub fn parse_target(target: &str, default_port: u16) -> BtResult<SocketAddr> {
     if let Ok(addr) = target.parse::<SocketAddr>() {
         return Ok(addr);
     }
     if let Ok(ip) = target.parse::<IpAddr>() {
         return Ok(SocketAddr::new(ip, default_port));
     }
-    Err(LtError::InvalidArgument)
+    Err(BtError::InvalidArgument)
 }
 
 #[cfg(test)]

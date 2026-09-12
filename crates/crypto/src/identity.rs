@@ -10,7 +10,7 @@ use std::sync::RwLock;
 use rcgen::{CertificateParams, DistinguishedName, DnType, KeyPair};
 use rustls::pki_types::{CertificateDer, PrivateKeyDer, PrivatePkcs8KeyDer};
 
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 use crate::fingerprint::cert_fingerprint;
 
@@ -39,7 +39,7 @@ impl DeviceIdentity {
     /// 加载或首次生成设备身份。
     ///
     /// 目录结构：`data_dir/identity/{cert.pem, key.pem, device.json}`。
-    pub fn load_or_create(data_dir: &Path, device_name: &str) -> LtResult<DeviceIdentity> {
+    pub fn load_or_create(data_dir: &Path, device_name: &str) -> BtResult<DeviceIdentity> {
         let dir = data_dir.join("identity");
         let cert_path = dir.join("cert.pem");
         let key_path = dir.join("key.pem");
@@ -50,16 +50,16 @@ impl DeviceIdentity {
         }
 
         let identity = Self::generate(device_name)?;
-        fs::create_dir_all(&dir).map_err(|_| LtError::PermissionDenied)?;
-        fs::write(&cert_path, &identity.cert_pem).map_err(|_| LtError::Internal)?;
-        fs::write(&key_path, &identity.key_pem).map_err(|_| LtError::Internal)?;
+        fs::create_dir_all(&dir).map_err(|_| BtError::PermissionDenied)?;
+        fs::write(&cert_path, &identity.cert_pem).map_err(|_| BtError::Internal)?;
+        fs::write(&key_path, &identity.key_pem).map_err(|_| BtError::Internal)?;
         let meta = serde_json::json!({
             "uuid": identity.uuid,
             "device_name": identity.device_name(),
             "fingerprint": identity.fingerprint,
         });
         fs::write(&meta_path, serde_json::to_string_pretty(&meta).unwrap())
-            .map_err(|_| LtError::Internal)?;
+            .map_err(|_| BtError::Internal)?;
 
         // 私有目录权限：尽力收紧（Windows 由应用目录本身隔离）
         #[cfg(unix)]
@@ -75,13 +75,13 @@ impl DeviceIdentity {
         cert_path: &Path,
         key_path: &Path,
         meta_path: &Path,
-    ) -> LtResult<DeviceIdentity> {
-        let cert_pem = fs::read_to_string(cert_path).map_err(|_| LtError::Internal)?;
-        let key_pem = fs::read_to_string(key_path).map_err(|_| LtError::Internal)?;
-        let meta_raw = fs::read_to_string(meta_path).map_err(|_| LtError::Internal)?;
+    ) -> BtResult<DeviceIdentity> {
+        let cert_pem = fs::read_to_string(cert_path).map_err(|_| BtError::Internal)?;
+        let key_pem = fs::read_to_string(key_path).map_err(|_| BtError::Internal)?;
+        let meta_raw = fs::read_to_string(meta_path).map_err(|_| BtError::Internal)?;
         let meta: serde_json::Value =
-            serde_json::from_str(&meta_raw).map_err(|_| LtError::Internal)?;
-        let uuid = meta["uuid"].as_str().ok_or(LtError::Internal)?.to_string();
+            serde_json::from_str(&meta_raw).map_err(|_| BtError::Internal)?;
+        let uuid = meta["uuid"].as_str().ok_or(BtError::Internal)?.to_string();
         let device_name = meta["device_name"].as_str().unwrap_or("device").to_string();
 
         let cert_der = pem_to_der(&cert_pem, "CERTIFICATE")?;
@@ -99,21 +99,21 @@ impl DeviceIdentity {
         })
     }
 
-    fn generate(device_name: &str) -> LtResult<DeviceIdentity> {
+    fn generate(device_name: &str) -> BtResult<DeviceIdentity> {
         crate::ensure_provider();
 
         // Ed25519 密钥对（rcgen 内部经 ring 生成，PKCS#8 封装）
         let key_pair = KeyPair::generate_for(&rcgen::PKCS_ED25519).map_err(|e| {
             tracing::error!(error = %e, "ed25519 keygen failed");
-            LtError::Internal
+            BtError::Internal
         })?;
 
         // 自签证书参数（设备名仅写入 DN/CN；SAN 保持空，避免非 ASCII 校验问题）
         let mut params =
-            CertificateParams::new(Vec::<String>::new()).map_err(|_| LtError::Internal)?;
+            CertificateParams::new(Vec::<String>::new()).map_err(|_| BtError::Internal)?;
         let mut dn = DistinguishedName::new();
         dn.push(DnType::CommonName, device_name);
-        dn.push(DnType::OrganizationName, "LocalTransfer");
+        dn.push(DnType::OrganizationName, "Bolt");
         params.distinguished_name = dn;
         let now = time::OffsetDateTime::now_utc();
         params.not_before = now;
@@ -121,7 +121,7 @@ impl DeviceIdentity {
 
         let cert = params.self_signed(&key_pair).map_err(|e| {
             tracing::error!(error = %e, "self-sign failed");
-            LtError::Internal
+            BtError::Internal
         })?;
 
         let cert_der = cert.der().to_vec();
@@ -150,7 +150,7 @@ impl DeviceIdentity {
     ///
     /// uuid / 指纹不变；证书 CN 仅首签时写入（装饰性），改名不重签——
     /// 重签会改变指纹，触发对端 TOFU「指纹变更」硬拒绝。
-    pub fn update_device_name(&self, data_dir: &Path, name: &str) -> LtResult<()> {
+    pub fn update_device_name(&self, data_dir: &Path, name: &str) -> BtResult<()> {
         *self.device_name.write().unwrap() = name.to_string();
         let meta = serde_json::json!({
             "uuid": self.uuid,
@@ -159,7 +159,7 @@ impl DeviceIdentity {
         });
         let meta_path = data_dir.join("identity").join("device.json");
         fs::write(&meta_path, serde_json::to_string_pretty(&meta).unwrap())
-            .map_err(|_| LtError::Internal)?;
+            .map_err(|_| BtError::Internal)?;
         Ok(())
     }
 
@@ -175,7 +175,7 @@ impl DeviceIdentity {
 }
 
 /// 从 PEM 文本中提取 DER（取 BEGIN/END 之间的 base64 主体）。
-fn pem_to_der(pem: &str, label: &str) -> LtResult<Vec<u8>> {
+fn pem_to_der(pem: &str, label: &str) -> BtResult<Vec<u8>> {
     let body: String = pem
         .lines()
         .filter(|l| {
@@ -185,7 +185,7 @@ fn pem_to_der(pem: &str, label: &str) -> LtResult<Vec<u8>> {
         .collect::<Vec<_>>()
         .join("");
     let _ = label; // label 仅作文档说明
-    decode_b64(&body).ok_or(LtError::Internal)
+    decode_b64(&body).ok_or(BtError::Internal)
 }
 
 fn decode_b64(s: &str) -> Option<Vec<u8>> {
@@ -218,7 +218,7 @@ mod tests {
 
     #[test]
     fn generate_and_reload() {
-        let tmp = std::env::temp_dir().join(format!("lt-id-test-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("bt-id-test-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         let id1 = DeviceIdentity::load_or_create(&tmp, "测试设备").unwrap();
         assert!(!id1.uuid.is_empty());
@@ -233,7 +233,7 @@ mod tests {
 
     #[test]
     fn rustls_materials_valid() {
-        let tmp = std::env::temp_dir().join(format!("lt-id-test2-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("bt-id-test2-{}", std::process::id()));
         let id = DeviceIdentity::load_or_create(&tmp, "tls-test").unwrap();
         assert_eq!(id.cert_chain().len(), 1);
         let _ = id.private_key();
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn rename_persists_without_fingerprint_change() {
-        let tmp = std::env::temp_dir().join(format!("lt-id-test3-{}", std::process::id()));
+        let tmp = std::env::temp_dir().join(format!("bt-id-test3-{}", std::process::id()));
         let _ = fs::remove_dir_all(&tmp);
         let id1 = DeviceIdentity::load_or_create(&tmp, "旧随机名").unwrap();
         let (uuid, fp) = (id1.uuid.clone(), id1.fingerprint.clone());

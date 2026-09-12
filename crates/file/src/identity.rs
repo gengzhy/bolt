@@ -5,7 +5,7 @@
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 /// 唯一标识一个待传输文件。
 ///
@@ -25,8 +25,8 @@ pub struct FileIdentity {
 impl FileIdentity {
     /// 从文件系统元数据构造。
     /// 只读取文件元信息（fs::metadata），避免任何阻塞式读取磁盘文件内容。
-    pub fn from_fs(abs_path: &Path, rel_path: &str) -> LtResult<FileIdentity> {
-        let meta = std::fs::metadata(abs_path).map_err(|_| LtError::FileNotAccessible)?;
+    pub fn from_fs(abs_path: &Path, rel_path: &str) -> BtResult<FileIdentity> {
+        let meta = std::fs::metadata(abs_path).map_err(|_| BtError::FileNotAccessible)?;
         let mtime = meta
             .modified()
             .ok()

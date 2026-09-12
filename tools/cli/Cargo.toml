@@ -1,13 +1,13 @@
 [package]
-name = "cli"
-description = "LocalTransfer 命令行测试端（M1 协议联调，双机对传）"
+name = "bolt-cli"
+description = "Bolt 命令行测试端（M1 协议联调，双机对传）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
 [[bin]]
-name = "cli"
+name = "bolt-cli"
 path = "src/main.rs"
 
 [dependencies]

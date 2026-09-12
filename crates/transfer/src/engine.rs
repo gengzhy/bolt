@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use crypto::trust::TrustStore;
 use crypto::DeviceIdentity;
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 use crate::protocol::DeviceType;
 use crate::session::{HandshakeCtx, Session, SessionConfig, SessionHandler};
@@ -38,7 +38,7 @@ impl Default for EngineConfig {
     }
 }
 
-/// LocalTransfer 传输引擎（每进程一个）。
+/// Bolt 传输引擎（每进程一个）。
 pub struct TransferEngine {
     identity: Arc<DeviceIdentity>,
     trust: Arc<TrustStore>,
@@ -63,7 +63,7 @@ impl TransferEngine {
         identity: Arc<DeviceIdentity>,
         trust: Arc<TrustStore>,
         handler: Arc<dyn SessionHandler>,
-    ) -> LtResult<Arc<TransferEngine>> {
+    ) -> BtResult<Arc<TransferEngine>> {
         crypto::ensure_provider();
         let port = utils::net::find_available_port(cfg.preferred_port, cfg.bind_ip)?;
         let bind_ip = cfg.bind_ip;
@@ -199,8 +199,8 @@ impl TransferEngine {
     }
 
     /// 拨号：按本机设置「传输协议」二选一（QUIC 默认 / TCP），选定协议失败
-    /// 直接报错，不做自动降级。环境变量 `LT_FORCE_TCP=1` 强制 TCP（联调/排障用）。
-    pub async fn connect(&self, target: SocketAddr) -> LtResult<Arc<Session>> {
+    /// 直接报错，不做自动降级。环境变量 `BT_FORCE_TCP=1` 强制 TCP（联调/排障用）。
+    pub async fn connect(&self, target: SocketAddr) -> BtResult<Arc<Session>> {
         // 关键：先把 force_tcp 读出本地、释放 cfg 锁，再调 connect_with。
         // 若写成 `self.connect_with(target, self.cfg.lock()..force_tcp).await`，
         // MutexGuard 临时值会存活到整个 .await 结束，而 connect_with 内部
@@ -217,13 +217,13 @@ impl TransferEngine {
         &self,
         target: SocketAddr,
         force_tcp: bool,
-    ) -> LtResult<Arc<Session>> {
+    ) -> BtResult<Arc<Session>> {
         // 已连接则复用
         // （由调用方按 uuid 判断，此处不感知）
 
         let force_tcp = force_tcp
-            || std::env::var("LT_FORCE_TCP")
-                .map(|v| v == "1")
+            || std::env::var("BT_FORCE_TCP")
+                .map(|v| v == "1" || v.eq_ignore_ascii_case("true"))
                 .unwrap_or(false);
 
         if !force_tcp {
@@ -237,11 +237,11 @@ impl TransferEngine {
                 Ok(Ok(res)) => res,
                 Ok(Err(e)) => {
                     tracing::debug!(error = %e, "quic dial failed");
-                    return Err(LtError::ConnectTimeout);
+                    return Err(BtError::ConnectTimeout);
                 }
                 Err(_) => {
                     tracing::debug!("quic dial timeout");
-                    return Err(LtError::ConnectTimeout);
+                    return Err(BtError::ConnectTimeout);
                 }
             };
             let conn_id = self.next_conn_id.fetch_add(1, Ordering::SeqCst);
@@ -266,8 +266,8 @@ impl TransferEngine {
         let (pipe, kill) =
             tokio::time::timeout(Duration::from_secs(6), tcp::dial(target, &self.identity))
                 .await
-                .map_err(|_| LtError::ConnectTimeout)?
-                .map_err(|_| LtError::ConnectTimeout)?;
+                .map_err(|_| BtError::ConnectTimeout)?
+                .map_err(|_| BtError::ConnectTimeout)?;
         let conn_id = self.next_conn_id.fetch_add(1, Ordering::SeqCst);
         let ctx = HandshakeCtx {
             identity: self.identity.clone(),

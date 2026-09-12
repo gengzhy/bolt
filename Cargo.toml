@@ -16,7 +16,7 @@ version = "0.1.0"
 edition = "2021"
 rust-version = "1.80"
 license = "MIT"
-authors = ["LocalTransfer Team"]
+authors = ["Bolt Team"]
 repository = "local"
 
 [workspace.dependencies]

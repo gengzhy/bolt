@@ -1,12 +1,12 @@
 use std::sync::{Arc, Mutex};
 use std::time::{Duration, Instant};
-use task::{App, LtEvent};
+use task::{App, BtEvent};
 
 #[test]
 fn test_connect_disconnect_twice() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("lt_disc_{}", std::process::id()));
+    let temp_root = std::env::temp_dir().join(format!("bt_disc_{}", std::process::id()));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -42,8 +42,8 @@ fn test_connect_disconnect_twice() {
 
     let start = Instant::now();
     loop {
-        let connected_a = events_a.lock().unwrap().iter().any(|e| matches!(e, LtEvent::ConnState { state, .. } if state == "connected"));
-        let connected_b = events_b.lock().unwrap().iter().any(|e| matches!(e, LtEvent::ConnState { state, .. } if state == "connected"));
+        let connected_a = events_a.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
+        let connected_b = events_b.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
         if connected_a && connected_b {
             break;
         }
@@ -60,8 +60,8 @@ fn test_connect_disconnect_twice() {
 
     let start = Instant::now();
     loop {
-        let disc_a = events_a.lock().unwrap().iter().any(|e| matches!(e, LtEvent::ConnState { state, .. } if state == "disconnected"));
-        let disc_b = events_b.lock().unwrap().iter().any(|e| matches!(e, LtEvent::ConnState { state, .. } if state == "disconnected"));
+        let disc_a = events_a.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
+        let disc_b = events_b.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
         if disc_a && disc_b {
             break;
         }
@@ -74,14 +74,14 @@ fn test_connect_disconnect_twice() {
     }
 
     for ev in events_a.lock().unwrap().iter() {
-        if let LtEvent::ConnState { uuid, state, .. } = ev {
+        if let BtEvent::ConnState { uuid, state, .. } = ev {
             println!("Round 1 Disconnect A got: state={}, uuid='{}'", state, uuid);
             assert_eq!(uuid, &uuid_b, "Event A on disconnect MUST contain uuid_b!");
         }
     }
 
     for ev in events_b.lock().unwrap().iter() {
-        if let LtEvent::ConnState { uuid, state, .. } = ev {
+        if let BtEvent::ConnState { uuid, state, .. } = ev {
             println!("Round 1 Disconnect B got: state={}, uuid='{}'", state, uuid);
             assert_eq!(uuid, &uuid_a, "Event B on disconnect MUST contain uuid_a!");
         }
@@ -96,8 +96,8 @@ fn test_connect_disconnect_twice() {
 
     let start = Instant::now();
     loop {
-        let connected_a = events_a.lock().unwrap().iter().any(|e| matches!(e, LtEvent::ConnState { state, .. } if state == "connected"));
-        let connected_b = events_b.lock().unwrap().iter().any(|e| matches!(e, LtEvent::ConnState { state, .. } if state == "connected"));
+        let connected_a = events_a.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
+        let connected_b = events_b.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
         if connected_a && connected_b {
             break;
         }
@@ -116,8 +116,8 @@ fn test_connect_disconnect_twice() {
 
     let start = Instant::now();
     loop {
-        let disc_a = events_a.lock().unwrap().iter().any(|e| matches!(e, LtEvent::ConnState { state, .. } if state == "disconnected"));
-        let disc_b = events_b.lock().unwrap().iter().any(|e| matches!(e, LtEvent::ConnState { state, .. } if state == "disconnected"));
+        let disc_a = events_a.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
+        let disc_b = events_b.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
         if disc_a && disc_b {
             break;
         }
@@ -130,14 +130,14 @@ fn test_connect_disconnect_twice() {
     }
 
     for ev in events_a.lock().unwrap().iter() {
-        if let LtEvent::ConnState { uuid, state, .. } = ev {
+        if let BtEvent::ConnState { uuid, state, .. } = ev {
             println!("Round 2 Disconnect A got: state={}, uuid='{}'", state, uuid);
             assert_eq!(uuid, &uuid_b, "Event A on disconnect 2 MUST contain uuid_b!");
         }
     }
 
     for ev in events_b.lock().unwrap().iter() {
-        if let LtEvent::ConnState { uuid, state, .. } = ev {
+        if let BtEvent::ConnState { uuid, state, .. } = ev {
             println!("Round 2 Disconnect B got: state={}, uuid='{}'", state, uuid);
             assert_eq!(uuid, &uuid_a, "Event B on disconnect 2 MUST contain uuid_a!");
         }

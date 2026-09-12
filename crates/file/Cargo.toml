@@ -1,6 +1,6 @@
 [package]
 name = "file"
-description = "LocalTransfer 文件引擎：遍历、mmap 分片读取、断点区间缓存、写入合并、磁盘预检"
+description = "Bolt 文件引擎：遍历、mmap 分片读取、断点区间缓存、写入合并、磁盘预检"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

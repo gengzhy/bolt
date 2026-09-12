@@ -1,4 +1,4 @@
-// LocalTransfer 桌面端类型定义（对齐 docs/ffi_api.md 事件 payload 字段）。
+// Bolt 桌面端类型定义（对齐 docs/ffi_api.md 事件 payload 字段）。
 
 export interface Device {
   uuid: string;
@@ -73,8 +73,8 @@ export interface FileProgress {
   eta_secs: number;
 }
 
-/** lt://event 载荷：{id: 事件常量, payload: 事件 JSON 字符串}。 */
-export interface LtEvent {
+/** bt://event 载荷：{id: 事件常量, payload: 事件 JSON 字符串}。 */
+export interface BtEvent {
   id: number;
   payload: string;
 }

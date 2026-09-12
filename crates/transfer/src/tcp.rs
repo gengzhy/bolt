@@ -7,28 +7,28 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use crypto::{tls, DeviceIdentity};
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::{TlsAcceptor, TlsConnector};
 
 use crate::conn::Pipe;
 
 /// 绑定 TCP 监听器。
-pub async fn listen(addr: SocketAddr) -> LtResult<TcpListener> {
+pub async fn listen(addr: SocketAddr) -> BtResult<TcpListener> {
     TcpListener::bind(addr).await.map_err(|e| {
         tracing::error!(error = %e, %addr, "tcp bind failed");
-        LtError::PortUnavailable
+        BtError::PortUnavailable
     })
 }
 
 /// TLS acceptor（服务端）。
-pub fn acceptor(identity: &DeviceIdentity) -> LtResult<TlsAcceptor> {
+pub fn acceptor(identity: &DeviceIdentity) -> BtResult<TlsAcceptor> {
     let cfg = tls::server_config(identity)?;
     Ok(TlsAcceptor::from(Arc::new(cfg)))
 }
 
 /// TLS connector（客户端）。
-pub fn connector(identity: &DeviceIdentity) -> LtResult<TlsConnector> {
+pub fn connector(identity: &DeviceIdentity) -> BtResult<TlsConnector> {
     let cfg = tls::client_config(identity)?;
     Ok(TlsConnector::from(Arc::new(cfg)))
 }
@@ -36,14 +36,14 @@ pub fn connector(identity: &DeviceIdentity) -> LtResult<TlsConnector> {
 /// 复制底层 socket 句柄得到「kill 句柄」（std 流：同步 shutdown 可用）：
 /// tokio TcpStream 非 Clone，经 BorrowedSocket::try_clone_to_owned 拿同
 /// socket 的独立句柄。
-fn kill_handle(stream: &TcpStream) -> LtResult<std::net::TcpStream> {
+fn kill_handle(stream: &TcpStream) -> BtResult<std::net::TcpStream> {
     #[cfg(unix)]
     let dup = {
         use std::os::unix::io::AsFd;
         let owned = stream
             .as_fd()
             .try_clone_to_owned()
-            .map_err(|_| LtError::Internal)?;
+            .map_err(|_| BtError::Internal)?;
         std::net::TcpStream::from(owned)
     };
     #[cfg(windows)]
@@ -52,7 +52,7 @@ fn kill_handle(stream: &TcpStream) -> LtResult<std::net::TcpStream> {
         let owned = stream
             .as_socket()
             .try_clone_to_owned()
-            .map_err(|_| LtError::Internal)?;
+            .map_err(|_| BtError::Internal)?;
         std::net::TcpStream::from(owned)
     };
     Ok(dup)
@@ -65,14 +65,14 @@ fn kill_handle(stream: &TcpStream) -> LtResult<std::net::TcpStream> {
 pub async fn accept_one(
     listener: &TcpListener,
     acceptor: &TlsAcceptor,
-) -> LtResult<(Pipe, SocketAddr, std::net::TcpStream)> {
-    let (stream, addr) = listener.accept().await.map_err(LtError::from)?;
+) -> BtResult<(Pipe, SocketAddr, std::net::TcpStream)> {
+    let (stream, addr) = listener.accept().await.map_err(BtError::from)?;
     let _ = stream.set_nodelay(true);
     bump_buffers(&stream);
     let kill = kill_handle(&stream)?;
     let tls = acceptor.accept(stream).await.map_err(|e| {
         tracing::debug!(error = %e, %addr, "tls accept failed");
-        LtError::ConnectTimeout
+        BtError::ConnectTimeout
     })?;
     let (reader, writer) = tokio::io::split(tls);
     Ok((
@@ -89,19 +89,19 @@ pub async fn accept_one(
 pub async fn dial(
     target: SocketAddr,
     identity: &DeviceIdentity,
-) -> LtResult<(Pipe, std::net::TcpStream)> {
+) -> BtResult<(Pipe, std::net::TcpStream)> {
     let stream = TcpStream::connect(target)
         .await
-        .map_err(|_| LtError::ConnectTimeout)?;
+        .map_err(|_| BtError::ConnectTimeout)?;
     let _ = stream.set_nodelay(true);
     bump_buffers(&stream);
     let kill = kill_handle(&stream)?;
     let connector = connector(identity)?;
-    let server_name = rustls::pki_types::ServerName::try_from("localtransfer.local")
-        .map_err(|_| LtError::Internal)?;
+    let server_name = rustls::pki_types::ServerName::try_from("bolt.local")
+        .map_err(|_| BtError::Internal)?;
     let tls = connector.connect(server_name, stream).await.map_err(|e| {
         tracing::debug!(error = %e, %target, "tls connect failed");
-        LtError::ConnectTimeout
+        BtError::ConnectTimeout
     })?;
     let (reader, writer) = tokio::io::split(tls);
     Ok((

@@ -8,7 +8,7 @@ use std::fs::{self, File};
 use std::io::{Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 /// 同名文件处理策略。
 #[derive(Debug, Clone, Copy, PartialEq, Eq, serde::Serialize, serde::Deserialize)]
@@ -31,8 +31,8 @@ pub struct FileWriter {
 
 impl FileWriter {
     /// 在临时目录创建接收临时文件。
-    pub fn create(tmp_dir: &Path, unique_name: &str, size: u64) -> LtResult<FileWriter> {
-        fs::create_dir_all(tmp_dir).map_err(|_| LtError::PermissionDenied)?;
+    pub fn create(tmp_dir: &Path, unique_name: &str, size: u64) -> BtResult<FileWriter> {
+        fs::create_dir_all(tmp_dir).map_err(|_| BtError::PermissionDenied)?;
         let tmp_path = tmp_dir.join(format!("{unique_name}.tmp"));
         let file = fs::OpenOptions::new()
             .read(true)
@@ -40,7 +40,7 @@ impl FileWriter {
             .create(true)
             .truncate(true)
             .open(&tmp_path)
-            .map_err(|_| LtError::Internal)?;
+            .map_err(|_| BtError::Internal)?;
         if size > 0 {
             let _ = file.set_len(size);
         }
@@ -55,20 +55,20 @@ impl FileWriter {
     }
 
     /// 写入一个分片。
-    pub fn write_chunk(&mut self, offset: u64, data: &[u8]) -> LtResult<()> {
+    pub fn write_chunk(&mut self, offset: u64, data: &[u8]) -> BtResult<()> {
         let len = data.len() as u64;
         if offset.saturating_add(len) > self.size {
-            return Err(LtError::InvalidArgument);
+            return Err(BtError::InvalidArgument);
         }
         if self.current_offset != offset {
             self.file
                 .seek(SeekFrom::Start(offset))
-                .map_err(|_| LtError::Internal)?;
+                .map_err(|_| BtError::Internal)?;
             self.current_offset = offset;
             // 发生非连续跳跃，流水线流式哈希失效，落盘校验时自动回退为 mmap 全量比对
             self.hasher = None;
         }
-        self.file.write_all(data).map_err(|_| LtError::Internal)?;
+        self.file.write_all(data).map_err(|_| BtError::Internal)?;
         self.current_offset += len;
         self.written_bytes = self.written_bytes.max(offset + len);
         if let Some(h) = &mut self.hasher {
@@ -99,9 +99,9 @@ impl FileWriter {
         save_dir: &Path,
         rel_path: &str,
         policy: NameCollisionPolicy,
-    ) -> LtResult<PathBuf> {
+    ) -> BtResult<PathBuf> {
         if !self.is_complete() {
-            return Err(LtError::Internal);
+            return Err(BtError::Internal);
         }
         let FileWriter { tmp_path, file, hasher, .. } = self;
         let _ = file.sync_all();
@@ -115,11 +115,11 @@ impl FileWriter {
 
         if actual != *expected_hash {
             let _ = fs::remove_file(&tmp_path);
-            return Err(LtError::ChecksumMismatch);
+            return Err(BtError::ChecksumMismatch);
         }
         let dest = build_dest_path(save_dir, rel_path, policy)?;
         if let Some(parent) = dest.parent() {
-            fs::create_dir_all(parent).map_err(|_| LtError::PermissionDenied)?;
+            fs::create_dir_all(parent).map_err(|_| BtError::PermissionDenied)?;
         }
         move_file(&tmp_path, &dest)?;
         Ok(dest)
@@ -134,13 +134,13 @@ impl FileWriter {
 }
 
 /// 对文件做流式 BLAKE3 哈希。
-pub fn hash_file(path: &Path) -> LtResult<[u8; 32]> {
-    let file = File::open(path).map_err(|_| LtError::FileNotAccessible)?;
-    let size = file.metadata().map_err(|_| LtError::Internal)?.len();
+pub fn hash_file(path: &Path) -> BtResult<[u8; 32]> {
+    let file = File::open(path).map_err(|_| BtError::FileNotAccessible)?;
+    let size = file.metadata().map_err(|_| BtError::Internal)?.len();
     if size == 0 {
         return Ok(*blake3::hash(b"").as_bytes());
     }
-    let mmap = unsafe { memmap2::Mmap::map(&file).map_err(|_| LtError::MmapFailed)? };
+    let mmap = unsafe { memmap2::Mmap::map(&file).map_err(|_| BtError::MmapFailed)? };
     Ok(*blake3::hash(&mmap).as_bytes())
 }
 
@@ -149,7 +149,7 @@ fn build_dest_path(
     save_dir: &Path,
     rel_path: &str,
     policy: NameCollisionPolicy,
-) -> LtResult<PathBuf> {
+) -> BtResult<PathBuf> {
     let mut dest = save_dir.to_path_buf();
     for part in rel_path
         .split('/')
@@ -158,7 +158,7 @@ fn build_dest_path(
         dest = dest.join(part);
     }
     if !dest.starts_with(save_dir) {
-        return Err(LtError::InvalidArgument);
+        return Err(BtError::InvalidArgument);
     }
     if !dest.exists() || policy == NameCollisionPolicy::Overwrite {
         return Ok(dest);
@@ -179,15 +179,15 @@ fn build_dest_path(
             return Ok(candidate);
         }
     }
-    Err(LtError::Internal)
+    Err(BtError::Internal)
 }
 
 /// 移动文件（优先 rename；跨卷失败时退化为拷贝+删除）。
-fn move_file(from: &Path, to: &Path) -> LtResult<()> {
+fn move_file(from: &Path, to: &Path) -> BtResult<()> {
     match fs::rename(from, to) {
         Ok(()) => Ok(()),
         Err(_) => {
-            fs::copy(from, to).map_err(|_| LtError::Internal)?;
+            fs::copy(from, to).map_err(|_| BtError::Internal)?;
             let _ = fs::remove_file(from);
             Ok(())
         }
@@ -200,7 +200,7 @@ mod tests {
 
     #[test]
     fn write_verify_place() {
-        let base = std::env::temp_dir().join(format!("lt-writer-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("bt-writer-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         let tmp = base.join("tmp");
         let save = base.join("save");
@@ -242,7 +242,7 @@ mod tests {
 
     #[test]
     fn bad_hash_deletes_tmp() {
-        let base = std::env::temp_dir().join(format!("lt-writer2-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("bt-writer2-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         let tmp = base.join("tmp");
 
@@ -255,14 +255,14 @@ mod tests {
             "x.bin",
             NameCollisionPolicy::AutoRename,
         );
-        assert!(matches!(res, Err(LtError::ChecksumMismatch)));
+        assert!(matches!(res, Err(BtError::ChecksumMismatch)));
         assert!(!tmp_path.exists());
         let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
     fn rejects_overflow_chunk() {
-        let base = std::env::temp_dir().join(format!("lt-writer3-{}", std::process::id()));
+        let base = std::env::temp_dir().join(format!("bt-writer3-{}", std::process::id()));
         let _ = fs::remove_dir_all(&base);
         let mut w = FileWriter::create(&base, "t3", 4).unwrap();
         assert!(w.write_chunk(2, b"abcd").is_err());

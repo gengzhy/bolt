@@ -21,7 +21,7 @@ use tokio::time::timeout;
 use crypto::trust::{TrustStatus, TrustStore};
 use crypto::{pairing, DeviceIdentity};
 use utils::constants::*;
-use utils::{LtError, LtResult, PROTOCOL_VERSION};
+use utils::{BtError, BtResult, PROTOCOL_VERSION};
 
 use crate::conn::{self, Incoming, Pipe};
 use crate::protocol::{DeviceType, Message};
@@ -187,7 +187,7 @@ pub(crate) enum Disp {
     FileVerified {
         task_session: u64,
         file_seq: u32,
-        result: LtResult<PathBuf>,
+        result: BtResult<PathBuf>,
         rel_path: String,
     },
     /// 管道读循环结束（EOF/传输错误）。控制管道（0）下来 = 对端断开，
@@ -199,7 +199,7 @@ pub(crate) enum Disp {
 pub(crate) fn disp_file_verified(
     task_session: u64,
     file_seq: u32,
-    result: LtResult<PathBuf>,
+    result: BtResult<PathBuf>,
     rel_path: String,
 ) -> Disp {
     Disp::FileVerified {
@@ -259,31 +259,31 @@ impl Session {
     }
 
     /// 控制面发送（会话字段为 0 或任务ID）。
-    pub fn send_control(&self, task_session: u64, msg: Message) -> LtResult<()> {
+    pub fn send_control(&self, task_session: u64, msg: Message) -> BtResult<()> {
         self.control_tx
             .send((task_session, msg))
-            .map_err(|_| LtError::ConnectTimeout)
+            .map_err(|_| BtError::ConnectTimeout)
     }
 
     /// 文件面发送（pipe_id 由 [`Session::open_file_pipe`] 给出）。
-    pub fn send_file(&self, pipe_id: u64, task_session: u64, msg: Message) -> LtResult<()> {
+    pub fn send_file(&self, pipe_id: u64, task_session: u64, msg: Message) -> BtResult<()> {
         let txs = self.pipe_txs.lock().unwrap();
-        let tx = txs.get(&pipe_id).ok_or(LtError::ConnectTimeout)?;
+        let tx = txs.get(&pipe_id).ok_or(BtError::ConnectTimeout)?;
         tx.send((task_session, msg))
-            .map_err(|_| LtError::ConnectTimeout)
+            .map_err(|_| BtError::ConnectTimeout)
     }
 
     /// 打开一条文件管道（QUIC 新建双向流；TCP 复用控制连接）。
-    pub async fn open_file_pipe(&self) -> LtResult<u64> {
+    pub async fn open_file_pipe(&self) -> BtResult<u64> {
         match self.kind {
             TransportKind::Tcp => Ok(0),
             TransportKind::Quic => {
-                let conn = self.quic_conn.as_ref().ok_or(LtError::ConnectTimeout)?;
+                let conn = self.quic_conn.as_ref().ok_or(BtError::ConnectTimeout)?;
                 // 带超时：对端流配额耗尽时 open_bi 会无限等待
                 let (send, recv) = timeout(Duration::from_secs(30), conn.open_bi())
                     .await
-                    .map_err(|_| LtError::ConnectTimeout)?
-                    .map_err(|_| LtError::ConnectTimeout)?;
+                    .map_err(|_| BtError::ConnectTimeout)?
+                    .map_err(|_| BtError::ConnectTimeout)?;
                 Ok(self.register_pipe(quic::pipe_from_bi(send, recv)))
             }
         }
@@ -483,7 +483,7 @@ fn hello_msg(identity: &DeviceIdentity, device_type: DeviceType) -> Message {
 }
 
 /// 出方向握手（主动拨号方）。
-pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc<Session>> {
+pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> BtResult<Arc<Session>> {
     let (mut reader, writer) = (pipe.reader, pipe.writer);
 
     let (control_tx, control_rx) = mpsc::unbounded_channel::<(u64, Message)>();
@@ -542,10 +542,10 @@ pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc
         ..
     } = hello
     else {
-        return Err(LtError::ProtocolIncompatible);
+        return Err(BtError::ProtocolIncompatible);
     };
     if uuid == ctx.identity.uuid {
-        return Err(LtError::InvalidArgument); // 连到了自己
+        return Err(BtError::InvalidArgument); // 连到了自己
     }
     let _ = proto_ver;
 
@@ -555,11 +555,11 @@ pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc
             session.send_control(
                 0,
                 Message::ErrorMsg {
-                    code: LtError::FingerprintChanged.code(),
+                    code: BtError::FingerprintChanged.code(),
                     detail: "certificate fingerprint changed".into(),
                 },
             )?;
-            return Err(LtError::FingerprintChanged);
+            return Err(BtError::FingerprintChanged);
         }
         TrustStatus::Unknown => {
             let mut nonce = [0u8; 16];
@@ -588,7 +588,7 @@ pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc
             let resp = loop {
                 let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
                 if remaining.is_zero() {
-                    return Err(LtError::PairingFailed);
+                    return Err(BtError::PairingFailed);
                 }
                 tokio::select! {
                     user_cancel = &mut drx, if !cancelled => {
@@ -596,7 +596,7 @@ pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc
                             Ok(false) => {
                                 let _ = session.send_control(0, Message::Bye);
                                 session.close(None);
-                                return Err(LtError::Cancelled);
+                                return Err(BtError::Cancelled);
                             }
                             _ => {
                                 cancelled = true;
@@ -606,12 +606,12 @@ pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc
                     frame = timeout(remaining, conn::read_frame(&mut reader)) => {
                         let frame = match frame {
                             Ok(r) => r,
-                            Err(_) => return Err(LtError::PairingFailed),
+                            Err(_) => return Err(BtError::PairingFailed),
                         };
                         let frame = match frame {
                             Ok(Some(f)) => f,
-                            Ok(None) => return Err(LtError::PairingFailed), // EOF
-                            Err(_) => return Err(LtError::PairingFailed),
+                            Ok(None) => return Err(BtError::PairingFailed), // EOF
+                            Err(_) => return Err(BtError::PairingFailed),
                         };
                         match frame {
                             Incoming::Msg {
@@ -644,7 +644,7 @@ pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc
                 }
                 _ => {
                     session.close(None);
-                    return Err(LtError::PairingFailed);
+                    return Err(BtError::PairingFailed);
                 }
             }
         }
@@ -674,7 +674,7 @@ pub(crate) async fn handshake_out(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc
 }
 
 /// 入方向握手（被连接方）。
-pub(crate) async fn handshake_in(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc<Session>> {
+pub(crate) async fn handshake_in(ctx: HandshakeCtx, pipe: Pipe) -> BtResult<Arc<Session>> {
     let (mut reader, writer) = (pipe.reader, pipe.writer);
 
     let (control_tx, control_rx) = mpsc::unbounded_channel::<(u64, Message)>();
@@ -728,10 +728,10 @@ pub(crate) async fn handshake_in(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc<
         ..
     } = hello
     else {
-        return Err(LtError::ProtocolIncompatible);
+        return Err(BtError::ProtocolIncompatible);
     };
     if uuid == ctx.identity.uuid {
-        return Err(LtError::InvalidArgument);
+        return Err(BtError::InvalidArgument);
     }
     session.send_control(0, hello_msg(&ctx.identity, ctx.cfg.device_type))?;
 
@@ -741,11 +741,11 @@ pub(crate) async fn handshake_in(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc<
             session.send_control(
                 0,
                 Message::ErrorMsg {
-                    code: LtError::FingerprintChanged.code(),
+                    code: BtError::FingerprintChanged.code(),
                     detail: "certificate fingerprint changed".into(),
                 },
             )?;
-            return Err(LtError::FingerprintChanged);
+            return Err(BtError::FingerprintChanged);
         }
         TrustStatus::Unknown => {
             // 等待发起方 PAIR_REQ（10s 内未到则由调度器处理迟到的配对）
@@ -785,13 +785,13 @@ pub(crate) async fn handshake_in(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc<
                                     Ok(Ok(Some(f))) => f,
                                     _ => {
                                         session.close(None);
-                                        return Err(LtError::Cancelled);
+                                        return Err(BtError::Cancelled);
                                     }
                                 };
                                 match frame {
                                     Incoming::Msg { msg: Message::Bye, .. } => {
                                         session.close(None);
-                                        return Err(LtError::Cancelled);
+                                        return Err(BtError::Cancelled);
                                     }
                                     Incoming::Msg { msg: Message::Ping { seq }, .. } => {
                                         let _ = session.send_control(0, Message::Pong { seq });
@@ -809,7 +809,7 @@ pub(crate) async fn handshake_in(ctx: HandshakeCtx, pipe: Pipe) -> LtResult<Arc<
                         ctx.trust.add(&uuid, &fingerprint, &device_name)?;
                     } else {
                         session.close(None);
-                        return Err(LtError::PairingFailed);
+                        return Err(BtError::PairingFailed);
                     }
                 }
                 _ => {
@@ -942,14 +942,14 @@ fn spawn_writer(
 
 async fn read_hello(
     reader: &mut Box<dyn tokio::io::AsyncRead + Unpin + Send>,
-) -> LtResult<Message> {
+) -> BtResult<Message> {
     let deadline = Duration::from_secs(15);
     loop {
         let frame = timeout(deadline, conn::read_frame(reader))
             .await
-            .map_err(|_| LtError::ConnectTimeout)?
-            .map_err(|_| LtError::ConnectTimeout)?
-            .ok_or(LtError::ConnectTimeout)?;
+            .map_err(|_| BtError::ConnectTimeout)?
+            .map_err(|_| BtError::ConnectTimeout)?
+            .ok_or(BtError::ConnectTimeout)?;
         match frame {
             Incoming::Msg { msg, .. } => return Ok(msg),
             Incoming::Bad { .. } => continue, // 忽略握手期杂帧
@@ -980,7 +980,7 @@ async fn heartbeat(session: Arc<Session>) {
         let silent = now_ms().saturating_sub(session.last_seen_ms.load(Ordering::SeqCst));
         if silent > 90_000 {
             tracing::warn!(conn_id = session.id, "heartbeat timeout, closing");
-            session.close(Some(LtError::ConnectTimeout.code()));
+            session.close(Some(BtError::ConnectTimeout.code()));
             break;
         }
     }
@@ -1039,7 +1039,7 @@ async fn dispatcher(session: Arc<Session>, mut rx: mpsc::UnboundedReceiver<Disp>
                         if pipe_id == 0 {
                             if !session.is_closed() {
                                 tracing::info!(conn_id = session.id, "control pipe down, closing session");
-                                session.close(Some(LtError::ConnectTimeout.code()));
+                                session.close(Some(BtError::ConnectTimeout.code()));
                             }
                         } else {
                             // 文件管道读侧终结（对端 FIN/复位）：移除写句柄，
@@ -1074,7 +1074,7 @@ fn handle_frame(
             let _ = session.send_control(
                 0,
                 Message::ErrorMsg {
-                    code: LtError::ProtocolIncompatible.code(),
+                    code: BtError::ProtocolIncompatible.code(),
                     detail: "protocol incompatible or malformed frame".into(),
                 },
             );

@@ -160,9 +160,9 @@ pub enum CodecError {
     TooLarge,
 }
 
-impl From<CodecError> for utils::LtError {
+impl From<CodecError> for utils::BtError {
     fn from(_: CodecError) -> Self {
-        utils::LtError::ProtocolIncompatible
+        utils::BtError::ProtocolIncompatible
     }
 }
 

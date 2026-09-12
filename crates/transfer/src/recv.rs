@@ -11,7 +11,7 @@ use std::time::{Duration, Instant};
 use file::writer::FileWriter;
 use file::FileIdentity;
 use utils::constants::*;
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 use crate::protocol::Message;
 use crate::session::{EngineEvent, IncomingTransfer, Session};
@@ -348,7 +348,7 @@ pub fn on_file_done(
                 .verify_and_place(&hash, &save_dir, &rel, collision)
         })
         .await
-        .map_err(|_| LtError::Internal)
+        .map_err(|_| BtError::Internal)
         .and_then(|r| r);
         tracing::info!(
             file_seq,
@@ -370,7 +370,7 @@ pub fn on_file_verified(
     recv_tasks: &mut HashMap<u64, RecvTask>,
     task_session: u64,
     file_seq: u32,
-    result: LtResult<std::path::PathBuf>,
+    result: BtResult<std::path::PathBuf>,
     rel_path: &str,
 ) {
     let task_opt = recv_tasks.get_mut(&task_session);
@@ -429,7 +429,7 @@ pub fn on_file_verified(
             conn_id: session.id,
             task_id: Some(task_session),
             incoming: true,
-            code: LtError::DiskFull.code(),
+            code: BtError::DiskFull.code(),
             message: "磁盘空间不足".into(),
         });
     }

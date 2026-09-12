@@ -1,8 +1,8 @@
 //! UDP 广播探测兜底通道（实施方案 6.2）。
 //!
 //! 网络封锁组播 / mDNS 不可用时兜底：
-//! - 主动端每 3s 向 `255.255.255.255:PROBE_PORT` 广播查询包 `LTQ1`；
-//! - 被动端监听 `PROBE_PORT/udp`，收到查询后单播回复 `LTP1` + 本机设备信息 JSON；
+//! - 主动端每 3s 向 `255.255.255.255:PROBE_PORT` 广播查询包 `BTQ1`；
+//! - 被动端监听 `PROBE_PORT/udp`，收到查询后单播回复 `BTP1` + 本机设备信息 JSON；
 //! - 双方都把对方刷新进设备列表（UUID 去重，兼作设备列表 TTL 的持续刷新源）。
 //!
 //! 端口独立于 QUIC/TCP 端口池（见 [`crate::PROBE_PORT`] 注释）；监听仍用
@@ -17,8 +17,8 @@ use socket2::{Domain, Protocol, Socket, Type};
 use crate::device::Device;
 use crate::PROBE_PORT;
 
-const QUERY_MAGIC: &[u8; 4] = b"LTQ1";
-const PREPLY_MAGIC: &[u8; 4] = b"LTP1";
+const QUERY_MAGIC: &[u8; 4] = b"BTQ1";
+const PREPLY_MAGIC: &[u8; 4] = b"BTP1";
 
 /// 构造带 SO_REUSEADDR 的 UDP socket，尽力绑定指定端口。
 fn reuse_socket(port: u16) -> std::io::Result<UdpSocket> {

@@ -1,7 +1,7 @@
 //! 应用层事件（实施方案第十一节，FFI 回调载体）。
 //!
-//! 每个事件 = 事件号（常量）+ JSON 负载；经 lt-ffi 的
-//! `lt_set_event_callback` 推给上层。
+//! 每个事件 = 事件号（常量）+ JSON 负载；经 bt-ffi 的
+//! `bt_set_event_callback` 推给上层。
 
 pub const EVT_DEVICE_LIST: i32 = 1;
 pub const EVT_CONN_STATE: i32 = 2;
@@ -14,7 +14,7 @@ pub const EVT_ERROR: i32 = 8;
 
 /// 应用层事件（统一枚举，序列化后交 FFI）。
 #[derive(Debug, Clone)]
-pub enum LtEvent {
+pub enum BtEvent {
     /// 设备列表变化：`{devices:[…]}`
     DeviceList { devices_json: String },
     /// 连接状态：`{uuid, name, state: connected|disconnected, conn_id, transport, err}`
@@ -76,29 +76,29 @@ pub enum LtEvent {
     },
 }
 
-impl LtEvent {
+impl BtEvent {
     pub fn id(&self) -> i32 {
         match self {
-            LtEvent::DeviceList { .. } => EVT_DEVICE_LIST,
-            LtEvent::ConnState { .. } => EVT_CONN_STATE,
-            LtEvent::PairRequest { .. } => EVT_PAIR_REQUEST,
-            LtEvent::TransferRequest { .. } => EVT_TRANSFER_REQUEST,
-            LtEvent::TaskState { .. } => EVT_TASK_STATE,
-            LtEvent::TaskProgress { .. } => EVT_TASK_PROGRESS,
-            LtEvent::TaskSummary { .. } => EVT_TASK_SUMMARY,
-            LtEvent::Error { .. } => EVT_ERROR,
+            BtEvent::DeviceList { .. } => EVT_DEVICE_LIST,
+            BtEvent::ConnState { .. } => EVT_CONN_STATE,
+            BtEvent::PairRequest { .. } => EVT_PAIR_REQUEST,
+            BtEvent::TransferRequest { .. } => EVT_TRANSFER_REQUEST,
+            BtEvent::TaskState { .. } => EVT_TASK_STATE,
+            BtEvent::TaskProgress { .. } => EVT_TASK_PROGRESS,
+            BtEvent::TaskSummary { .. } => EVT_TASK_SUMMARY,
+            BtEvent::Error { .. } => EVT_ERROR,
         }
     }
 
     /// JSON 负载（上层解析展示）。
     pub fn payload_json(&self) -> String {
         match self {
-            LtEvent::DeviceList { devices_json } => {
+            BtEvent::DeviceList { devices_json } => {
                 let devices: serde_json::Value =
                     serde_json::from_str(devices_json).unwrap_or(serde_json::json!([]));
                 serde_json::json!({ "devices": devices }).to_string()
             }
-            LtEvent::ConnState {
+            BtEvent::ConnState {
                 uuid,
                 name,
                 state,
@@ -114,7 +114,7 @@ impl LtEvent {
                 "err": err,
             })
             .to_string(),
-            LtEvent::PairRequest {
+            BtEvent::PairRequest {
                 pair_id,
                 uuid,
                 name,
@@ -128,7 +128,7 @@ impl LtEvent {
                 "is_initiator": is_initiator,
             })
             .to_string(),
-            LtEvent::TransferRequest {
+            BtEvent::TransferRequest {
                 req_id,
                 uuid,
                 name,
@@ -142,7 +142,7 @@ impl LtEvent {
                 "total_size": total_size,
             })
             .to_string(),
-            LtEvent::TaskState {
+            BtEvent::TaskState {
                 task_id,
                 incoming,
                 state,
@@ -152,7 +152,7 @@ impl LtEvent {
                 "state": state,
             })
             .to_string(),
-            LtEvent::TaskProgress {
+            BtEvent::TaskProgress {
                 task_id,
                 incoming,
                 rel_path,
@@ -170,7 +170,7 @@ impl LtEvent {
                 "eta_secs": eta_secs,
             })
             .to_string(),
-            LtEvent::TaskSummary {
+            BtEvent::TaskSummary {
                 task_id,
                 incoming,
                 ok,
@@ -188,7 +188,7 @@ impl LtEvent {
                 "total_size": total_size,
             })
             .to_string(),
-            LtEvent::Error {
+            BtEvent::Error {
                 task_id,
                 code,
                 message,
@@ -208,7 +208,7 @@ mod tests {
 
     #[test]
     fn ids_and_payloads() {
-        let ev = LtEvent::TaskProgress {
+        let ev = BtEvent::TaskProgress {
             task_id: 7,
             incoming: false,
             rel_path: Some("a/b.txt".into()),
@@ -222,7 +222,7 @@ mod tests {
         assert_eq!(v["task_id"], 7);
         assert_eq!(v["rel_path"], "a/b.txt");
 
-        let dl = LtEvent::DeviceList {
+        let dl = BtEvent::DeviceList {
             devices_json: r#"[{"uuid":"x"}]"#.into(),
         };
         let v2: serde_json::Value = serde_json::from_str(&dl.payload_json()).unwrap();

@@ -114,7 +114,7 @@ impl DiscoveryManager {
                 Ok(receiver) => {
                     let devices = self.devices.clone();
                     let stop_c = stop.clone();
-                    handles.push(thread::Builder::new().name("lt-mdns-browse".into()).spawn(
+                    handles.push(thread::Builder::new().name("bt-mdns-browse".into()).spawn(
                         move || {
                             crate::mdns::browse_loop(
                                 receiver,
@@ -150,7 +150,7 @@ impl DiscoveryManager {
             let nets_c = local_nets.clone();
             handles.push(
                 thread::Builder::new()
-                    .name("lt-udp-probe".into())
+                    .name("bt-udp-probe".into())
                     .spawn(move || {
                         probe_c.listen_loop(
                             listen_uuid,
@@ -189,7 +189,7 @@ impl DiscoveryManager {
                 let stop_c = stop.clone();
                 let probe_c = probe.clone();
                 let uuid = own_uuid.clone();
-                handles.push(thread::Builder::new().name("lt-udp-bcast".into()).spawn(
+                handles.push(thread::Builder::new().name("bt-udp-bcast".into()).spawn(
                     move || {
                         while !stop_c.load(Ordering::Relaxed) {
                             let _ = probe_c.send_probe(&uuid);
@@ -212,7 +212,7 @@ impl DiscoveryManager {
             let ttl = cfg.ttl_secs;
             handles.push(
                 thread::Builder::new()
-                    .name("lt-dev-sweep".into())
+                    .name("bt-dev-sweep".into())
                     .spawn(move || {
                         while !stop_c.load(Ordering::Relaxed) {
                             thread::sleep(Duration::from_secs(3));

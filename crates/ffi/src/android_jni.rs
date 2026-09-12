@@ -1,12 +1,12 @@
 //! Android JNI 桥（仅 `target_os = "android"` 编译）。
 //!
 //! JVM 解析 native 方法只认 `Java_...` 符号或 `RegisterNatives` 注册，
-//! 而本 crate 导出的是裸 `lt_*` C 符号（供 cli/Tauri 用），故这里在
-//! `JNI_OnLoad` 中把 `com/lt/transfer/ffi/Native` 的 28 个 external fun
-//! 按 `include/lt_api.h` 语义一一注册到本模块的实现上。
+//! 而本 crate 导出的是裸 `bt_*` C 符号（供 cli/Tauri 用），故这里在
+//! `JNI_OnLoad` 中把 `xin/cosmos/bolt/ffi/Native` 的 28 个 external fun
+//! 按 `include/bt_api.h` 语义一一注册到本模块的实现上。
 //!
 //! 事件回调：Kotlin 侧传 `(Int, String?) -> Unit`（Function2 对象），
-//! 这里保存全局引用并安装 C 蹦床；Rust 事件分发线程（lt-ffi-events）
+//! 这里保存全局引用并安装 C 蹦床；Rust 事件分发线程（bt-ffi-events）
 //! 经 `attach_current_thread` 回调 Kotlin，由 Kotlin 侧再转主线程。
 
 use std::ffi::{CStr, CString};
@@ -33,64 +33,64 @@ macro_rules! method {
 }
 
 const METHODS: &[NativeMethod<'static>] = &[
-    method!("ltInit", "(Ljava/lang/String;)I", java_ltInit),
-    method!("ltShutdown", "()V", java_ltShutdown),
-    method!("ltVersion", "()Ljava/lang/String;", java_ltVersion),
+    method!("btInit", "(Ljava/lang/String;)I", java_btInit),
+    method!("btShutdown", "()V", java_btShutdown),
+    method!("btVersion", "()Ljava/lang/String;", java_btVersion),
     method!(
-        "ltSetEventCallback",
+        "btSetEventCallback",
         "(Lkotlin/jvm/functions/Function2;)V",
-        java_ltSetEventCallback
+        java_btSetEventCallback
     ),
-    method!("ltSetConfig", "(Ljava/lang/String;)I", java_ltSetConfig),
-    method!("ltGetConfig", "()Ljava/lang/String;", java_ltGetConfig),
+    method!("btSetConfig", "(Ljava/lang/String;)I", java_btSetConfig),
+    method!("btGetConfig", "()Ljava/lang/String;", java_btGetConfig),
     method!(
-        "ltGetLocalFingerprint",
+        "btGetLocalFingerprint",
         "()Ljava/lang/String;",
-        java_ltGetLocalFingerprint
+        java_btGetLocalFingerprint
     ),
     method!(
-        "ltGetLocalInfo",
+        "btGetLocalInfo",
         "()Ljava/lang/String;",
-        java_ltGetLocalInfo
+        java_btGetLocalInfo
     ),
-    method!("ltStartDiscovery", "()I", java_ltStartDiscovery),
-    method!("ltStopDiscovery", "()I", java_ltStopDiscovery),
-    method!("ltProbeNetwork", "()I", java_ltProbeNetwork),
-    method!("ltGetDevices", "()Ljava/lang/String;", java_ltGetDevices),
+    method!("btStartDiscovery", "()I", java_btStartDiscovery),
+    method!("btStopDiscovery", "()I", java_btStopDiscovery),
+    method!("btProbeNetwork", "()I", java_btProbeNetwork),
+    method!("btGetDevices", "()Ljava/lang/String;", java_btGetDevices),
     method!(
-        "ltAddManualDevice",
+        "btAddManualDevice",
         "(Ljava/lang/String;I)I",
-        java_ltAddManualDevice
+        java_btAddManualDevice
     ),
     method!(
-        "ltNsdInjectDevice",
+        "btNsdInjectDevice",
         "(Ljava/lang/String;)I",
-        java_ltNsdInjectDevice
+        java_btNsdInjectDevice
     ),
     method!(
-        "ltNsdRemoveDevice",
+        "btNsdRemoveDevice",
         "(Ljava/lang/String;)I",
-        java_ltNsdRemoveDevice
+        java_btNsdRemoveDevice
     ),
-    method!("ltConnect", "(Ljava/lang/String;)I", java_ltConnect),
+    method!("btConnect", "(Ljava/lang/String;)I", java_btConnect),
     method!(
-        "ltConnectAddr",
+        "btConnectAddr",
         "(Ljava/lang/String;I)I",
-        java_ltConnectAddr
+        java_btConnectAddr
     ),
-    method!("ltDisconnect", "(Ljava/lang/String;)I", java_ltDisconnect),
-    method!("ltRespondPair", "(JI)I", java_ltRespondPair),
-    method!("ltRespondTransfer", "(JI)I", java_ltRespondTransfer),
+    method!("btDisconnect", "(Ljava/lang/String;)I", java_btDisconnect),
+    method!("btRespondPair", "(JI)I", java_btRespondPair),
+    method!("btRespondTransfer", "(JI)I", java_btRespondTransfer),
     method!(
-        "ltSendFiles",
+        "btSendFiles",
         "(Ljava/lang/String;Ljava/lang/String;[J)I",
-        java_ltSendFiles
+        java_btSendFiles
     ),
-    method!("ltCancelTask", "(J)I", java_ltCancelTask),
-    method!("ltGetTasks", "()Ljava/lang/String;", java_ltGetTasks),
-    method!("ltClearRecords", "()I", java_ltClearRecords),
-    method!("ltClearTempCache", "()I", java_ltClearTempCache),
-    method!("ltFreeString", "(J)V", java_ltFreeString),
+    method!("btCancelTask", "(J)I", java_btCancelTask),
+    method!("btGetTasks", "()Ljava/lang/String;", java_btGetTasks),
+    method!("btClearRecords", "()I", java_btClearRecords),
+    method!("btClearTempCache", "()I", java_btClearTempCache),
+    method!("btFreeString", "(J)V", java_btFreeString),
 ];
 
 /// ART 加载 .so 时回调：注册 native 方法。
@@ -100,7 +100,7 @@ pub extern "system" fn JNI_OnLoad(vm: *mut jni::sys::JavaVM, _reserved: *mut c_v
     let vm = unsafe { JavaVM::from_raw(vm) };
     let _ = JVM.set(vm.clone());
     let ok = vm.with_top_local_frame(|env: &mut Env| -> jni::errors::Result<()> {
-        let class = env.find_class(jni_str!("com/lt/transfer/ffi/Native"))?;
+        let class = env.find_class(jni_str!("xin/cosmos/bolt/ffi/Native"))?;
         // Safety: METHODS 每项 fn_ptr 都与 sig 匹配。
         unsafe { env.register_native_methods(&class, METHODS) }
     });
@@ -165,7 +165,7 @@ fn jstring_to_cstring<'local>(
     Ok(Some(CString::new(s).map_err(|_| JniError::JavaException)?))
 }
 
-/// C 字符串 → JString；`owned` 为真时随转随释放（lt_get_* 系列）。
+/// C 字符串 → JString；`owned` 为真时随转随释放（bt_get_* 系列）。
 fn cstring_to_jstring<'local>(
     env: &mut Env<'local>,
     ptr: *const c_char,
@@ -181,7 +181,7 @@ fn cstring_to_jstring<'local>(
             .to_owned()
     };
     if owned && !ptr.is_null() {
-        crate::lt_free_string(ptr as *mut c_char);
+        crate::bt_free_string(ptr as *mut c_char);
     }
     env.new_string(&text)
 }
@@ -189,14 +189,14 @@ fn cstring_to_jstring<'local>(
 // ================= 生命周期 =================
 
 #[no_mangle]
-pub extern "system" fn java_ltInit<'local>(
+pub extern "system" fn java_btInit<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     data_dir: JString<'local>,
 ) -> jint {
     env.with_env(|env| -> jni::errors::Result<jint> {
         let dir = jstring_to_cstring(env, data_dir)?;
-        Ok(crate::lt_init(
+        Ok(crate::bt_init(
             dir.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
         ))
     })
@@ -204,7 +204,7 @@ pub extern "system" fn java_ltInit<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltShutdown<'local>(
+pub extern "system" fn java_btShutdown<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
 ) {
@@ -212,20 +212,20 @@ pub extern "system" fn java_ltShutdown<'local>(
         .with_env(|_env| -> jni::errors::Result<()> {
             // 先摘回调，避免核心关闭后事件线程仍持有全局引用。
             *EVENT_CB.lock().unwrap() = None;
-            crate::lt_shutdown();
+            crate::bt_shutdown();
             Ok(())
         })
         .into_outcome();
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltVersion<'local>(
+pub extern "system" fn java_btVersion<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
 ) -> JString<'local> {
     match env
         .with_env(|env| -> jni::errors::Result<JString> {
-            cstring_to_jstring(env, crate::lt_version(), false)
+            cstring_to_jstring(env, crate::bt_version(), false)
         })
         .into_outcome()
     {
@@ -235,7 +235,7 @@ pub extern "system" fn java_ltVersion<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltSetEventCallback<'local>(
+pub extern "system" fn java_btSetEventCallback<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     cb: JObject<'local>,
@@ -244,11 +244,11 @@ pub extern "system" fn java_ltSetEventCallback<'local>(
         .with_env(|env| -> jni::errors::Result<()> {
             if cb.is_null() {
                 *EVENT_CB.lock().unwrap() = None;
-                crate::lt_set_event_callback(None);
+                crate::bt_set_event_callback(None);
             } else {
                 let global = env.new_global_ref(cb)?;
                 *EVENT_CB.lock().unwrap() = Some(global);
-                crate::lt_set_event_callback(Some(event_trampoline));
+                crate::bt_set_event_callback(Some(event_trampoline));
             }
             Ok(())
         })
@@ -258,14 +258,14 @@ pub extern "system" fn java_ltSetEventCallback<'local>(
 // ================= 配置 =================
 
 #[no_mangle]
-pub extern "system" fn java_ltSetConfig<'local>(
+pub extern "system" fn java_btSetConfig<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     json: JString<'local>,
 ) -> jint {
     env.with_env(|env| -> jni::errors::Result<jint> {
         let c = jstring_to_cstring(env, json)?;
-        Ok(crate::lt_set_config(
+        Ok(crate::bt_set_config(
             c.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
         ))
     })
@@ -273,13 +273,13 @@ pub extern "system" fn java_ltSetConfig<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltGetConfig<'local>(
+pub extern "system" fn java_btGetConfig<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
 ) -> JString<'local> {
     match env
         .with_env(|env| -> jni::errors::Result<JString> {
-            cstring_to_jstring(env, crate::lt_get_config(), true)
+            cstring_to_jstring(env, crate::bt_get_config(), true)
         })
         .into_outcome()
     {
@@ -289,13 +289,13 @@ pub extern "system" fn java_ltGetConfig<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltGetLocalFingerprint<'local>(
+pub extern "system" fn java_btGetLocalFingerprint<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
 ) -> JString<'local> {
     match env
         .with_env(|env| -> jni::errors::Result<JString> {
-            cstring_to_jstring(env, crate::lt_get_local_fingerprint(), true)
+            cstring_to_jstring(env, crate::bt_get_local_fingerprint(), true)
         })
         .into_outcome()
     {
@@ -305,13 +305,13 @@ pub extern "system" fn java_ltGetLocalFingerprint<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltGetLocalInfo<'local>(
+pub extern "system" fn java_btGetLocalInfo<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
 ) -> JString<'local> {
     match env
         .with_env(|env| -> jni::errors::Result<JString> {
-            cstring_to_jstring(env, crate::lt_get_local_info(), true)
+            cstring_to_jstring(env, crate::bt_get_local_info(), true)
         })
         .into_outcome()
     {
@@ -335,20 +335,20 @@ macro_rules! passthrough_i32 {
     };
 }
 
-passthrough_i32!(java_ltStartDiscovery, crate::lt_start_discovery);
-passthrough_i32!(java_ltStopDiscovery, crate::lt_stop_discovery);
-passthrough_i32!(java_ltProbeNetwork, crate::lt_probe_network);
-passthrough_i32!(java_ltClearRecords, crate::lt_clear_records);
-passthrough_i32!(java_ltClearTempCache, crate::lt_clear_temp_cache);
+passthrough_i32!(java_btStartDiscovery, crate::bt_start_discovery);
+passthrough_i32!(java_btStopDiscovery, crate::bt_stop_discovery);
+passthrough_i32!(java_btProbeNetwork, crate::bt_probe_network);
+passthrough_i32!(java_btClearRecords, crate::bt_clear_records);
+passthrough_i32!(java_btClearTempCache, crate::bt_clear_temp_cache);
 
 #[no_mangle]
-pub extern "system" fn java_ltGetDevices<'local>(
+pub extern "system" fn java_btGetDevices<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
 ) -> JString<'local> {
     match env
         .with_env(|env| -> jni::errors::Result<JString> {
-            cstring_to_jstring(env, crate::lt_get_devices(), true)
+            cstring_to_jstring(env, crate::bt_get_devices(), true)
         })
         .into_outcome()
     {
@@ -358,7 +358,7 @@ pub extern "system" fn java_ltGetDevices<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltAddManualDevice<'local>(
+pub extern "system" fn java_btAddManualDevice<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     ip: JString<'local>,
@@ -366,7 +366,7 @@ pub extern "system" fn java_ltAddManualDevice<'local>(
 ) -> jint {
     env.with_env(|env| -> jni::errors::Result<jint> {
         let c = jstring_to_cstring(env, ip)?;
-        Ok(crate::lt_add_manual_device(
+        Ok(crate::bt_add_manual_device(
             c.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
             port as u16,
         ))
@@ -375,14 +375,14 @@ pub extern "system" fn java_ltAddManualDevice<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltNsdInjectDevice<'local>(
+pub extern "system" fn java_btNsdInjectDevice<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     json: JString<'local>,
 ) -> jint {
     env.with_env(|env| -> jni::errors::Result<jint> {
         let c = jstring_to_cstring(env, json)?;
-        Ok(crate::lt_nsd_inject_device(
+        Ok(crate::bt_nsd_inject_device(
             c.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
         ))
     })
@@ -390,14 +390,14 @@ pub extern "system" fn java_ltNsdInjectDevice<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltNsdRemoveDevice<'local>(
+pub extern "system" fn java_btNsdRemoveDevice<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     uuid: JString<'local>,
 ) -> jint {
     env.with_env(|env| -> jni::errors::Result<jint> {
         let c = jstring_to_cstring(env, uuid)?;
-        Ok(crate::lt_nsd_remove_device(
+        Ok(crate::bt_nsd_remove_device(
             c.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
         ))
     })
@@ -407,14 +407,14 @@ pub extern "system" fn java_ltNsdRemoveDevice<'local>(
 // ================= 连接 / 配对 =================
 
 #[no_mangle]
-pub extern "system" fn java_ltConnect<'local>(
+pub extern "system" fn java_btConnect<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     uuid: JString<'local>,
 ) -> jint {
     env.with_env(|env| -> jni::errors::Result<jint> {
         let c = jstring_to_cstring(env, uuid)?;
-        Ok(crate::lt_connect(
+        Ok(crate::bt_connect(
             c.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
         ))
     })
@@ -422,7 +422,7 @@ pub extern "system" fn java_ltConnect<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltConnectAddr<'local>(
+pub extern "system" fn java_btConnectAddr<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     ip: JString<'local>,
@@ -430,7 +430,7 @@ pub extern "system" fn java_ltConnectAddr<'local>(
 ) -> jint {
     env.with_env(|env| -> jni::errors::Result<jint> {
         let c = jstring_to_cstring(env, ip)?;
-        Ok(crate::lt_connect_addr(
+        Ok(crate::bt_connect_addr(
             c.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
             port as u16,
         ))
@@ -439,14 +439,14 @@ pub extern "system" fn java_ltConnectAddr<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltDisconnect<'local>(
+pub extern "system" fn java_btDisconnect<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     uuid: JString<'local>,
 ) -> jint {
     env.with_env(|env| -> jni::errors::Result<jint> {
         let c = jstring_to_cstring(env, uuid)?;
-        Ok(crate::lt_disconnect(
+        Ok(crate::bt_disconnect(
             c.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
         ))
     })
@@ -454,27 +454,27 @@ pub extern "system" fn java_ltDisconnect<'local>(
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltRespondPair<'local>(
+pub extern "system" fn java_btRespondPair<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     pair_id: jlong,
     accept: jint,
 ) -> jint {
     env.with_env(|_env| -> jni::errors::Result<jint> {
-        Ok(crate::lt_respond_pair(pair_id as u64, accept))
+        Ok(crate::bt_respond_pair(pair_id as u64, accept))
     })
     .resolve::<ThrowRuntimeExAndDefault>()
 }
 
 #[no_mangle]
-pub extern "system" fn java_ltRespondTransfer<'local>(
+pub extern "system" fn java_btRespondTransfer<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     req_id: jlong,
     accept: jint,
 ) -> jint {
     env.with_env(|_env| -> jni::errors::Result<jint> {
-        Ok(crate::lt_respond_transfer(req_id as u64, accept))
+        Ok(crate::bt_respond_transfer(req_id as u64, accept))
     })
     .resolve::<ThrowRuntimeExAndDefault>()
 }
@@ -482,7 +482,7 @@ pub extern "system" fn java_ltRespondTransfer<'local>(
 // ================= 任务 =================
 
 #[no_mangle]
-pub extern "system" fn java_ltSendFiles<'local>(
+pub extern "system" fn java_btSendFiles<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     uuid: JString<'local>,
@@ -493,7 +493,7 @@ pub extern "system" fn java_ltSendFiles<'local>(
         let uuid = jstring_to_cstring(env, uuid)?;
         let paths = jstring_to_cstring(env, paths_json)?;
         let mut task_id: u64 = 0;
-        let code = crate::lt_send_files(
+        let code = crate::bt_send_files(
             uuid.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
             paths.as_deref().map_or(std::ptr::null(), |c| c.as_ptr()),
             &mut task_id,
@@ -520,16 +520,16 @@ macro_rules! passthrough_jlong {
     };
 }
 
-passthrough_jlong!(java_ltCancelTask, crate::lt_cancel_task);
+passthrough_jlong!(java_btCancelTask, crate::bt_cancel_task);
 
 #[no_mangle]
-pub extern "system" fn java_ltGetTasks<'local>(
+pub extern "system" fn java_btGetTasks<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
 ) -> JString<'local> {
     match env
         .with_env(|env| -> jni::errors::Result<JString> {
-            cstring_to_jstring(env, crate::lt_get_tasks(), true)
+            cstring_to_jstring(env, crate::bt_get_tasks(), true)
         })
         .into_outcome()
     {
@@ -541,14 +541,14 @@ pub extern "system" fn java_ltGetTasks<'local>(
 // ================= 内存 =================
 
 #[no_mangle]
-pub extern "system" fn java_ltFreeString<'local>(
+pub extern "system" fn java_btFreeString<'local>(
     mut env: EnvUnowned<'local>,
     _this: JObject<'local>,
     ptr: jlong,
 ) {
     let _ = env
         .with_env(|_env| -> jni::errors::Result<()> {
-            crate::lt_free_string(ptr as *mut c_char);
+            crate::bt_free_string(ptr as *mut c_char);
             Ok(())
         })
         .into_outcome();

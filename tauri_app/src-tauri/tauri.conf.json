@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "LocalTransfer",
+  "productName": "bolt",
   "version": "0.1.0",
-  "identifier": "com.lt.desktop",
+  "identifier": "xin.cosmos.bolt",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "LocalTransfer",
+        "title": "Bolt",
         "width": 780,
         "height": 540,
         "minWidth": 680,
@@ -37,6 +37,6 @@
       "icons/icon.ico"
     ],
     "shortDescription": "局域网点对点文件传输",
-    "longDescription": "LocalTransfer：纯局域网、无服务器的 P2P 文件传输工具"
+    "longDescription": "Bolt：纯局域网、无服务器的 P2P 文件传输工具"
   }
 }

@@ -1,4 +1,4 @@
-//! build.rs：用 cbindgen 生成 C 头文件 `include/lt_api.h`。
+//! build.rs：用 cbindgen 生成 C 头文件 `include/bt_api.h`。
 
 use std::env;
 use std::path::PathBuf;
@@ -13,7 +13,7 @@ fn main() {
         header: Some(
             "#include <stdint.h>\n\
              /* 事件回调：event_id 见 EVT_* 定义，payload_json 为 UTF-8 JSON 字符串 */\n\
-             typedef void (*LtEventCallback)(int32_t event_id, const char *payload_json);\n\
+             typedef void (*BtEventCallback)(int32_t event_id, const char *payload_json);\n\
              /* 事件号（与 task events 常量一致） */\n\
              #define EVT_DEVICE_LIST 1\n\
              #define EVT_CONN_STATE 2\n\
@@ -31,11 +31,11 @@ fn main() {
     match cbindgen::Builder::new()
         .with_crate(&crate_dir)
         .with_config(config)
-        .with_include_guard("LT_API_H")
+        .with_include_guard("BT_API_H")
         .generate()
     {
         Ok(bindings) => {
-            bindings.write_to_file(out_dir.join("lt_api.h"));
+            bindings.write_to_file(out_dir.join("bt_api.h"));
         }
         Err(e) => {
             // 头文件生成失败不阻塞编译（CI 会单独校验）

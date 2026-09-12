@@ -1,4 +1,4 @@
-//! 应用配置（FFI `lt_set_config` / `lt_get_config` 的后端）。
+//! 应用配置（FFI `bt_set_config` / `bt_get_config` 的后端）。
 //!
 //! key 集合：device_name、save_dir、stealth_mode、auto_accept_trusted、concurrency
 //! 以及端口等传输参数。配置持久化为 JSON。
@@ -6,13 +6,13 @@
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 
-use crate::error::{LtError, LtResult};
+use crate::error::{BtError, BtResult};
 use crate::DEFAULT_PORT;
 
-/// 默认数据目录：<data_dir>/local_transfer
+/// 默认数据目录：<data_dir>/bolt
 pub fn default_data_dir() -> PathBuf {
     let base = dirs::data_dir().unwrap_or_else(|| PathBuf::from("."));
-    base.join("local_transfer")
+    base.join("bolt")
 }
 
 /// 全局应用配置。
@@ -73,12 +73,12 @@ fn default_chunk_size() -> usize {
     crate::constants::DEFAULT_CHUNK_SIZE
 }
 fn default_save_dir() -> PathBuf {
-    // Android：公共下载目录 /Download/LocalTransfer（需「所有文件访问」权限）；
+    // Android：公共下载目录 /Download/Bolt（需「所有文件访问」权限）；
     // 其它平台：系统下载目录（Windows 即 C:\Users\<用户名>\Downloads，用户名动态获取），
     // 取不到时回落数据目录下的 received。
     #[cfg(target_os = "android")]
     {
-        return PathBuf::from("/storage/emulated/0/Download/LocalTransfer");
+        return PathBuf::from("/storage/emulated/0/Download/Bolt");
     }
     #[cfg(not(target_os = "android"))]
     dirs::download_dir().unwrap_or_else(|| default_data_dir().join("received"))
@@ -108,10 +108,10 @@ impl Default for AppConfig {
 fn default_device_name() -> String {
     // Windows 取系统设备名称；Android 无 COMPUTERNAME/HOSTNAME 环境变量时
     // 回落 "device"，由 App 层在首启时改写为「关于手机」中的设备名称。
-    lt_hostname()
+    bt_hostname()
 }
 
-fn lt_hostname() -> String {
+fn bt_hostname() -> String {
     // Windows 取「设置→系统→关于」中的设备名称（含 DNS 后缀的物理机全限定名）；
     // 其他平台取 HOSTNAME 环境变量，Android 上回落 "device"，由 App 层
     // 改写为「关于手机」中的设备名称。
@@ -162,17 +162,17 @@ fn windows_device_name() -> Option<String> {
 
 impl AppConfig {
     /// 从 JSON 合并配置（仅覆盖提供的字段），返回新配置。
-    pub fn merge_json(base: AppConfig, json: &str) -> LtResult<AppConfig> {
+    pub fn merge_json(base: AppConfig, json: &str) -> BtResult<AppConfig> {
         let patch: serde_json::Value =
-            serde_json::from_str(json).map_err(|_| LtError::InvalidArgument)?;
-        let mut value = serde_json::to_value(&base).map_err(|_| LtError::Internal)?;
+            serde_json::from_str(json).map_err(|_| BtError::InvalidArgument)?;
+        let mut value = serde_json::to_value(&base).map_err(|_| BtError::Internal)?;
         merge_value(&mut value, &patch);
-        serde_json::from_value(value).map_err(|_| LtError::InvalidArgument)
+        serde_json::from_value(value).map_err(|_| BtError::InvalidArgument)
     }
 
     /// 读取单个 key（返回 JSON 值字符串）。
-    pub fn get_key(&self, key: &str) -> LtResult<String> {
-        let v = serde_json::to_value(self).map_err(|_| LtError::Internal)?;
+    pub fn get_key(&self, key: &str) -> BtResult<String> {
+        let v = serde_json::to_value(self).map_err(|_| BtError::Internal)?;
         let field = match key {
             "device_name"
             | "save_dir"
@@ -186,34 +186,34 @@ impl AppConfig {
             | "use_mdns"
             | "collision"
             | "minimize_to_tray" => key,
-            _ => return Err(LtError::InvalidArgument),
+            _ => return Err(BtError::InvalidArgument),
         };
-        let item = v.get(field).ok_or(LtError::InvalidArgument)?;
-        serde_json::to_string(item).map_err(|_| LtError::Internal)
+        let item = v.get(field).ok_or(BtError::InvalidArgument)?;
+        serde_json::to_string(item).map_err(|_| BtError::Internal)
     }
 
     /// 写入单个 key。
-    pub fn set_key(&mut self, key: &str, value_json: &str) -> LtResult<()> {
+    pub fn set_key(&mut self, key: &str, value_json: &str) -> BtResult<()> {
         let parsed: serde_json::Value =
-            serde_json::from_str(value_json).map_err(|_| LtError::InvalidArgument)?;
-        let mut v = serde_json::to_value(&*self).map_err(|_| LtError::Internal)?;
-        let obj = v.as_object_mut().ok_or(LtError::Internal)?;
+            serde_json::from_str(value_json).map_err(|_| BtError::InvalidArgument)?;
+        let mut v = serde_json::to_value(&*self).map_err(|_| BtError::Internal)?;
+        let obj = v.as_object_mut().ok_or(BtError::Internal)?;
         if !obj.contains_key(key) {
-            return Err(LtError::InvalidArgument);
+            return Err(BtError::InvalidArgument);
         }
         obj.insert(key.to_string(), parsed);
-        *self = serde_json::from_value(v).map_err(|_| LtError::InvalidArgument)?;
+        *self = serde_json::from_value(v).map_err(|_| BtError::InvalidArgument)?;
         Ok(())
     }
 
     /// 持久化到 data_dir/config.json。
-    pub fn save(&self) -> LtResult<()> {
+    pub fn save(&self) -> BtResult<()> {
         let path = self.data_dir.join("config.json");
         if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).map_err(|_| LtError::Internal)?;
+            std::fs::create_dir_all(parent).map_err(|_| BtError::Internal)?;
         }
-        let json = serde_json::to_string_pretty(self).map_err(|_| LtError::Internal)?;
-        std::fs::write(&path, json).map_err(|_| LtError::Internal)?;
+        let json = serde_json::to_string_pretty(self).map_err(|_| BtError::Internal)?;
+        std::fs::write(&path, json).map_err(|_| BtError::Internal)?;
         Ok(())
     }
 
@@ -241,7 +241,7 @@ impl AppConfig {
         // 旧版默认名是「{hostname}-{4位hex}」；按需求改为取系统设备名称。
         // 历史 hostname 可能来自 COMPUTERNAME 或新版设备名称，逐一匹配候选值
         // （忽略大小写）；用户自定义名称不受迁移影响。
-        let host = lt_hostname();
+        let host = bt_hostname();
         let mut candidates = vec![host.clone()];
         for key in ["COMPUTERNAME", "HOSTNAME"] {
             if let Ok(v) = std::env::var(key) {
@@ -305,9 +305,9 @@ mod tests {
 
     #[test]
     fn migrates_legacy_default_name() {
-        let dir = std::env::temp_dir().join(format!("lt_cfg_test_{}", crate::id::new_uuid()));
+        let dir = std::env::temp_dir().join(format!("bt_cfg_test_{}", crate::id::new_uuid()));
         std::fs::create_dir_all(&dir).unwrap();
-        let host = lt_hostname();
+        let host = bt_hostname();
 
         // 旧版默认名 {host}-{4位hex} → 迁移为 {host}
         let mut cfg = default_for_dir(&dir);

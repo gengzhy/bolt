@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # ============================================================
-# LocalTransfer 环回冒烟测试（M1/M2 验证门禁）
+# Bolt 环回冒烟测试（M1/M2 验证门禁）
 # 覆盖：配对 → 传输请求 → QUIC 传输 → BLAKE3 校验 → 内容一致
 #      → 强制 TCP 传输（TOFU 信任复用，无二次配对）→ 断点续传
 # 用法：bash scripts/smoke_loopback.sh [binary]
 # ============================================================
 set -u
 cd "$(dirname "$0")/.."
-BIN="${1:-./target/debug/cli.exe}"
+BIN="${1:-./target/debug/bolt-cli.exe}"
 PORT_A=8901
 PORT_B=8902
 ROOT=target/smoke
@@ -17,7 +17,7 @@ DATA_B="$ROOT/data_b"
 # 测试文件准备（8MB 随机 + 子目录 + 中文名 + 256MB 稀疏文件）
 mkdir -p "$ROOT/src/sub" "$DATA_A" "$DATA_B"
 [ -f "$ROOT/src/big.bin" ] || head -c 8388608 /dev/urandom > "$ROOT/src/big.bin"
-printf 'hello lt\n' > "$ROOT/src/sub/hello.txt"
+printf 'hello bolt\n' > "$ROOT/src/sub/hello.txt"
 printf '局部传输中文文件名测试\n' > "$ROOT/src/sub/文 件.txt"
 truncate -s 256M "$ROOT/src/huge.bin" 2>/dev/null || head -c 268435456 /dev/zero > "$ROOT/src/huge.bin"
 
@@ -39,7 +39,7 @@ start_serve() {
 
 # 终止接收端（cli 与持 stdin 的子壳一并结束；不 wait——子壳带 300s sleep）
 stop_serve() {
-    taskkill //IM cli.exe //F >/dev/null 2>&1
+    taskkill //IM bolt-cli.exe //F >/dev/null 2>&1
     kill "$RECV_PID" 2>/dev/null
     sleep 1
 }
@@ -62,7 +62,7 @@ echo "== 阶段 2：强制 TCP（TOFU 信任复用，免二次配对）=="
 stop_serve
 rm -rf "$DATA_A/out"
 start_serve
-timeout 60 env LT_FORCE_TCP=1 RUST_LOG=info "$BIN" send --port $PORT_B --data-dir "$DATA_B" \
+timeout 60 env BT_FORCE_TCP=1 RUST_LOG=info "$BIN" send --port $PORT_B --data-dir "$DATA_B" \
     127.0.0.1:$PORT_A "$ROOT/src/big.bin" > "$ROOT/send_tcp.log" 2>&1 \
     || fail "阶段2 发送超时/失败"
 grep -q "成功 1，失败 0" "$ROOT/send_tcp.log" || fail "阶段2 发送端汇总异常"

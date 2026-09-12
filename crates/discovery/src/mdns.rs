@@ -1,6 +1,6 @@
 //! mDNS 通道（实施方案 6.1 主通道）。
 //!
-//! Windows 侧用 mdns-sd 组播 `_lt._udp.local.`：
+//! Windows 侧用 mdns-sd 组播 `_bolt._udp.local.`：
 //! - 广播端（announcer）：注册本机服务，TXT 携带设备信息；
 //! - 浏览端（browser）：发现/解析/移除事件 → 设备列表。
 //!
@@ -51,7 +51,7 @@ impl MdnsChannel {
     /// 广播（prepare_announce 按接口过滤 A 记录），多网卡主机必须注册全部
     /// 地址才能在各网段都被发现；单地址错误（如 127.0.0.1）会导致仅环回可见。
     pub fn announce(&mut self, info: &AnnounceInfo, ips: &[Ipv4Addr]) -> std::io::Result<()> {
-        let instance = format!("lt-{}", info.uuid);
+        let instance = format!("bolt-{}", info.uuid);
         let host = format!("{}.local.", info.uuid.replace('-', ""));
         let dt = info.device_type.to_string();
         let qport = info.quic_port.to_string();
@@ -201,7 +201,7 @@ mod tests {
         let uuid = if with_uuid { "abc-123" } else { "" };
         let info = ServiceInfo::new(
             SERVICE_TYPE,
-            "lt-test",
+            "bolt-test",
             "test.local.",
             std::net::IpAddr::V4(Ipv4Addr::new(192, 168, 1, 50)),
             8901,

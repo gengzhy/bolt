@@ -3,11 +3,11 @@
 // 任务项：方向图标 + 对端/文件名 + 速度/进度 + 8px 圆角进度条（蓝/绿/红/橙）+ 暂停|取消|重传；
 // 头部 ⋯ 菜单（全部清除/清理临时缓存）；底部汇总（总速度、剩余时间）+ 全部清除。
 import { computed, ref } from "vue";
-import { useLt } from "../composables/useLt";
+import { useBt } from "../composables/useBt";
 import { human, humanEta, humanRate } from "../utils/format";
 import type { Task } from "../types";
 
-const { tasks, progress, cancelTask, clearRecords, clearTempCache, loadConfig, revealPath } = useLt();
+const { tasks, progress, cancelTask, clearRecords, clearTempCache, loadConfig, revealPath } = useBt();
 
 const menuOpen = ref(false);
 

@@ -7,7 +7,7 @@ use std::sync::Arc;
 
 use crypto::{tls, DeviceIdentity};
 use utils::constants::*;
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 use socket2::{Domain, Protocol, Socket, Type};
 
 use crate::conn::Pipe;
@@ -21,11 +21,11 @@ const UDP_BUF_SIZE: usize = 8 * 1024 * 1024;
 ///
 /// 复刻 `quinn::Endpoint::client/server` 内部的建套接字逻辑，但在
 /// `bind` 前把 SO_RCVBUF/SO_SNDBUF 提到 [`UDP_BUF_SIZE`]。
-fn udp_socket(addr: SocketAddr) -> LtResult<std::net::UdpSocket> {
+fn udp_socket(addr: SocketAddr) -> BtResult<std::net::UdpSocket> {
     let socket =
         Socket::new(Domain::for_address(addr), Type::DGRAM, Some(Protocol::UDP)).map_err(|e| {
             tracing::error!(error = %e, %addr, "udp socket create failed");
-            LtError::PortUnavailable
+            BtError::PortUnavailable
         })?;
     if addr.is_ipv6() {
         // 与 quinn 一致：IPv6 尽量双栈；失败仅降级不影响功能
@@ -36,7 +36,7 @@ fn udp_socket(addr: SocketAddr) -> LtResult<std::net::UdpSocket> {
     let _ = socket.set_send_buffer_size(UDP_BUF_SIZE);
     socket.bind(&addr.into()).map_err(|e| {
         tracing::error!(error = %e, %addr, "udp bind failed");
-        LtError::PortUnavailable
+        BtError::PortUnavailable
     })?;
     Ok(socket.into())
 }
@@ -63,30 +63,30 @@ fn tune_transport(transport: &mut quinn::TransportConfig) {
 }
 
 /// 构造 QUIC 服务端 Endpoint（绑定 addr，UDP 缓冲已加大）。
-pub fn server_endpoint(addr: SocketAddr, identity: &DeviceIdentity) -> LtResult<quinn::Endpoint> {
+pub fn server_endpoint(addr: SocketAddr, identity: &DeviceIdentity) -> BtResult<quinn::Endpoint> {
     let rustls_cfg = tls::server_config(identity)?;
     let quic_cfg = quinn::crypto::rustls::QuicServerConfig::try_from(rustls_cfg)
-        .map_err(|_| LtError::Internal)?;
+        .map_err(|_| BtError::Internal)?;
     let mut cfg = quinn::ServerConfig::with_crypto(Arc::new(quic_cfg));
     let mut transport = quinn::TransportConfig::default();
     tune_transport(&mut transport);
     cfg.transport_config(Arc::new(transport));
 
     let socket = udp_socket(addr)?;
-    let runtime = quinn::default_runtime().ok_or(LtError::Internal)?;
+    let runtime = quinn::default_runtime().ok_or(BtError::Internal)?;
     quinn::Endpoint::new(quinn::EndpointConfig::default(), Some(cfg), socket, runtime).map_err(
         |e| {
             tracing::error!(error = %e, %addr, "quic bind failed");
-            LtError::PortUnavailable
+            BtError::PortUnavailable
         },
     )
 }
 
 /// 构造 QUIC 客户端 Endpoint（本地任意端口，UDP 缓冲已加大）。
-fn client_endpoint(identity: &DeviceIdentity) -> LtResult<(quinn::Endpoint, quinn::ClientConfig)> {
+fn client_endpoint(identity: &DeviceIdentity) -> BtResult<(quinn::Endpoint, quinn::ClientConfig)> {
     let rustls_cfg = tls::quic_client_config(identity)?;
     let quic_cfg = quinn::crypto::rustls::QuicClientConfig::try_from(rustls_cfg)
-        .map_err(|_| LtError::Internal)?;
+        .map_err(|_| BtError::Internal)?;
     let mut cfg = quinn::ClientConfig::new(Arc::new(quic_cfg));
     let mut transport = quinn::TransportConfig::default();
     tune_transport(&mut transport);
@@ -94,9 +94,9 @@ fn client_endpoint(identity: &DeviceIdentity) -> LtResult<(quinn::Endpoint, quin
 
     let bind: SocketAddr = "0.0.0.0:0".parse().unwrap();
     let socket = udp_socket(bind)?;
-    let runtime = quinn::default_runtime().ok_or(LtError::Internal)?;
+    let runtime = quinn::default_runtime().ok_or(BtError::Internal)?;
     let endpoint = quinn::Endpoint::new(quinn::EndpointConfig::default(), None, socket, runtime)
-        .map_err(|_| LtError::PortUnavailable)?;
+        .map_err(|_| BtError::PortUnavailable)?;
     Ok((endpoint, cfg))
 }
 
@@ -104,20 +104,20 @@ fn client_endpoint(identity: &DeviceIdentity) -> LtResult<(quinn::Endpoint, quin
 pub async fn dial(
     target: SocketAddr,
     identity: &DeviceIdentity,
-) -> LtResult<(Pipe, quinn::Connection, quinn::Endpoint)> {
+) -> BtResult<(Pipe, quinn::Connection, quinn::Endpoint)> {
     let (mut endpoint, cfg) = client_endpoint(identity)?;
     endpoint.set_default_client_config(cfg);
     let connecting = endpoint
-        .connect(target, "localtransfer")
-        .map_err(|_| LtError::ConnectTimeout)?;
+        .connect(target, "bolt")
+        .map_err(|_| BtError::ConnectTimeout)?;
     let connection = connecting.await.map_err(|e| {
         tracing::debug!(error = %e, "quic connect failed");
-        LtError::ConnectTimeout
+        BtError::ConnectTimeout
     })?;
     let (send, recv) = connection
         .open_bi()
         .await
-        .map_err(|_| LtError::ConnectTimeout)?;
+        .map_err(|_| BtError::ConnectTimeout)?;
     let pipe = Pipe {
         reader: Box::new(recv),
         writer: Box::new(send),

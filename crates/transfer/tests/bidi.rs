@@ -102,7 +102,7 @@ async fn wait_session(h: &AutoHandler) -> Arc<Session> {
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bidi_transfer_on_same_session() {
-    let root = std::env::temp_dir().join(format!("lt_bidi_{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("bt_bidi_{}", std::process::id()));
     let dir_a = root.join("a");
     let dir_b = root.join("b");
     let src = root.join("src");
@@ -211,7 +211,7 @@ async fn bidi_transfer_on_same_session() {
 /// 抛 -1「写入失败」。修复后按 (任务号, 文件序号) 两级索引。
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn concurrent_two_tasks_on_same_session() {
-    let root = std::env::temp_dir().join(format!("lt_conc_{}", std::process::id()));
+    let root = std::env::temp_dir().join(format!("bt_conc_{}", std::process::id()));
     let dir_a = root.join("a");
     let dir_b = root.join("b");
     let src = root.join("src");

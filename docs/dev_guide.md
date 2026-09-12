@@ -1,4 +1,4 @@
-# LocalTransfer 开发指南
+# Bolt 开发指南
 
 ## 仓库布局
 
@@ -10,10 +10,10 @@ crates/
   discovery  设备模型、mDNS（mdns-sd 0.21）、UDP 探测、NSD 桥、发现管理器
   transfer   传输引擎：QUIC(quinn 0.11)+TCP 双栈、会话状态机、收发流水线、协议编解码
   task       应用门面 App：事件、任务记录、配置、发现/引擎编排
-  lt-ffi        C ABI（lt_* 前缀，cbindgen 生成 include/lt_api.h）
-tools/cli    命令行联调端（serve/discover/send）
+  ffi        C ABI（bt_* 前缀，cbindgen 生成 include/bt_api.h，产出 bt_ffi）
+tools/cli    命令行联调端（bolt-cli，serve/discover/send）
 tauri_app/      Windows 桌面端（Tauri v2 + Vue3 + TS）
-android_app/    Android 端（Kotlin + Gradle，jniLibs 装载 liblt_ffi.so）
+android_app/    Android 端（Kotlin + Gradle，jniLibs 装载 libbt_ffi.so）
 scripts/        构建/冒烟脚本
 docs/           方案与规范文档
 ```
@@ -32,15 +32,15 @@ cargo test --workspace           # 全量测试
 cargo clippy --workspace --all-targets -- -D warnings   # 门禁级 lint
 cargo fmt --all                  # 格式化
 
-cargo run -p cli -- serve --port 8899 --data-dir target/cli_a   # 接收端
-cargo run -p cli -- send --data-dir target/cli_b 127.0.0.1:8899 ./some/file
-cargo run -p cli -- discover
+cargo run -p bolt-cli -- serve --port 8899 --data-dir target/cli_a   # 接收端
+cargo run -p bolt-cli -- send --data-dir target/cli_b 127.0.0.1:8899 ./some/file
+cargo run -p bolt-cli -- discover
 ```
 
 环境变量：
 
-- `LT_FORCE_TCP=1`：拨号侧跳过 QUIC 直走 TCP（联调/排障）。
-- `RUST_LOG=info,lt_transfer=debug`：模块级日志（tracing）。
+- `BT_FORCE_TCP=1`：拨号侧跳过 QUIC 直走 TCP（联调/排障）。
+- `RUST_LOG=info,transfer=debug`：模块级日志（tracing）。
 
 ## 架构速览
 
@@ -51,7 +51,7 @@ cargo run -p cli -- discover
    独立双向流；TCP 复用控制管道。
 3. **接收端状态** 全部活在调度器协程内（`recv_tasks`/`seq_index`），
    不跨协程共享，故无锁；对上层只发事件。
-4. **事件流**：引擎 → `EngineEvent` → App 记账 → `LtEvent` → 事件槽
+4. **事件流**：引擎 → `EngineEvent` → App 记账 → `BtEvent` → 事件槽
    （CLI 用 std mpsc / FFI 用 crossbeam_channel 队列+专用线程）。
 5. **发现**：mDNS（非 Android 平台）+ UDP 广播探测双通道，`DeviceList`
    去重聚合，10s 过期；Android 由 Kotlin NSD 桥注入。
@@ -59,7 +59,7 @@ cargo run -p cli -- discover
 ## 全局常量管理
 
 所有传输相关的硬编码常量统一定义在 `crates/utils/src/constants.rs`，
-各模块通过 `use lt_utils::constants::*` 引用，修改一处全局生效：
+各模块通过 `use utils::constants::*` 引用，修改一处全局生效：
 
 | 常量 | 值 | 用途 |
 |------|----|------|
@@ -79,7 +79,7 @@ cargo run -p cli -- discover
 - [ ] 协议帧：`transfer/src/protocol.rs` 编解码 + 单元测试往返
 - [ ] 会话路由：`session.rs handle_frame` 增分支
 - [ ] 应用层：`task/src/app.rs` 事件/记账
-- [ ] FFI：`lt-ffi/src/lib.rs`（cbindgen 自动更新 `include/lt_api.h`）
+- [ ] FFI：`crates/ffi/src/lib.rs`（cbindgen 自动更新 `include/bt_api.h`）
 - [ ] CLI 联调：`tools/cli/src/main.rs`
 - [ ] `cargo fmt` + `cargo clippy -D warnings` + `cargo test --workspace`
 
@@ -92,8 +92,8 @@ npm run tauri dev      # 开发模式
 npm run tauri build    # 安装包（NSIS）
 ```
 
-Rust 侧在 `src-tauri` 内以 `#[tauri::command]` 封装 `lt-ffi`，
-经 `Emitter` 把 `lt_set_event_callback` 的事件转发给前端。
+Rust 侧在 `src-tauri` 内以 `#[tauri::command]` 封装 `bt_ffi`，
+经 `Emitter` 把 `bt_set_event_callback` 的事件转发给前端。产物输出为 `bolt.exe`。
 
 **UI 说明**：当前版本传输任务卡片只有「取消」按钮，
 不提供暂停/恢复功能（已移除）。
@@ -103,15 +103,15 @@ Rust 侧在 `src-tauri` 内以 `#[tauri::command]` 封装 `lt-ffi`，
 1. `rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android`
 2. `cargo install cargo-ndk`；安装 NDK（Android Studio SDK Manager 勾选
    "NDK (Side by side)"，或手动解压到 `%ANDROID_HOME%\ndk\<版本>`）
-3. `scripts/build_android_lib.bat` 产出 `jniLibs/*/liblt_ffi.so`
+3. `scripts/build_android_lib.bat` 产出 `jniLibs/*/libbt_ffi.so`
    （自动探测 NDK：`ANDROID_NDK_HOME` → `%ANDROID_HOME%\ndk\*` → 默认 AS 路径）
 4. 构建 APK（Android Studio 或 **VS Code 均可**）：
 
 ```bash
 cd android_app
-./gradlew.bat :app:assembleDebug            # 产物 app/build/outputs/apk/debug/app-debug.apk
+./gradlew.bat :app:assembleDebug            # 产物 app/build/outputs/apk/debug/bolt.apk
 # 真机安装：
-"$ANDROID_HOME/platform-tools/adb.exe" install -r app/build/outputs/apk/debug/app-debug.apk
+"$ANDROID_HOME/platform-tools/adb.exe" install -r app/build/outputs/apk/debug/bolt.apk
 ```
 
 - Gradle wrapper 锁定 **8.7**（AGP 8.5 与 Gradle 9 不兼容；wrapper 已随仓库提交，
@@ -120,7 +120,7 @@ cd android_app
 - 首次构建需联网下载 Gradle 发行版与 AGP 依赖，之后全离线。
 
 注意：Android 上 Rust 侧不启用 mDNS（`use_mdns=false`），Kotlin 用
-`NsdManager` 发现并调 `lt_nsd_inject_device` 桥接；文件访问走 SAF 授权路径。
+`NsdManager` 发现并调 `bt_nsd_inject_device` 桥接；文件访问走 SAF 授权路径。
 
 ## 测试约定
 

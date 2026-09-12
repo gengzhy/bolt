@@ -1,6 +1,6 @@
 [package]
 name = "transfer"
-description = "LocalTransfer 传输引擎：协议 V2 编解码、QUIC/TCP 双协议、会话状态机、断点续传"
+description = "Bolt 传输引擎：协议 V2 编解码、QUIC/TCP 双协议、会话状态机、断点续传"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

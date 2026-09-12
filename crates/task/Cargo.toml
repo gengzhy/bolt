@@ -1,6 +1,6 @@
 [package]
 name = "task"
-description = "LocalTransfer 任务调度：任务队列、状态机、进度计算、App 门面（事件总线）"
+description = "Bolt 任务调度：任务队列、状态机、进度计算、App 门面（事件总线）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

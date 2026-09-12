@@ -6,7 +6,7 @@
 
 use std::path::{Path, PathBuf};
 
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 /// 单个待传输文件项。
 ///
@@ -41,16 +41,16 @@ pub struct TraverseResult {
 /// 遍历一组文件/目录路径，生成传输项列表。
 ///
 /// 单个文件：相对路径即文件名；目录：相对路径以目录名为根。
-pub fn traverse(paths: &[PathBuf]) -> LtResult<TraverseResult> {
+pub fn traverse(paths: &[PathBuf]) -> BtResult<TraverseResult> {
     if paths.is_empty() {
-        return Err(LtError::InvalidArgument);
+        return Err(BtError::InvalidArgument);
     }
     let mut result = TraverseResult::default();
     for path in paths {
         if !path.exists() {
-            return Err(LtError::FileNotAccessible);
+            return Err(BtError::FileNotAccessible);
         }
-        let meta = std::fs::symlink_metadata(path).map_err(|_| LtError::FileNotAccessible)?;
+        let meta = std::fs::symlink_metadata(path).map_err(|_| BtError::FileNotAccessible)?;
         if meta.is_symlink() {
             result.skipped.push(SkippedEntry {
                 path: display(path),
@@ -78,12 +78,12 @@ pub fn traverse(paths: &[PathBuf]) -> LtResult<TraverseResult> {
         }
     }
     if result.items.is_empty() {
-        return Err(LtError::FileNotAccessible);
+        return Err(BtError::FileNotAccessible);
     }
     Ok(result)
 }
 
-fn walk_dir(result: &mut TraverseResult, dir: &Path, rel: &str) -> LtResult<()> {
+fn walk_dir(result: &mut TraverseResult, dir: &Path, rel: &str) -> BtResult<()> {
     let entries = match std::fs::read_dir(dir) {
         Ok(e) => e,
         Err(_) => {
@@ -132,7 +132,7 @@ fn walk_dir(result: &mut TraverseResult, dir: &Path, rel: &str) -> LtResult<()> 
     Ok(())
 }
 
-fn push_item(result: &mut TraverseResult, abs_path: PathBuf, rel_path: &str) -> LtResult<()> {
+fn push_item(result: &mut TraverseResult, abs_path: PathBuf, rel_path: &str) -> BtResult<()> {
     let ident = crate::identity::FileIdentity::from_fs(&abs_path, rel_path)?;
     result.total_size += ident.size;
     result.items.push(TransferItem {
@@ -154,7 +154,7 @@ mod tests {
     use std::fs;
 
     fn fixture(name: &str) -> PathBuf {
-        let dir = std::env::temp_dir().join(format!("lt-traverse-{}-{name}", std::process::id()));
+        let dir = std::env::temp_dir().join(format!("bt-traverse-{}-{name}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(dir.join("sub/deep")).unwrap();
         fs::write(dir.join("root.txt"), b"hello").unwrap();
@@ -189,6 +189,6 @@ mod tests {
     #[test]
     fn missing_path_errors() {
         let res = traverse(&[PathBuf::from("/nonexistent/xyz")]);
-        assert!(matches!(res, Err(LtError::FileNotAccessible)));
+        assert!(matches!(res, Err(BtError::FileNotAccessible)));
     }
 }

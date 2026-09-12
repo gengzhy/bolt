@@ -1,6 +1,6 @@
 @echo off
 rem ============================================================
-rem 构建 Android 端 Rust FFI 动态库（liblt_ffi.so）
+rem 构建 Android 端 Rust FFI 动态库（libbt_ffi.so）
 rem ============================================================
 setlocal enabledelayedexpansion
 cd /d "%~dp0.."
@@ -34,5 +34,5 @@ for %%t in (%TARGETS%) do (
     )
 )
 
-echo [OK] android_app\app\src\main\jniLibs\{arm64-v8a,armeabi-v7a,x86_64}\liblt_ffi.so
+echo [OK] android_app\app\src\main\jniLibs\{arm64-v8a,armeabi-v7a,x86_64}\libbt_ffi.so
 endlocal

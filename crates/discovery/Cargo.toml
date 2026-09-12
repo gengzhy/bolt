@@ -1,6 +1,6 @@
 [package]
 name = "discovery"
-description = "LocalTransfer 设备发现：mDNS、UDP 广播探测、设备列表维护（可插拔三通道）"
+description = "Bolt 设备发现：mDNS、UDP 广播探测、设备列表维护（可插拔三通道）"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true

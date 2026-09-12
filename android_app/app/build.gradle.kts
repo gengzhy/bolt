@@ -4,13 +4,13 @@ plugins {
 }
 
 android {
-    namespace = "com.lt.transfer"
+    namespace = "xin.cosmos.bolt"
     compileSdk = 37
     // 本机已装 36.0.0；钉住避免 AGP 自动下载
     buildToolsVersion = "36.0.0"
 
     defaultConfig {
-        applicationId = "com.lt.transfer"
+        applicationId = "xin.cosmos.bolt"
         minSdk = 26
         targetSdk = 34
         versionCode = 1
@@ -30,6 +30,10 @@ android {
                 "proguard-rules.pro",
             )
         }
+    }
+
+    base {
+        archivesName.set("bolt")
     }
 
     compileOptions {
@@ -64,4 +68,14 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.compose.material.icons.core)
+}
+
+afterEvaluate {
+    tasks.named("assembleDebug").configure {
+        doLast {
+            val apkDir = layout.buildDirectory.dir("outputs/apk/debug").get().asFile
+            val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != "bolt.apk" }
+            apk?.copyTo(File(apkDir, "bolt.apk"), overwrite = true)
+        }
+    }
 }

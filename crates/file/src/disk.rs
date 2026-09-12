@@ -5,7 +5,7 @@
 
 use std::path::Path;
 
-use utils::{LtError, LtResult};
+use utils::{BtError, BtResult};
 
 /// 预检余量系数与固定缓冲。
 const SAFETY_FACTOR_NUM: u64 = 105; // ×1.05
@@ -13,10 +13,10 @@ const SAFETY_FACTOR_DEN: u64 = 100;
 const FIXED_RESERVE: u64 = 512 * 1024 * 1024; // 512MB
 
 /// 查询路径所在卷的可用空间（字节）。
-pub fn available_space(path: &Path) -> LtResult<u64> {
+pub fn available_space(path: &Path) -> BtResult<u64> {
     #[cfg(windows)]
     {
-        windows_free_space(path).ok_or(LtError::Internal)
+        windows_free_space(path).ok_or(BtError::Internal)
     }
     #[cfg(not(windows))]
     {
@@ -65,13 +65,13 @@ fn windows_free_space(path: &Path) -> Option<u64> {
     }
 }
 
-/// 任务启动前预检：不足返回 `LtError::DiskFull`。
-pub fn precheck(dir: &Path, total_size: u64) -> LtResult<()> {
+/// 任务启动前预检：不足返回 `BtError::DiskFull`。
+pub fn precheck(dir: &Path, total_size: u64) -> BtResult<()> {
     let free = available_space(dir)?;
     let need = total_size / SAFETY_FACTOR_DEN * SAFETY_FACTOR_NUM + FIXED_RESERVE;
     if free < need {
         tracing::warn!(free, need, "disk precheck failed");
-        return Err(LtError::DiskFull);
+        return Err(BtError::DiskFull);
     }
     Ok(())
 }
@@ -94,7 +94,7 @@ mod tests {
         // 10EB 必然不足
         assert!(matches!(
             precheck(&tmp, u64::MAX / 2),
-            Err(LtError::DiskFull)
+            Err(BtError::DiskFull)
         ));
     }
 

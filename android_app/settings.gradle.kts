@@ -22,5 +22,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "LocalTransfer"
+rootProject.name = "Bolt"
 include(":app")

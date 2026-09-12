@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// LocalTransfer 桌面端主界面（轻量拟物风 #4，按设计文档实现）。
+// Bolt 桌面端主界面（轻量拟物风 #4，按设计文档实现）。
 // 结构：自定义标题栏（拖拽区 + 标题居中 + 设置/最小化/最大化/关闭）
 //       三栏内容区（左 280 设备 / 中 自适应 发送 / 右 300 任务）
 //       底部 32px 全局状态栏。
 
 import { computed, onMounted, onUnmounted, ref } from "vue";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { useLt } from "./composables/useLt";
+import { useBt } from "./composables/useBt";
 import DevicePanel from "./components/DevicePanel.vue";
 import SendPanel from "./components/SendPanel.vue";
 import TaskPanel from "./components/TaskPanel.vue";
@@ -14,7 +14,7 @@ import SettingsModal from "./components/SettingsModal.vue";
 import Modals from "./components/Modals.vue";
 import logoSvg from "./assets/logo.svg";
 
-const { version, toast, devices, connStates, progress, localInfo, localIpsText, start, stop } = useLt();
+const { version, toast, devices, connStates, progress, localInfo, localIpsText, start, stop } = useBt();
 const settingsOpen = ref(false);
 const win = getCurrentWindow();
 const maximized = ref(false);
@@ -96,8 +96,8 @@ function startDrag(e: PointerEvent) {
     <!-- 自定义标题栏 -->
     <div class="titlebar" data-tauri-drag-region>
       <div class="tb-brand" data-tauri-drag-region>
-        <img :src="logoSvg" alt="LocalTransfer" class="tb-logo" />
-        <h1>LocalTransfer</h1>
+        <img :src="logoSvg" alt="Bolt" class="tb-logo" />
+        <h1>Bolt</h1>
       </div>
       <div class="tb-right">
         <button class="tb-btn" title="设置" aria-label="设置" @click="settingsOpen = true">
