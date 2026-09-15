@@ -40,9 +40,7 @@ import xin.cosmos.bolt.ui.components.feedback.SmoothProgressBar
 import xin.cosmos.bolt.ui.components.feedback.StatusBadge
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.vector.rememberVectorPainter
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.res.stringResource
@@ -93,7 +91,7 @@ fun TransfersScreen(modifier: Modifier) {
             if (tasks.isEmpty()) {
                 item {
                     EmptyStateView(
-                        icon = rememberVectorPainter(Icons.AutoMirrored.Filled.List),
+                        icon = painterResource(R.drawable.ic_transfers),
                         title = stringResource(R.string.tab_transfers),
                         description = stringResource(R.string.transfers_empty_hint),
                     )

@@ -45,6 +45,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import xin.cosmos.bolt.R
 import xin.cosmos.bolt.engine.BtEngine
 import xin.cosmos.bolt.model.UiState
@@ -98,27 +99,28 @@ fun SettingsScreen(modifier: Modifier) {
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
-            // 1. Logo
+            // 1. Logo（放大2倍）
             androidx.compose.foundation.Image(
                 painter = painterResource(R.drawable.ic_logo_brand),
                 contentDescription = "Bolt Logo",
                 modifier = Modifier
-                    .padding(bottom = 4.dp)
-                    .size(width = 54.dp, height = 38.dp),
+                    .padding(bottom = 8.dp)
+                    .size(width = 108.dp, height = 76.dp),
                 contentScale = androidx.compose.ui.layout.ContentScale.Fit,
             )
-            // 2. APP名称（粗体）
+            // 2. APP名称（大字号粗体，协调匹配108dp大Logo）
             Text(
                 text = appName,
-                style = MaterialTheme.typography.titleMedium,
+                style = MaterialTheme.typography.headlineSmall,
                 fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                letterSpacing = 0.5.sp,
                 color = MaterialTheme.colorScheme.onSurface,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
             // 3. 版本
             Text(
                 text = appVersion,
-                style = MaterialTheme.typography.bodySmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
@@ -131,7 +133,7 @@ fun SettingsScreen(modifier: Modifier) {
             )
         }
 
-        Spacer(Modifier.height(16.dp))
+        Spacer(Modifier.height(32.dp))
     }
 }
 
