@@ -858,12 +858,12 @@ async function copyFingerprint() {
   height: 34px;
   object-fit: contain;
   margin-bottom: 4px;
-  filter: drop-shadow(0 2px 8px rgba(255, 107, 0, 0.22));
+  filter: drop-shadow(0 2px 8px rgba(0, 119, 255, 0.25));
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 .footer-logo:hover {
   transform: scale(1.06);
-  filter: drop-shadow(0 4px 12px rgba(255, 107, 0, 0.35));
+  filter: drop-shadow(0 4px 12px rgba(0, 245, 255, 0.4));
 }
 .app-name {
   font-size: 15px;
