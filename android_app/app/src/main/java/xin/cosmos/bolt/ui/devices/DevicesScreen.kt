@@ -32,6 +32,7 @@ import xin.cosmos.bolt.R
 import xin.cosmos.bolt.ui.components.card.BtCard
 import xin.cosmos.bolt.ui.components.feedback.EmptyStateView
 import xin.cosmos.bolt.ui.components.motion.AnimatedCollapse
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -51,8 +52,11 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import xin.cosmos.bolt.engine.BtEngine
 import xin.cosmos.bolt.engine.SendStager
 import xin.cosmos.bolt.model.ConnectionState
@@ -270,13 +274,49 @@ private fun DeviceCard(
                     )
                 }
                 Spacer(modifier = Modifier.width(12.dp))
-                Column(Modifier.weight(1f)) {
-                    Text(
-                        text = device.name,
-                        style = MaterialTheme.typography.titleSmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(3.dp),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text(
+                            text = device.name,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontSize = 22.sp,
+                                fontWeight = FontWeight.Bold,
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        if (device.connState == ConnectionState.Connected) {
+                            val badgeText = if (device.transport.isNotEmpty()) {
+                                stringResource(R.string.devices_connected_protocol, device.transport.uppercase())
+                            } else {
+                                stringResource(R.string.devices_status_connected)
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .background(
+                                        color = Color(0xFF10B981).copy(alpha = 0.12f),
+                                        shape = CircleShape,
+                                    )
+                                    .padding(horizontal = 6.dp, vertical = 1.5.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = badgeText,
+                                    color = Color(0xFF10B981),
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Normal,
+                                    lineHeight = 12.sp,
+                                )
+                            }
+                        }
+                    }
                     Text(
                         text = "${stringResource(Format.deviceTypeResId(device.deviceType))} · " +
                             "${device.ip}:${device.quicPort} · ${device.source}",
@@ -284,23 +324,22 @@ private fun DeviceCard(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                TextButton(onClick = onToggleConnect) {
+                TextButton(
+                    onClick = onToggleConnect,
+                    colors = if (device.connState == ConnectionState.Connected) {
+                        ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                    } else {
+                        ButtonDefaults.textButtonColors()
+                    },
+                ) {
                     Text(
-                        when (device.connState) {
-                            ConnectionState.Connected -> stringResource(R.string.devices_btn_disconnect)
-                            ConnectionState.Connecting -> stringResource(R.string.devices_btn_connecting)
-                            ConnectionState.Disconnected -> stringResource(R.string.devices_btn_reconnect)
-                            ConnectionState.None -> stringResource(R.string.devices_btn_connect)
-                        },
+                        if (device.connState == ConnectionState.Connected) {
+                            stringResource(R.string.devices_btn_disconnect)
+                        } else {
+                            stringResource(R.string.devices_btn_connect)
+                        }
                     )
                 }
-            }
-            if (device.connState == ConnectionState.Connected && device.transport.isNotEmpty()) {
-                Text(
-                    text = stringResource(R.string.devices_connected_protocol, device.transport.uppercase()),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
             }
             Row(
                 Modifier

@@ -849,24 +849,24 @@ async function copyFingerprint() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
-  padding-top: 14px;
-  padding-bottom: 8px;
+  gap: 5px;
+  padding-top: 18px;
+  padding-bottom: 12px;
 }
 .footer-logo {
-  width: 48px;
-  height: 34px;
+  width: 64px;
+  height: 64px;
   object-fit: contain;
-  margin-bottom: 4px;
-  filter: drop-shadow(0 2px 8px rgba(0, 119, 255, 0.25));
+  margin-bottom: 6px;
+  filter: drop-shadow(0 4px 14px rgba(0, 119, 255, 0.28));
   transition: transform 0.2s ease, filter 0.2s ease;
 }
 .footer-logo:hover {
-  transform: scale(1.06);
-  filter: drop-shadow(0 4px 12px rgba(0, 245, 255, 0.4));
+  transform: scale(1.05);
+  filter: drop-shadow(0 6px 20px rgba(0, 245, 255, 0.45));
 }
 .app-name {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   letter-spacing: 0.3px;

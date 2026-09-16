@@ -5,9 +5,15 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Bolt</title>
+  <script>
+    // 全局禁止鼠标右键菜单
+    document.addEventListener("contextmenu", function (e) {
+      e.preventDefault();
+    }, true);
+  </script>
 </head>
 
-<body>
+<body oncontextmenu="return false;">
   <div id="app"></div>
   <script type="module" src="/src/main.ts"></script>
 </body>

@@ -50,22 +50,33 @@ function fmtRate(bps: number): string {
   return `${(bps / 1024 / 1024).toFixed(1)} MB/s`;
 }
 
+// ---------- 两栏宽度调节与移动端紧凑自适应 ----------
+const COMPACT_BREAKPOINT = 680;
+const LEFT_MIN = 300;
+const RIGHT_MIN = 300;
+const leftW = ref(370);
+const isCompact = ref(typeof window !== "undefined" ? window.innerWidth < COMPACT_BREAKPOINT : false);
+
+function handleResize() {
+  isCompact.value = window.innerWidth < COMPACT_BREAKPOINT;
+  if (!isCompact.value) {
+    leftW.value = clampLeft(leftW.value);
+  }
+}
+
 let maxTimer: number | undefined;
 onMounted(() => {
   start();
   void syncMaximized();
-  leftW.value = clampLeft(leftW.value);
+  handleResize();
+  window.addEventListener("resize", handleResize);
   maxTimer = window.setInterval(() => void syncMaximized(), 2000);
 });
 onUnmounted(() => {
   stop();
+  window.removeEventListener("resize", handleResize);
   window.clearInterval(maxTimer);
 });
-
-// ---------- 两栏宽度调节 ----------
-const LEFT_MIN = 300;
-const RIGHT_MIN = 300;
-const leftW = ref(370);
 
 function clampLeft(v: number): number {
   // 窗口内宽 - 左右外边距(24) - 拖拽槽(12) - 右侧任务栏保底(RIGHT_MIN)
@@ -73,6 +84,7 @@ function clampLeft(v: number): number {
   return Math.max(LEFT_MIN, Math.min(v, maxW));
 }
 function startDrag(e: PointerEvent) {
+  if (isCompact.value) return;
   e.preventDefault();
   const startX = e.clientX;
   const startW = leftW.value;
@@ -127,30 +139,31 @@ function startDrag(e: PointerEvent) {
 
     <div v-if="toast" class="toast">{{ toast }}</div>
 
-    <!-- 两栏内容区：左栏【发送+设备】| 拖拽槽 | 右栏【传输任务】 -->
+    <!-- 内容区：宽屏为两栏+拖拽槽；窄屏自动单列纵向堆叠自适应 -->
     <section
       class="grid"
-      :style="{ gridTemplateColumns: `${leftW}px 12px minmax(300px, 1fr)` }"
+      :class="{ 'compact-mode': isCompact }"
+      :style="isCompact ? undefined : { gridTemplateColumns: `${leftW}px 12px minmax(300px, 1fr)` }"
     >
       <div class="left-col">
         <SendPanel />
         <DevicePanel />
       </div>
-      <div class="gutter" title="拖动调整左右分栏宽度" @pointerdown="startDrag($event)"></div>
+      <div v-if="!isCompact" class="gutter" title="拖动调整左右分栏宽度" @pointerdown="startDrag($event)"></div>
       <TaskPanel />
     </section>
 
     <!-- 底部状态栏 -->
-    <footer class="statusbar">
-      <span>本机：{{ localInfo.name || "—" }}</span>
+    <footer class="statusbar" :class="{ 'compact-mode': isCompact }">
+      <span class="sb-item">本机：{{ localInfo.name || "—" }}</span>
       <span class="sb-sep"></span>
-      <span>IP：{{ localIpsText }}</span>
+      <span class="sb-item" :title="localIpsText">IP：{{ localIpsText }}</span>
       <span class="sb-sep"></span>
-      <span>在线：{{ devices.length }}台</span>
+      <span class="sb-item">在线：{{ devices.length }}台</span>
       <span class="sb-sep"></span>
-      <span>协议：{{ protocol }}</span>
+      <span class="sb-item">协议：{{ protocol }}</span>
       <span class="sb-sep"></span>
-      <span>速度：{{ fmtRate(totalRate) }}</span>
+      <span class="sb-item">速度：{{ fmtRate(totalRate) }}</span>
     </footer>
 
     <SettingsModal v-model:open="settingsOpen" />
@@ -208,8 +221,8 @@ body {
   background: var(--panel);
   border-bottom: 1px solid var(--line);
 }
-.tb-brand { display: flex; align-items: center; gap: 8px; }
-.tb-logo { width: 22px; height: 16px; object-fit: contain; }
+.tb-brand { display: flex; align-items: center; gap: 9px; }
+.tb-logo { width: 24px; height: 24px; object-fit: contain; flex-shrink: 0; }
 .titlebar h1 {
   margin: 0;
   font-size: 15px;
@@ -322,18 +335,25 @@ ul { list-style: none; margin: 0; padding: 0; }
 
 /* ---- 状态栏 ---- */
 .statusbar {
-  height: 32px;
+  min-height: 32px;
+  height: auto;
   flex-shrink: 0;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 0 16px;
+  row-gap: 4px;
+  column-gap: 12px;
+  padding: 6px 16px;
   background: var(--panel-2);
   border-top: 1px solid var(--line);
   color: var(--muted);
   font-size: 12px;
-  overflow: hidden;
-  white-space: nowrap;
+  line-height: 1.5;
+}
+.statusbar span:not(.sb-sep) {
+  display: inline-flex;
+  align-items: center;
+  word-break: break-all;
 }
 .statusbar .sb-sep { width: 1px; height: 12px; background: var(--line); flex-shrink: 0; }
 
@@ -355,4 +375,86 @@ ul { list-style: none; margin: 0; padding: 0; }
 ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 4px; }
 ::-webkit-scrollbar-thumb:hover { background: #b6c2d4; }
 ::-webkit-scrollbar-track { background: transparent; }
+
+/* ---- 自适应移动端单列布局 (< 680px) ---- */
+.grid.compact-mode {
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+  overflow-y: auto !important;
+  overflow-x: hidden !important;
+  grid-template-columns: none !important;
+}
+.grid.compact-mode .left-col {
+  height: auto !important;
+  min-height: auto !important;
+  flex: none !important;
+  display: flex !important;
+  flex-direction: column !important;
+  gap: 12px !important;
+}
+.grid.compact-mode .gutter {
+  display: none !important;
+}
+.grid.compact-mode :deep(.panel) {
+  flex: none !important;
+  min-height: auto !important;
+}
+.grid.compact-mode :deep(.devices) {
+  max-height: 280px;
+}
+.grid.compact-mode :deep(.tasks) {
+  max-height: 280px;
+}
+
+@media (max-width: 679px) {
+  .grid {
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    grid-template-columns: none !important;
+  }
+  .left-col {
+    height: auto !important;
+    min-height: auto !important;
+    flex: none !important;
+    display: flex !important;
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+  .gutter {
+    display: none !important;
+  }
+  .grid > .panel,
+  .left-col > .panel {
+    flex: none !important;
+    min-height: auto !important;
+  }
+  .devices {
+    max-height: 280px !important;
+  }
+  .tasks {
+    max-height: 280px !important;
+  }
+  .statusbar {
+    padding: 6px 12px !important;
+    row-gap: 4px !important;
+    column-gap: 12px !important;
+    overflow: visible !important;
+  }
+  .statusbar .sb-sep {
+    display: none !important;
+  }
+}
+.statusbar.compact-mode {
+  padding: 6px 12px !important;
+  row-gap: 4px !important;
+  column-gap: 12px !important;
+  overflow: visible !important;
+}
+.statusbar.compact-mode .sb-sep {
+  display: none !important;
+}
 </style>

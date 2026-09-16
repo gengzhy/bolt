@@ -15,7 +15,7 @@
         "title": "Bolt",
         "width": 780,
         "height": 540,
-        "minWidth": 680,
+        "minWidth": 380,
         "minHeight": 460,
         "resizable": true,
         "decorations": false,

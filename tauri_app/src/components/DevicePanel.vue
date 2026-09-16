@@ -47,7 +47,7 @@ function conn(uuid: string): ConnState | undefined {
 }
 function transportOf(uuid: string): string {
   const t = conn(uuid)?.transport;
-  return t ? ` · ${t}` : "";
+  return t ? ` · ${t.toUpperCase()}` : "";
 }
 
 // 设备类型图标（PC / Android / iPhone）
@@ -305,7 +305,7 @@ async function addManual() {
 .dev-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .dev-name {
   font-weight: 600;
-  font-size: 13.5px;
+  font-size: 15px;
   display: flex;
   flex-wrap: wrap;
   align-items: center;

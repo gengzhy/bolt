@@ -37,7 +37,8 @@
     <string name="devices_btn_connecting">Connecting…</string>
     <string name="devices_btn_reconnect">Reconnect</string>
     <string name="devices_btn_connect">Connect</string>
-    <string name="devices_connected_protocol">Connected (%s)</string>
+    <string name="devices_connected_protocol">Connected · %s</string>
+    <string name="devices_status_connected">Connected</string>
 
     <!-- Device Card Send Actions -->
     <string name="devices_btn_send_files">Send Files</string>
