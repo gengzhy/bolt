@@ -140,7 +140,7 @@ async function addManual() {
             {{ d.name }}
             <span v-if="conn(d.uuid)" class="conn-badge">已连接{{ transportOf(d.uuid) }}</span>
           </span>
-          <span class="dev-sub">{{ typeTitle(d.device_type) }} · {{ d.ip }} · QUIC:{{ d.quic_port }} · {{ d.source }}</span>
+          <span class="dev-sub">{{ typeTitle(d.device_type) }} · {{ d.ip }}:{{ d.quic_port }}{{ d.source ? ` · ${d.source}` : '' }}</span>
         </span>
         <button
           v-if="conn(d.uuid)"

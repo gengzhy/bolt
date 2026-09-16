@@ -2,6 +2,7 @@ package xin.cosmos.bolt.engine
 
 import android.content.Context
 import android.net.Uri
+import android.provider.DocumentsContract
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -53,20 +54,30 @@ object SendStager {
             }
         }
 
-    /** OpenDocumentTree 结果：整棵目录树按相对结构暂存。 */
+    /** OpenDocumentTree 结果：整棵目录树保留所选顶层目录并按相对结构暂存。 */
     suspend fun stageTree(context: Context, treeUri: Uri): Staged? =
         withContext(Dispatchers.IO) {
             val tree = DocumentFile.fromTreeUri(context, treeUri) ?: return@withContext null
             val root = outboxRoot(context)
             try {
-                val total = copyTree(context, tree, root)
-                val topLevel = root.listFiles().orEmpty()
-                if (topLevel.isEmpty() || total == 0L) {
+                val folderName = sanitize(
+                    tree.name?.takeIf { it.isNotBlank() }
+                        ?: runCatching {
+                            DocumentsContract.getTreeDocumentId(treeUri)
+                                .substringAfterLast(':')
+                                .substringAfterLast('/')
+                        }.getOrNull()?.takeIf { it.isNotBlank() }
+                        ?: "folder"
+                )
+                val destDir = File(root, folderName)
+                destDir.mkdirs()
+                val total = copyTree(context, tree, destDir)
+                if (destDir.walkTopDown().none { it.isFile }) {
                     root.deleteRecursively()
                     null
                 } else {
-                    // 目录整体交给 Rust 遍历（bt_send_files 支持目录项）
-                    Staged(root, topLevel.map { it.absolutePath }, total)
+                    // 暂存的单目录整体交给 Rust 遍历（bt_send_files 保留此顶层目录名作为相对路径根）
+                    Staged(root, listOf(destDir.absolutePath), total)
                 }
             } catch (e: Exception) {
                 root.deleteRecursively()

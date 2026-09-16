@@ -44,6 +44,20 @@
     <string name="devices_btn_send_files">Send Files</string>
     <string name="devices_btn_send_folder">Send Folder</string>
 
+    <!-- Folder & File Picker -->
+    <string name="folder_picker_title">Select Folders</string>
+    <string name="file_picker_title">Select Files</string>
+    <string name="folder_picker_root_name">Internal Storage</string>
+    <string name="folder_picker_empty">No subfolders in this directory</string>
+    <string name="file_picker_empty">No files in this directory</string>
+    <string name="folder_picker_selected_count">%d folder(s) selected</string>
+    <string name="file_picker_selected_count">%d file(s) selected</string>
+    <string name="folder_picker_item_count">%d items</string>
+    <string name="folder_picker_btn_send">Send</string>
+    <string name="folder_picker_btn_send_with_count">Send (%d)</string>
+    <string name="folder_picker_perm_hint">All files access permission is required to browse and select files.</string>
+    <string name="folder_picker_perm_btn">Go to Settings</string>
+
     <!-- ========================================== -->
     <!-- 3. Transfers Module (TransfersScreen)      -->
     <!-- ========================================== -->

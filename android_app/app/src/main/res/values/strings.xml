@@ -44,6 +44,20 @@
     <string name="devices_btn_send_files">发送文件</string>
     <string name="devices_btn_send_folder">发送文件夹</string>
 
+    <!-- 文件夹选择器 -->
+    <string name="folder_picker_title">选择文件夹</string>
+    <string name="file_picker_title">选择文件</string>
+    <string name="folder_picker_root_name">内部存储</string>
+    <string name="folder_picker_empty">当前目录下没有子文件夹</string>
+    <string name="file_picker_empty">当前目录下没有文件</string>
+    <string name="folder_picker_selected_count">已选择 %d 个文件夹</string>
+    <string name="file_picker_selected_count">已选择 %d 个文件</string>
+    <string name="folder_picker_item_count">%d 项</string>
+    <string name="folder_picker_btn_send">发送</string>
+    <string name="folder_picker_btn_send_with_count">发送 (%d)</string>
+    <string name="folder_picker_perm_hint">需要所有文件访问权限才能浏览选择文件，请在系统设置中开启。</string>
+    <string name="folder_picker_perm_btn">去设置开启</string>
+
     <!-- ========================================== -->
     <!-- 3. 传输模块 (TransfersScreen)              -->
     <!-- ========================================== -->

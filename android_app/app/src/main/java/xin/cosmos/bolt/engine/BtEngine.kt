@@ -436,21 +436,23 @@ object BtEngine {
     }
 
     /**
-     * 发送已暂存到私有目录的文件（[SendStager] 产物）。
-     * `paths` 为绝对路径数组；记录暂存目录映射，任务终态时清理。
+     * 发送文件/目录。
+     * `paths` 为本地绝对路径数组；若指定了 `stagedRoot`（SAF 暂存），则在任务终态时自动清理。
      */
-    fun sendFiles(uuid: String, paths: List<String>, stagedRoot: File) {
+    fun sendFiles(uuid: String, paths: List<String>, stagedRoot: File? = null) {
         val json = JSONArray(paths).toString()
         val out = LongArray(1)
         val rc = Native.btSendFiles(uuid, json, out)
         if (rc != 0) {
-            stagedRoot.deleteRecursively()
+            stagedRoot?.deleteRecursively()
             postOneShot(
                 OneShotEvent.Error(rc, xin.cosmos.bolt.model.ErrorMessages.of(rc)),
             )
             return
         }
-        outboxByTask[out[0]] = stagedRoot
+        if (stagedRoot != null) {
+            outboxByTask[out[0]] = stagedRoot
+        }
         syncTasks()
         syncServiceWithActiveTasks()
     }

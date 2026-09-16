@@ -119,22 +119,8 @@ fun DevicesScreen(modifier: Modifier) {
     // 发送目标 + 选择器结果处理（选择器在结果回调里才知道目标设备）
     var sendTarget by remember { mutableStateOf<DeviceUi?>(null) }
     var showManualConnect by rememberSaveable { mutableStateOf(false) }
-
-    val context = LocalContext.current
-    val pickFiles = rememberLauncherForActivityResult(
-        PickMultipleDocumentsWithInitialUri(),
-    ) { uris ->
-        val target = sendTarget ?: return@rememberLauncherForActivityResult
-        if (uris.isEmpty()) return@rememberLauncherForActivityResult
-        scope.launch { stageAndSend(context, target, uris = uris) }
-    }
-    val pickTree = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocumentTree(),
-    ) { uri ->
-        val target = sendTarget ?: return@rememberLauncherForActivityResult
-        if (uri == null) return@rememberLauncherForActivityResult
-        scope.launch { stageAndSend(context, target, tree = uri) }
-    }
+    var showFolderPicker by rememberSaveable { mutableStateOf(false) }
+    var pickerMode by rememberSaveable { mutableStateOf(PickerMode.Folders) }
 
     Column(modifier.fillMaxSize()) {
         Row(
@@ -189,13 +175,13 @@ fun DevicesScreen(modifier: Modifier) {
                     },
                     onPickFiles = {
                         sendTarget = device
-                        val initialUri = getInitialFolderUri(state.config.saveDir)
-                        pickFiles.launch(initialUri)
+                        pickerMode = PickerMode.Files
+                        showFolderPicker = true
                     },
                     onPickFolder = {
                         sendTarget = device
-                        val initialUri = getInitialFolderUri(state.config.saveDir)
-                        pickTree.launch(initialUri)
+                        pickerMode = PickerMode.Folders
+                        showFolderPicker = true
                     },
                 )
             }
@@ -215,6 +201,18 @@ fun DevicesScreen(modifier: Modifier) {
 
     if (showManualConnect) {
         ManualConnectDialog(onDismiss = { showManualConnect = false })
+    }
+
+    if (showFolderPicker && sendTarget != null) {
+        FolderPickerDialog(
+            targetName = sendTarget!!.name,
+            mode = pickerMode,
+            onDismiss = { showFolderPicker = false },
+            onSend = { paths ->
+                val target = sendTarget ?: return@FolderPickerDialog
+                BtEngine.sendFiles(target.uuid, paths, stagedRoot = null)
+            },
+        )
     }
 }
 

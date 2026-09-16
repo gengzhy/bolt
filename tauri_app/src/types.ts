@@ -31,6 +31,10 @@ export interface Task {
   duration_ms?: number;
   /** 平均传输速度（字节/秒） */
   avg_rate_bps?: number;
+  /** 实时传输速度（字节/秒） */
+  rate_bps?: number;
+  /** 预计剩余时间（秒） */
+  eta_secs?: number;
 }
 
 /** 待发送清单项（inspect_paths 返回）。 */
