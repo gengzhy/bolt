@@ -70,6 +70,7 @@ import xin.cosmos.bolt.ui.devices.DevicesScreen
 import xin.cosmos.bolt.ui.devices.QuickShareDialog
 import xin.cosmos.bolt.ui.settings.SettingsScreen
 import xin.cosmos.bolt.ui.transfers.TransfersScreen
+import xin.cosmos.bolt.ui.transfers.TransferLogsScreen
 
 /** 主界面：双页签（设备 / 传输）+ 左侧切出设置抽屉栏（5/6设备宽度，高度剔除顶部通知栏与底部菜单栏）+ 全局弹窗与提示。 */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -78,6 +79,7 @@ fun MainScreen() {
     val state by BtEngine.uiState.collectAsState()
     var tab by rememberSaveable { mutableIntStateOf(0) }
     var isDrawerOpen by rememberSaveable { mutableStateOf(false) }
+    var isLogsOpen by rememberSaveable { mutableStateOf(false) }
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
 
@@ -85,9 +87,13 @@ fun MainScreen() {
     val configuration = LocalConfiguration.current
     val drawerWidth = configuration.screenWidthDp.dp * 5f / 6f
 
-    // 抽屉开启时拦截返回手势/物理按键，平滑收起抽屉
-    BackHandler(enabled = isDrawerOpen) {
-        isDrawerOpen = false
+    // 抽屉或日志页开启时拦截返回手势/物理按键，平滑收起
+    BackHandler(enabled = isDrawerOpen || isLogsOpen) {
+        if (isLogsOpen) {
+            isLogsOpen = false
+        } else if (isDrawerOpen) {
+            isDrawerOpen = false
+        }
     }
 
     // 一次性提示（错误码中文文案、完成通知）
@@ -149,7 +155,10 @@ fun MainScreen() {
             ) { page ->
                 when (page) {
                     0 -> DevicesScreen(Modifier.fillMaxSize())
-                    else -> TransfersScreen(Modifier.fillMaxSize())
+                    else -> TransfersScreen(
+                        modifier = Modifier.fillMaxSize(),
+                        onOpenLogs = { isLogsOpen = true },
+                    )
                 }
             }
         }
@@ -240,6 +249,30 @@ fun MainScreen() {
                     SettingsScreen(Modifier.fillMaxSize())
                 }
             }
+        }
+
+        // 传输记录日志独立页面（从右侧平滑滑入，独立全屏呈现）
+        AnimatedVisibility(
+            visible = isLogsOpen,
+            enter = slideInHorizontally(
+                initialOffsetX = { it },
+                animationSpec = tween(
+                    durationMillis = 300,
+                    easing = CubicBezierEasing(0.1f, 0.9f, 0.2f, 1f),
+                ),
+            ),
+            exit = slideOutHorizontally(
+                targetOffsetX = { it },
+                animationSpec = tween(
+                    durationMillis = 260,
+                    easing = CubicBezierEasing(0.4f, 0f, 0.8f, 0.2f),
+                ),
+            ),
+        ) {
+            TransferLogsScreen(
+                onBack = { isLogsOpen = false },
+                modifier = Modifier.fillMaxSize(),
+            )
         }
     }
 

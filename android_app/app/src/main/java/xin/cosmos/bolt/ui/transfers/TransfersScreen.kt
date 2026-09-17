@@ -60,7 +60,10 @@ import java.net.URLConnection
  * bt_pause_task / bt_resume_task / bt_cancel_task。
  */
 @Composable
-fun TransfersScreen(modifier: Modifier) {
+fun TransfersScreen(
+    modifier: Modifier,
+    onOpenLogs: () -> Unit = {},
+) {
     val state by BtEngine.uiState.collectAsState()
     val tasks = state.tasks.values.sortedByDescending { it.taskId }
     var showClearConfirm by remember { mutableStateOf(false) }
@@ -73,7 +76,14 @@ fun TransfersScreen(modifier: Modifier) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(stringResource(R.string.transfers_title), style = MaterialTheme.typography.titleMedium)
-            Row(Modifier.weight(1f), horizontalArrangement = Arrangement.End) {
+            Row(
+                Modifier.weight(1f),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = onOpenLogs) {
+                    Text(stringResource(R.string.transfers_btn_logs))
+                }
                 if (tasks.isNotEmpty()) {
                     TextButton(onClick = { showClearConfirm = true }) {
                         Text(stringResource(R.string.transfers_btn_clear_records))

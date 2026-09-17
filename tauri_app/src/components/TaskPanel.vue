@@ -4,10 +4,12 @@
 // 头部 ⋯ 菜单（全部清除/清理临时缓存）；底部汇总（总速度、剩余时间）+ 全部清除。
 import { computed, ref } from "vue";
 import { useBt } from "../composables/useBt";
+import { useTransferLogs } from "../composables/useTransferLogs";
 import { human, humanEta, humanRate } from "../utils/format";
 import type { Task } from "../types";
 
 const { tasks, progress, cancelTask, clearRecords, clearTempCache, loadConfig, revealPath } = useBt();
+const { openLogs } = useTransferLogs();
 
 const menuOpen = ref(false);
 
@@ -75,6 +77,7 @@ function menuAction(fn: () => void) {
           </svg>
         </button>
         <div v-if="menuOpen" class="menu">
+          <button @click="menuAction(openLogs)">传输记录日志</button>
           <button @click="menuAction(clearRecords)">全部清除</button>
           <button @click="menuAction(clearTempCache)">清理临时缓存</button>
         </div>

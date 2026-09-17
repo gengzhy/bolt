@@ -61,6 +61,28 @@ data class TaskUi(
     val etaSecs: Long = 0,
     val avgRateBps: Long = 0,
     val durationMs: Long = 0,
+    val startTimeMs: Long = 0,
+    val createdUnix: Long = 0,
+)
+
+/** 传输记录日志（持久化保存的历史传输项）。 */
+data class TransferLogUi(
+    val id: String,
+    val taskId: Long,
+    val incoming: Boolean,
+    val transport: String = "",
+    val peerName: String = "",
+    val peerUuid: String = "",
+    val fileName: String = "",
+    val fileCount: Int = 1,
+    val totalSize: Long = 0,
+    val avgRateBps: Long = 0,
+    val startTimeMs: Long = 0,
+    val endTimeMs: Long = 0,
+    val durationMs: Long = 0,
+    val state: String = TaskStates.DONE,
+    val okFiles: Int = 0,
+    val failedFiles: Int = 0,
 )
 
 /** 待用户响应的弹窗（队列，逐个展示）。 */

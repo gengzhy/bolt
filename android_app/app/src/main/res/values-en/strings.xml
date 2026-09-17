@@ -72,9 +72,27 @@
     <!-- 3. Transfers Module (TransfersScreen)      -->
     <!-- ========================================== -->
     <string name="transfers_title">Transfers</string>
+    <string name="transfers_btn_logs">Transfer Logs</string>
     <string name="transfers_btn_clear_records">Clear History</string>
     <string name="transfers_confirm_clear_msg">Are you sure you want to clear all transfer history? Received files will not be deleted.</string>
     <string name="transfers_empty_hint">No transfer history.\nSelect a peer in \"Devices\" to send files. Incoming files will show progress here.</string>
+
+    <!-- Transfer Records Log (TransferLogsScreen) -->
+    <string name="transfer_logs_title">Transfer Logs</string>
+    <string name="transfer_logs_empty">No Transfer Logs</string>
+    <string name="transfer_logs_empty_desc">All sending and receiving transfer history will be recorded here, supporting protocol, status, and timeline review.</string>
+    <string name="transfer_logs_btn_clear">Clear Logs</string>
+    <string name="transfer_logs_confirm_clear_title">Clear Transfer Logs</string>
+    <string name="transfer_logs_confirm_clear_msg">Are you sure you want to clear all transfer logs? This cannot be undone, but received files will remain safe.</string>
+    <string name="transfer_logs_filter_all">All (%d)</string>
+    <string name="transfer_logs_filter_send">Sent (%d)</string>
+    <string name="transfer_logs_filter_recv">Received (%d)</string>
+    <string name="transfer_logs_field_start_time">Start: %s</string>
+    <string name="transfer_logs_field_end_time">End: %s</string>
+    <string name="transfer_logs_field_duration">Duration: %s</string>
+    <string name="transfer_logs_field_rate">Rate: %s</string>
+    <string name="transfer_logs_field_size">Size: %s</string>
+    <string name="transfer_logs_ongoing">Transferring...</string>
 
     <!-- Direction Tags -->
     <string name="transfers_dir_incoming">↓ Incoming</string>

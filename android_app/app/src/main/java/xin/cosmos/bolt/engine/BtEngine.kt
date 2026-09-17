@@ -16,6 +16,7 @@ import xin.cosmos.bolt.model.PendingDialog
 import xin.cosmos.bolt.model.TaskStates
 import xin.cosmos.bolt.model.TaskUi
 import xin.cosmos.bolt.model.UiState
+import xin.cosmos.bolt.data.TransferLogRepository
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -71,6 +72,7 @@ object BtEngine {
         if (initialized) return
         initialized = true
         appContext = context.applicationContext
+        TransferLogRepository.init(appContext)
 
         // 数据目录放 filesDir/bolt：FileProvider（files-path）可覆盖其下接收文件
         val dataDir = File(appContext.filesDir, "bolt")
@@ -168,9 +170,11 @@ object BtEngine {
             val t = parseTask(arr.getJSONObject(i)) ?: continue
             // 保留正在传输中事件已推进的进度；若任务已暂停或终态，则以引擎确定的快照为准对齐
             val old = _uiState.value.tasks[t.taskId]
-            map[t.taskId] = if (old != null && old.doneBytes > t.doneBytes &&
+            val resolved = if (old != null && old.doneBytes > t.doneBytes &&
                 old.state == t.state && old.state != TaskStates.PAUSED
             ) old else t
+            map[t.taskId] = resolved
+            TransferLogRepository.record(resolved)
         }
         updateState { it.copy(tasks = map) }
         syncServiceWithActiveTasks()
@@ -579,6 +583,8 @@ object BtEngine {
             etaSecs = o.optLong("eta_secs"),
             avgRateBps = o.optLong("avg_rate_bps"),
             durationMs = o.optLong("duration_ms"),
+            startTimeMs = o.optLong("start_time_ms"),
+            createdUnix = o.optLong("created_unix"),
         )
     }
 

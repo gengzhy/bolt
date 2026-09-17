@@ -72,9 +72,27 @@
     <!-- 3. 传输模块 (TransfersScreen)              -->
     <!-- ========================================== -->
     <string name="transfers_title">传输任务</string>
+    <string name="transfers_btn_logs">传输记录日志</string>
     <string name="transfers_btn_clear_records">清除记录</string>
     <string name="transfers_confirm_clear_msg">确定要清空所有传输历史记录吗？此操作不会删除已接收的文件。</string>
     <string name="transfers_empty_hint">暂无传输任务。\n在「设备」页选择设备即可发送文件；对方发来的文件会在此显示接收进度。</string>
+
+    <!-- 传输记录日志 (TransferLogsScreen) -->
+    <string name="transfer_logs_title">传输记录日志</string>
+    <string name="transfer_logs_empty">暂无传输记录日志</string>
+    <string name="transfer_logs_empty_desc">所有的发送和接收传输历史记录将在此处保存，支持按协议、状态和时间追溯。</string>
+    <string name="transfer_logs_btn_clear">清空日志</string>
+    <string name="transfer_logs_confirm_clear_title">清空传输记录日志</string>
+    <string name="transfer_logs_confirm_clear_msg">确定要清空所有传输记录日志吗？此操作不可恢复，但不会影响已接收的文件。</string>
+    <string name="transfer_logs_filter_all">全部 (%d)</string>
+    <string name="transfer_logs_filter_send">发送 (%d)</string>
+    <string name="transfer_logs_filter_recv">接收 (%d)</string>
+    <string name="transfer_logs_field_start_time">开始：%s</string>
+    <string name="transfer_logs_field_end_time">结束：%s</string>
+    <string name="transfer_logs_field_duration">耗时：%s</string>
+    <string name="transfer_logs_field_rate">速率：%s</string>
+    <string name="transfer_logs_field_size">大小：%s</string>
+    <string name="transfer_logs_ongoing">传输中...</string>
 
     <!-- 任务方向标签 -->
     <string name="transfers_dir_incoming">↓ 接收</string>

@@ -16,6 +16,7 @@ import type {
   Task,
   TransferReq,
 } from "../types";
+import { useTransferLogs } from "./useTransferLogs";
 
 // ---------- 错误码文案（protocol_spec.md §7） ----------
 const ERR_TEXT: Record<number, string> = {
@@ -78,8 +79,14 @@ export function useBt() {
   async function refreshDevices() {
     devices.value = await invoke<Device[]>("get_devices");
   }
+  const { recordTask } = useTransferLogs();
+
   async function refreshTasks() {
-    tasks.value = await invoke<Task[]>("get_tasks");
+    const list = await invoke<Task[]>("get_tasks");
+    tasks.value = list;
+    for (const t of list) {
+      recordTask(t);
+    }
   }
   async function refreshLocalInfo() {
     const info = await invoke<Record<string, unknown>>("get_local_info").catch(() => null);

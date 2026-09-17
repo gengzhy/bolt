@@ -12,9 +12,12 @@ import SendPanel from "./components/SendPanel.vue";
 import TaskPanel from "./components/TaskPanel.vue";
 import SettingsModal from "./components/SettingsModal.vue";
 import Modals from "./components/Modals.vue";
+import TransferLogsModal from "./components/TransferLogsModal.vue";
+import { useTransferLogs } from "./composables/useTransferLogs";
 import logoSvg from "./assets/logo.svg";
 
 const { version, toast, devices, connStates, progress, localInfo, localIpsText, start, stop } = useBt();
+const { logsOpen } = useTransferLogs();
 const settingsOpen = ref(false);
 const win = getCurrentWindow();
 const maximized = ref(false);
@@ -167,6 +170,7 @@ function startDrag(e: PointerEvent) {
     </footer>
 
     <SettingsModal v-model:open="settingsOpen" />
+    <TransferLogsModal :open="logsOpen" @update:open="logsOpen = $event" />
     <Modals />
   </main>
 </template>
