@@ -441,6 +441,9 @@ impl Session {
                 let _ = k.shutdown(std::net::Shutdown::Both);
             });
         }
+        // 清理所有 ACK 订阅者和等待者，使等待中的发送协程立即感知连接已断开并快速熔断退出
+        self.ack_subs.lock().unwrap().clear();
+        self.resp_waiters.lock().unwrap().clear();
         self.handler.disconnected(self.id, err_code);
     }
 

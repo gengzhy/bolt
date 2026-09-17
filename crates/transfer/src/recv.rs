@@ -78,8 +78,10 @@ impl RecvTask {
             instant_rate
         } else if instant_rate > 0.0 {
             0.7 * instant_rate + 0.3 * self.smoothed_rate
+        } else if now.duration_since(self.rate_time_last) > Duration::from_millis(1500) {
+            0.0
         } else {
-            self.smoothed_rate * 0.8
+            self.smoothed_rate * 0.5
         };
         let remaining = self.total_size.saturating_sub(current_done);
         let eta = if self.smoothed_rate > 1.0 {

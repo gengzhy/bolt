@@ -311,3 +311,77 @@ async fn concurrent_two_tasks_on_same_session() {
     engine_b.shutdown();
     let _ = std::fs::remove_dir_all(&root);
 }
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn disconnect_aborts_send_immediately() {
+    let root = std::env::temp_dir().join(format!("bt_disc_{}", std::process::id()));
+    let dir_a = root.join("a");
+    let dir_b = root.join("b");
+    let src = root.join("src");
+    std::fs::create_dir_all(&dir_a).unwrap();
+    std::fs::create_dir_all(&dir_b).unwrap();
+    std::fs::create_dir_all(&src).unwrap();
+    let f1 = src.join("large.bin");
+    std::fs::write(&f1, vec![1u8; 10 * 1024 * 1024]).unwrap();
+
+    let id_a = Arc::new(DeviceIdentity::load_or_create(&dir_a, "node-a").unwrap());
+    let id_b = Arc::new(DeviceIdentity::load_or_create(&dir_b, "node-b").unwrap());
+    let trust_a = Arc::new(TrustStore::load(&dir_a).unwrap());
+    let trust_b = Arc::new(TrustStore::load(&dir_b).unwrap());
+
+    let h_a = Arc::new(AutoHandler::default());
+    let h_b = Arc::new(AutoHandler::default());
+
+    let engine_a = TransferEngine::start(
+        engine_cfg(&dir_a, 8963),
+        id_a,
+        trust_a,
+        h_a.clone() as Arc<dyn SessionHandler>,
+    )
+    .await
+    .unwrap();
+    let engine_b = TransferEngine::start(
+        engine_cfg(&dir_b, 8964),
+        id_b,
+        trust_b,
+        h_b.clone() as Arc<dyn SessionHandler>,
+    )
+    .await
+    .unwrap();
+
+    let addr_a: std::net::SocketAddr = format!("127.0.0.1:{}", engine_a.port).parse().unwrap();
+    let sess_b = engine_b.connect(addr_a).await.unwrap();
+    let _sess_a = wait_session(&h_a).await;
+
+    let noop_sink: EventSink = Arc::new(|_| {});
+    let cancel = Arc::new(AtomicBool::new(false));
+
+    let s = sess_b.clone();
+    let send_fut = tokio::spawn(async move {
+        transfer::send::send_files(
+            s,
+            1,
+            [9u8; 16],
+            vec![make_item(&f1, "large.bin")],
+            noop_sink,
+            cancel,
+        )
+        .await
+    });
+
+    tokio::time::sleep(Duration::from_millis(30)).await;
+    let t0 = std::time::Instant::now();
+    sess_b.close(Some(-1));
+
+    let res = tokio::time::timeout(Duration::from_secs(3), send_fut).await;
+    assert!(res.is_ok(), "send_files 应该在断开后迅速熔断退出，不应超时");
+    let sum = res.unwrap().unwrap().expect("send_files 应该正常返回 SendSummary");
+    assert_eq!(sum.ok, 0, "断开连接后不应该有成功发送的文件");
+    assert_eq!(sum.failed, 1, "断开连接后文件应该计入 failed");
+    assert!(t0.elapsed() < Duration::from_millis(800), "断开后熔断应在 800ms 内完成");
+
+    engine_a.shutdown();
+    engine_b.shutdown();
+    let _ = std::fs::remove_dir_all(&root);
+}
+

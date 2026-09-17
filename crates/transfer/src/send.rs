@@ -79,8 +79,10 @@ impl TaskSendTracker {
             instant_rate
         } else if instant_rate > 0.0 {
             0.7 * instant_rate + 0.3 * self.smoothed_rate
+        } else if now.duration_since(self.rate_time_last) > Duration::from_millis(1500) {
+            0.0
         } else {
-            self.smoothed_rate * 0.8
+            self.smoothed_rate * 0.5
         };
         let remaining = self.total_size.saturating_sub(current_done);
         let eta = if self.smoothed_rate > 1.0 {
@@ -381,6 +383,14 @@ async fn send_one_file_on_pipe(
                 .remove(&(task_id, file_seq));
             return Err(BtError::Cancelled);
         }
+        if session.is_closed() {
+            session
+                .ack_subs
+                .lock()
+                .unwrap()
+                .remove(&(task_id, file_seq));
+            return Err(BtError::ConnectTimeout);
+        }
 
         // 背压：在途字节超窗口时先吸收 ACK 再继续，等待期间照常发进度
         loop {
@@ -390,6 +400,14 @@ async fn send_one_file_on_pipe(
             }
             if offset.saturating_sub(acked) < IN_FLIGHT_WINDOW {
                 break;
+            }
+            if session.is_closed() {
+                session
+                    .ack_subs
+                    .lock()
+                    .unwrap()
+                    .remove(&(task_id, file_seq));
+                return Err(BtError::ConnectTimeout);
             }
             match tokio::time::timeout(TIMEOUT_BACKPRESSURE_ACK, ack_rx.recv()).await {
                 Ok(Some(v)) => {
@@ -407,10 +425,18 @@ async fn send_one_file_on_pipe(
                         .remove(&(task_id, file_seq));
                     return Err(BtError::ConnectTimeout);
                 }
-                Err(_) => {} // 超时：回到循环顶部检查取消
+                Err(_) => {} // 超时：回到循环顶部检查取消与断开
             }
             if cancel.load(Ordering::SeqCst) {
                 break;
+            }
+            if session.is_closed() {
+                session
+                    .ack_subs
+                    .lock()
+                    .unwrap()
+                    .remove(&(task_id, file_seq));
+                return Err(BtError::ConnectTimeout);
             }
             emit_progress(acked.min(offset), false);
         }
@@ -461,12 +487,24 @@ async fn send_one_file_on_pipe(
                     Err(_) => return Err(BtError::ConnectTimeout),
                 }
             }
-            Some(v) = ack_rx.recv() => {
-                acked = acked.max(v);
-                while let Ok(extra) = ack_rx.try_recv() {
-                    acked = acked.max(extra);
+            v = ack_rx.recv() => {
+                match v {
+                    Some(v) => {
+                        acked = acked.max(v);
+                        while let Ok(extra) = ack_rx.try_recv() {
+                            acked = acked.max(extra);
+                        }
+                        emit_progress(acked.min(offset), false);
+                    }
+                    None => {
+                        session
+                            .ack_subs
+                            .lock()
+                            .unwrap()
+                            .remove(&(task_id, file_seq));
+                        return Err(BtError::ConnectTimeout);
+                    }
                 }
-                emit_progress(acked.min(offset), false);
             }
             _ = tokio::time::sleep(Duration::from_millis(50)) => {
                 while let Ok(v) = ack_rx.try_recv() {
@@ -480,6 +518,14 @@ async fn send_one_file_on_pipe(
                         .unwrap()
                         .remove(&(task_id, file_seq));
                     return Err(BtError::Cancelled);
+                }
+                if session.is_closed() {
+                    session
+                        .ack_subs
+                        .lock()
+                        .unwrap()
+                        .remove(&(task_id, file_seq));
+                    return Err(BtError::ConnectTimeout);
                 }
                 if tokio::time::Instant::now() > deadline {
                     session
