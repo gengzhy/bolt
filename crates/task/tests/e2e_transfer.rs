@@ -375,6 +375,239 @@ fn test_auto_rename_on_collision_and_smooth_progress() {
     let _ = std::fs::remove_dir_all(&temp_root);
 }
 
+#[test]
+fn test_mid_transfer_disconnect_fails_fast_without_lingering() {
+    crypto::ensure_provider();
+
+    let temp_root = std::env::temp_dir().join(format!("bt_e2e_disc_{}_{}", std::process::id(), fastrand()));
+    let dir_a = temp_root.join("client_a");
+    let dir_b = temp_root.join("client_b");
+    let _ = std::fs::remove_dir_all(&temp_root);
+    std::fs::create_dir_all(&dir_a).unwrap();
+    std::fs::create_dir_all(&dir_b).unwrap();
+
+    // 1. 创建源测试大文件（20MB）
+    let src_file = dir_a.join("test_20mb.dat");
+    let data = vec![42u8; 20 * 1024 * 1024];
+    std::fs::write(&src_file, &data).unwrap();
+
+    // 2. 启动 Windows 客户端 A 与 客户端 B
+    let app_a = App::init(Some(dir_a.clone())).expect("init A");
+    let app_b = App::init(Some(dir_b.clone())).expect("init B");
+
+    let uuid_a = app_a.device_uuid();
+    let uuid_b = app_b.device_uuid();
+    let fp_a = app_a.local_fingerprint();
+    let fp_b = app_b.local_fingerprint();
+    let port_b = app_b.engine_port();
+
+    let save_dir = dir_b.join("save");
+    std::fs::create_dir_all(&save_dir).unwrap();
+    let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
+    app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
+    app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
+    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#, save_dir_json)).unwrap();
+
+    // 3. A 直连 B
+    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    std::thread::sleep(Duration::from_millis(300));
+
+    // 4. A 发送大文件到 B
+    let src_path_str = src_file.to_str().unwrap().to_string();
+    let _task_id = app_a.send_files(&uuid_b, &[src_path_str]).expect("send_files");
+
+    // 5. 等待传输开始推进（已有部分字节传输在途）
+    let wait_start = Instant::now();
+    loop {
+        let tasks_a: Vec<serde_json::Value> = serde_json::from_str(&app_a.get_tasks_json()).unwrap();
+        let done = tasks_a.first().and_then(|t| t["done_bytes"].as_u64()).unwrap_or(0);
+        if done >= 512 * 1024 || wait_start.elapsed() > Duration::from_secs(5) {
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(30));
+    }
+
+    // 6. 中途切断连接，记录断开时间点
+    let disc_t0 = Instant::now();
+    app_a.disconnect(&uuid_b).expect("disconnect");
+
+    // 7. 验证断开后发送端应在极短时间内（< 1.2s）立即判定任务失败，不得卡死在传输中或以几 KB/s 虚假衰减
+    let mut failed_fast = false;
+    let mut elapsed = Duration::ZERO;
+    while disc_t0.elapsed() < Duration::from_secs(3) {
+        let tasks_a: Vec<serde_json::Value> = serde_json::from_str(&app_a.get_tasks_json()).unwrap();
+        if let Some(t) = tasks_a.first() {
+            let state = t["state"].as_str().unwrap_or("");
+            if state == "error" || state == "cancelled" {
+                failed_fast = true;
+                elapsed = disc_t0.elapsed();
+                break;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(50));
+    }
+
+    assert!(failed_fast, "断开连接后任务未能迅速标记为 error! 当前 tasks: {}", app_a.get_tasks_json());
+    assert!(elapsed < Duration::from_millis(1200), "断开连接后熔断耗时过长: {:?}，存在假死/挂起风险", elapsed);
+
+    app_a.shutdown();
+    app_b.shutdown();
+    let _ = std::fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_tcp_mode_transfer() {
+    crypto::ensure_provider();
+
+    let temp_root = std::env::temp_dir().join(format!("bt_e2e_tcp_{}_{}", std::process::id(), fastrand()));
+    let dir_a = temp_root.join("client_a");
+    let dir_b = temp_root.join("client_b");
+    let _ = std::fs::remove_dir_all(&temp_root);
+    std::fs::create_dir_all(&dir_a).unwrap();
+    std::fs::create_dir_all(&dir_b).unwrap();
+
+    // 1. 创建源测试文件（4MB）
+    let src_file = dir_a.join("test_tcp_4mb.dat");
+    let data = vec![0xABu8; 4 * 1024 * 1024];
+    std::fs::write(&src_file, &data).unwrap();
+    let expected_hash = blake3::hash(&data);
+
+    // 2. 启动 Windows 客户端 A 与 客户端 B
+    let app_a = App::init(Some(dir_a.clone())).expect("init A");
+    let app_b = App::init(Some(dir_b.clone())).expect("init B");
+
+    // 强制 A 选用 TCP 模式
+    app_a.set_config(r#"{"prefer_quic": false}"#).unwrap();
+
+    let uuid_a = app_a.device_uuid();
+    let uuid_b = app_b.device_uuid();
+    let fp_a = app_a.local_fingerprint();
+    let fp_b = app_b.local_fingerprint();
+    let port_b = app_b.engine_port();
+
+    let save_dir = dir_b.join("save");
+    std::fs::create_dir_all(&save_dir).unwrap();
+    let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
+    app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
+    app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
+    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#, save_dir_json)).unwrap();
+
+    // 3. A 直连 B（走 TCP）
+    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    std::thread::sleep(Duration::from_millis(300));
+
+    // 4. A 发送文件
+    let src_path_str = src_file.to_str().unwrap().to_string();
+    let _task_id = app_a.send_files(&uuid_b, &[src_path_str]).expect("send_files");
+
+    // 5. 等待完成
+    let start = Instant::now();
+    let mut success = false;
+    while start.elapsed() < Duration::from_secs(15) {
+        let tasks_a_json = app_a.get_tasks_json();
+        let tasks_b_json = app_b.get_tasks_json();
+        if tasks_a_json.contains("\"state\":\"done\"") && tasks_b_json.contains("\"state\":\"done\"") {
+            success = true;
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    assert!(success, "TCP transfer timed out! Tasks A: {}, Tasks B: {}", app_a.get_tasks_json(), app_b.get_tasks_json());
+
+    // 6. 验证传输协议为 TCP 且哈希一致
+    let tasks_a: Vec<serde_json::Value> = serde_json::from_str(&app_a.get_tasks_json()).unwrap();
+    assert_eq!(tasks_a[0]["transport"].as_str().unwrap(), "tcp", "发送端任务协议应为 tcp");
+
+    let received_files: Vec<_> = std::fs::read_dir(&save_dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .collect();
+    let recv_content = std::fs::read(received_files[0].path()).unwrap();
+    assert_eq!(blake3::hash(&recv_content), expected_hash, "TCP 传输落盘内容哈希不一致");
+
+    app_a.shutdown();
+    app_b.shutdown();
+    let _ = std::fs::remove_dir_all(&temp_root);
+}
+
+#[test]
+fn test_large_file_high_speed_transfer() {
+    crypto::ensure_provider();
+
+    let temp_root = std::env::temp_dir().join(format!("bt_e2e_large_{}_{}", std::process::id(), fastrand()));
+    let dir_a = temp_root.join("client_a");
+    let dir_b = temp_root.join("client_b");
+    let _ = std::fs::remove_dir_all(&temp_root);
+    std::fs::create_dir_all(&dir_a).unwrap();
+    std::fs::create_dir_all(&dir_b).unwrap();
+
+    // 1. 创建源测试大文件（20MB）
+    let src_file = dir_a.join("test_20mb_speed.dat");
+    let mut data = vec![0u8; 20 * 1024 * 1024];
+    for (i, byte) in data.iter_mut().enumerate() {
+        *byte = (i % 251) as u8;
+    }
+    std::fs::write(&src_file, &data).unwrap();
+    let expected_hash = blake3::hash(&data);
+
+    // 2. 启动客户端
+    let app_a = App::init(Some(dir_a.clone())).expect("init A");
+    let app_b = App::init(Some(dir_b.clone())).expect("init B");
+
+    let uuid_a = app_a.device_uuid();
+    let uuid_b = app_b.device_uuid();
+    let fp_a = app_a.local_fingerprint();
+    let fp_b = app_b.local_fingerprint();
+    let port_b = app_b.engine_port();
+
+    let save_dir = dir_b.join("save");
+    std::fs::create_dir_all(&save_dir).unwrap();
+    let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
+    app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
+    app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
+    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#, save_dir_json)).unwrap();
+
+    // 3. 连接
+    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    std::thread::sleep(Duration::from_millis(300));
+
+    // 4. 发送 20MB 文件并计时
+    let src_path_str = src_file.to_str().unwrap().to_string();
+    let t0 = Instant::now();
+    let _task_id = app_a.send_files(&uuid_b, &[src_path_str]).expect("send_files");
+
+    let start = Instant::now();
+    let mut success = false;
+    while start.elapsed() < Duration::from_secs(20) {
+        let tasks_a_json = app_a.get_tasks_json();
+        let tasks_b_json = app_b.get_tasks_json();
+        if tasks_a_json.contains("\"state\":\"done\"") && tasks_b_json.contains("\"state\":\"done\"") {
+            success = true;
+            break;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    let total_time = t0.elapsed();
+    assert!(success, "20MB 大文件传输超时! Tasks A: {}, Tasks B: {}", app_a.get_tasks_json(), app_b.get_tasks_json());
+
+    // 5. 校验哈希与速率
+    let received_files: Vec<_> = std::fs::read_dir(&save_dir)
+        .unwrap()
+        .filter_map(|e| e.ok())
+        .collect();
+    let recv_content = std::fs::read(received_files[0].path()).unwrap();
+    assert_eq!(blake3::hash(&recv_content), expected_hash, "20MB 文件哈希不匹配");
+
+    let mb = 20.0;
+    let sec = total_time.as_secs_f64();
+    let speed_mbs = mb / sec;
+    println!("20MB transfer completed in {:.2}s, throughput: {:.2} MB/s", sec, speed_mbs);
+
+    app_a.shutdown();
+    app_b.shutdown();
+    let _ = std::fs::remove_dir_all(&temp_root);
+}
+
 fn fastrand() -> u32 {
     use std::time::SystemTime;
     SystemTime::now()
