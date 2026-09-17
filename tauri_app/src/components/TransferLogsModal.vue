@@ -9,7 +9,7 @@ import { human, humanRate } from "../utils/format";
 const props = defineProps<{ open: boolean }>();
 const emit = defineEmits<{ (e: "update:open", v: boolean): void }>();
 
-const { logs, clearLogs } = useTransferLogs();
+const { logs, clearLogs, maxLogsCount } = useTransferLogs();
 
 const filter = ref<"all" | "send" | "recv">("all");
 const confirmClear = ref(false);
@@ -96,7 +96,7 @@ function executeClear() {
           </div>
           <div>
             <h2>传输记录日志</h2>
-            <span class="sub-text">共 {{ logs.length }} 条传输记录</span>
+            <span class="sub-text">共 {{ logs.length }} 条记录 · 上限 {{ maxLogsCount }} 条</span>
           </div>
         </div>
 

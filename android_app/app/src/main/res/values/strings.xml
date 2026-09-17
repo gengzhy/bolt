@@ -199,6 +199,13 @@
     <string name="setting_probe_port_desc">UDP 广播探测端口，修改后在当前任务结束后生效</string>
 
     <!-- 存储与维护分组 -->
+    <string name="setting_max_logs_title">最大日志记录数</string>
+    <string name="setting_max_logs_desc">传输记录日志最大保留条数（默认 40000），超出时自动淘汰最老记录</string>
+    <string name="setting_max_logs_unit">%d 条</string>
+    <string name="dialog_edit_max_logs_title">修改最大日志记录数</string>
+    <string name="dialog_edit_max_logs_label">最大条数（默认 40000）</string>
+    <string name="setting_max_logs_saved_toast">已保存最大日志记录数</string>
+
     <string name="setting_records_title">传输任务记录</string>
     <string name="setting_records_desc">清理列表中所有已完成、失败或取消的历史记录</string>
     <string name="setting_records_btn_clear">全部清除</string>

@@ -199,6 +199,13 @@
     <string name="setting_probe_port_desc">UDP port for discovery probes; changes take effect after current tasks finish</string>
 
     <!-- Maintenance Section -->
+    <string name="setting_max_logs_title">Max Log Records</string>
+    <string name="setting_max_logs_desc">Maximum number of transfer log records kept (default 40,000), oldest logs are deleted when exceeded</string>
+    <string name="setting_max_logs_unit">%d records</string>
+    <string name="dialog_edit_max_logs_title">Edit Max Log Records</string>
+    <string name="dialog_edit_max_logs_label">Record limit (default 40,000)</string>
+    <string name="setting_max_logs_saved_toast">Max log records setting saved</string>
+
     <string name="setting_records_title">Transfer History</string>
     <string name="setting_records_desc">Clear all completed, failed, and canceled transfer records</string>
     <string name="setting_records_btn_clear">Clear All</string>

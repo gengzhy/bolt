@@ -23,7 +23,8 @@ export interface TransferLogItem {
 }
 
 const STORAGE_KEY = "bolt_transfer_logs";
-const MAX_LOGS_COUNT = 500;
+const MAX_LOGS_KEY = "bolt_max_logs_count";
+const DEFAULT_MAX_LOGS = 40000;
 
 function loadFromStorage(): TransferLogItem[] {
   try {
@@ -33,6 +34,17 @@ function loadFromStorage(): TransferLogItem[] {
     return Array.isArray(parsed) ? parsed : [];
   } catch {
     return [];
+  }
+}
+
+function loadMaxLogsFromStorage(): number {
+  try {
+    const raw = localStorage.getItem(MAX_LOGS_KEY);
+    if (!raw) return DEFAULT_MAX_LOGS;
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : DEFAULT_MAX_LOGS;
+  } catch {
+    return DEFAULT_MAX_LOGS;
   }
 }
 
@@ -47,6 +59,7 @@ function saveToStorage(list: TransferLogItem[]) {
 // 模块级单例状态
 const logs = ref<TransferLogItem[]>(loadFromStorage());
 const logsOpen = ref(false);
+const maxLogsCount = ref<number>(loadMaxLogsFromStorage());
 
 export function useTransferLogs() {
   function recordTask(t: Task) {
@@ -104,9 +117,25 @@ export function useTransferLogs() {
     }
 
     list.sort((a, b) => b.start_time_ms - a.start_time_ms);
-    const capped = list.slice(0, MAX_LOGS_COUNT);
+    const limit = maxLogsCount.value || DEFAULT_MAX_LOGS;
+    const capped = list.slice(0, limit);
     logs.value = capped;
     saveToStorage(capped);
+  }
+
+  function setMaxLogsCount(n: number) {
+    const val = Number.isFinite(n) && n > 0 ? Math.round(n) : DEFAULT_MAX_LOGS;
+    maxLogsCount.value = val;
+    try {
+      localStorage.setItem(MAX_LOGS_KEY, String(val));
+    } catch (e) {
+      console.error("Failed to save max logs count", e);
+    }
+    if (logs.value.length > val) {
+      const capped = logs.value.slice(0, val);
+      logs.value = capped;
+      saveToStorage(capped);
+    }
   }
 
   function clearLogs() {
@@ -125,6 +154,8 @@ export function useTransferLogs() {
   return {
     logs,
     logsOpen,
+    maxLogsCount,
+    setMaxLogsCount,
     recordTask,
     clearLogs,
     openLogs,

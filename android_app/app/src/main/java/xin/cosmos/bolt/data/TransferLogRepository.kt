@@ -23,7 +23,9 @@ import java.io.File
  */
 object TransferLogRepository {
     private const val FILE_NAME = "transfer_logs.json"
-    private const val MAX_LOGS_COUNT = 500
+    private const val PREFS_NAME = "bolt_transfer_log_prefs"
+    private const val KEY_MAX_LOGS_COUNT = "max_logs_count"
+    const val DEFAULT_MAX_LOGS_COUNT = 40000
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
     private val mutex = Mutex()
@@ -32,11 +34,43 @@ object TransferLogRepository {
     private val _logs = MutableStateFlow<List<TransferLogUi>>(emptyList())
     val logs: StateFlow<List<TransferLogUi>> = _logs.asStateFlow()
 
+    private val _maxLogsCount = MutableStateFlow(DEFAULT_MAX_LOGS_COUNT)
+    val maxLogsCount: StateFlow<Int> = _maxLogsCount.asStateFlow()
+
     fun init(context: Context) {
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            val saved = prefs.getInt(KEY_MAX_LOGS_COUNT, DEFAULT_MAX_LOGS_COUNT)
+            _maxLogsCount.value = if (saved > 0) saved else DEFAULT_MAX_LOGS_COUNT
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+
         if (logFile != null) return
         logFile = File(context.filesDir, FILE_NAME)
         scope.launch {
             loadFromDisk()
+        }
+    }
+
+    fun setMaxLogsCount(context: Context, count: Int) {
+        val valid = if (count > 0) count else DEFAULT_MAX_LOGS_COUNT
+        _maxLogsCount.value = valid
+        try {
+            val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            prefs.edit().putInt(KEY_MAX_LOGS_COUNT, valid).apply()
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+        scope.launch {
+            mutex.withLock {
+                val current = _logs.value
+                if (current.size > valid) {
+                    val capped = current.take(valid)
+                    _logs.value = capped
+                    saveToDiskLocked(capped)
+                }
+            }
         }
     }
 
@@ -148,7 +182,8 @@ object TransferLogRepository {
 
                 current.sortByDescending { if (it.startTimeMs > 0) it.startTimeMs else it.taskId }
 
-                val capped = if (current.size > MAX_LOGS_COUNT) current.take(MAX_LOGS_COUNT) else current
+                val limit = _maxLogsCount.value
+                val capped = if (current.size > limit) current.take(limit) else current
                 _logs.value = capped
                 saveToDiskLocked(capped)
             }

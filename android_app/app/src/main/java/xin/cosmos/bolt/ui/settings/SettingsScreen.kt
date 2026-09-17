@@ -47,6 +47,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import xin.cosmos.bolt.R
+import xin.cosmos.bolt.data.TransferLogRepository
 import xin.cosmos.bolt.engine.BtEngine
 import xin.cosmos.bolt.model.UiState
 import xin.cosmos.bolt.ui.components.card.BtCard
@@ -458,10 +459,27 @@ private fun DiscoveryModule(state: UiState) {
 @Composable
 private fun MaintenanceModule(state: UiState) {
     val context = LocalContext.current
+    val maxLogsCount by TransferLogRepository.maxLogsCount.collectAsState()
+    var showMaxLogsDialog by remember { mutableStateOf(false) }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         BtSettingSectionHeader(stringResource(R.string.settings_section_maintenance))
         BtCard {
+            BtSettingRow(
+                title = stringResource(R.string.setting_max_logs_title),
+                subtitle = stringResource(R.string.setting_max_logs_desc),
+                onClick = { showMaxLogsDialog = true },
+            ) {
+                BtValueBadge(
+                    text = stringResource(R.string.setting_max_logs_unit, maxLogsCount) + "  ✎",
+                    mono = true,
+                    accent = true,
+                    onClick = { showMaxLogsDialog = true },
+                )
+            }
+
+            BtSettingDivider()
+
             BtSettingRow(
                 title = stringResource(R.string.setting_records_title),
                 subtitle = stringResource(R.string.setting_records_desc),
@@ -494,6 +512,28 @@ private fun MaintenanceModule(state: UiState) {
                 }
             }
         }
+    }
+
+    if (showMaxLogsDialog) {
+        BtValueEditDialog(
+            title = stringResource(R.string.dialog_edit_max_logs_title),
+            initialValue = maxLogsCount.toString(),
+            label = stringResource(R.string.dialog_edit_max_logs_label),
+            isNumber = true,
+            confirmText = stringResource(R.string.common_save),
+            dismissText = stringResource(R.string.common_cancel),
+            validator = { it.toIntOrNull()?.let { count -> count in 1..1000000 } == true },
+            onConfirm = { countStr ->
+                showMaxLogsDialog = false
+                countStr.toIntOrNull()?.let { newCount ->
+                    if (newCount in 1..1000000 && newCount != maxLogsCount) {
+                        TransferLogRepository.setMaxLogsCount(context, newCount)
+                        Toast.makeText(context, context.getString(R.string.setting_max_logs_saved_toast), Toast.LENGTH_SHORT).show()
+                    }
+                }
+            },
+            onDismiss = { showMaxLogsDialog = false },
+        )
     }
 }
 

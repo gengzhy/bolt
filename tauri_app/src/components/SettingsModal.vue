@@ -9,6 +9,7 @@
 import { onMounted, onUnmounted, ref, watch } from "vue";
 import { open as pickDialog } from "@tauri-apps/plugin-dialog";
 import { useBt } from "../composables/useBt";
+import { useTransferLogs } from "../composables/useTransferLogs";
 import logoSvg from "../assets/logo.svg";
 import appConfig from "../config/app.json";
 
@@ -32,8 +33,10 @@ const {
   showToast,
   refreshLocalInfo,
 } = useBt();
+const { maxLogsCount, setMaxLogsCount } = useTransferLogs();
 
 const loaded = ref(false);
+const maxLogsInput = ref(maxLogsCount.value);
 
 // 1. 本机设备
 const deviceName = ref("");
@@ -81,6 +84,7 @@ watch(
         autoAcceptTrusted.value = Boolean(cfg.auto_accept_trusted);
         loaded.value = true;
       }
+      maxLogsInput.value = maxLogsCount.value;
     }
   },
 );
@@ -94,6 +98,14 @@ onUnmounted(() => window.removeEventListener("keydown", onKey));
 // 即改即生效：修改配置项即时异步持久化
 async function updateConfig(patch: Record<string, unknown>, silent = true) {
   await saveConfig(patch, silent);
+}
+
+function onMaxLogsChange() {
+  let val = Math.round(Number(maxLogsInput.value));
+  if (!val || val <= 0) val = 40000;
+  maxLogsInput.value = val;
+  setMaxLogsCount(val);
+  showToast(`最大日志记录数已更新为 ${val} 条`);
 }
 
 async function onNameChange() {
@@ -429,6 +441,25 @@ async function copyFingerprint() {
               <span class="section-title">存储与维护</span>
             </div>
             <div class="setting-card">
+              <!-- 最大日志记录数 -->
+              <div class="setting-item">
+                <div class="setting-row">
+                  <span class="setting-title">最大日志记录数</span>
+                  <div class="setting-ctrl">
+                    <input
+                      v-model.number="maxLogsInput"
+                      type="number"
+                      min="1"
+                      max="1000000"
+                      class="num-input log-limit-input"
+                      @change="onMaxLogsChange"
+                      @keydown.enter="($event.target as HTMLElement)?.blur()"
+                    />
+                  </div>
+                </div>
+                <div class="setting-desc">传输记录日志最大保留条数（默认 40000），超出时自动淘汰最老记录</div>
+              </div>
+
               <!-- 传输任务记录 -->
               <div class="setting-item">
                 <div class="setting-row">
@@ -762,6 +793,9 @@ async function copyFingerprint() {
 }
 .num-input {
   width: 86px;
+}
+.log-limit-input {
+  width: 96px;
 }
 .text-input:focus, .num-input:focus {
   border-color: var(--accent);
