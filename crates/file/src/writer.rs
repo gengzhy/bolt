@@ -22,6 +22,7 @@ pub enum NameCollisionPolicy {
 /// 接收端临时文件写入器。
 pub struct FileWriter {
     tmp_path: PathBuf,
+    dest_path: Option<PathBuf>,
     file: File,
     size: u64,
     written_bytes: u64,
@@ -30,7 +31,46 @@ pub struct FileWriter {
 }
 
 impl FileWriter {
-    /// 在临时目录创建接收临时文件。
+    /// 在保存目录下直接创建预分配的临时文件（以 `.bttmp` 为后缀）。
+    /// 依同名策略先确定最终目标路径 `dest_path`，并在同级目录创建临时写入文件 `{dest_path}.bttmp`。
+    /// 校验通过后直接在同目录就地执行原子 rename，杜绝跨卷拷贝并避免不完整文件被误读。
+    pub fn create_in_save_dir(
+        save_dir: &Path,
+        rel_path: &str,
+        policy: NameCollisionPolicy,
+        size: u64,
+    ) -> BtResult<FileWriter> {
+        let dest_path = build_dest_path(save_dir, rel_path, policy)?;
+        if let Some(parent) = dest_path.parent() {
+            fs::create_dir_all(parent).map_err(|_| BtError::PermissionDenied)?;
+        }
+        let file_name = dest_path
+            .file_name()
+            .ok_or(BtError::InvalidArgument)?
+            .to_string_lossy();
+        let tmp_path = dest_path.with_file_name(format!("{file_name}.bttmp"));
+        let file = fs::OpenOptions::new()
+            .read(true)
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&tmp_path)
+            .map_err(|_| BtError::Internal)?;
+        if size > 0 {
+            let _ = file.set_len(size);
+        }
+        Ok(FileWriter {
+            tmp_path,
+            dest_path: Some(dest_path),
+            file,
+            size,
+            written_bytes: 0,
+            current_offset: 0,
+            hasher: Some(blake3::Hasher::new()),
+        })
+    }
+
+    /// 在临时目录创建接收临时文件（向后兼容）。
     pub fn create(tmp_dir: &Path, unique_name: &str, size: u64) -> BtResult<FileWriter> {
         fs::create_dir_all(tmp_dir).map_err(|_| BtError::PermissionDenied)?;
         let tmp_path = tmp_dir.join(format!("{unique_name}.tmp"));
@@ -46,6 +86,7 @@ impl FileWriter {
         }
         Ok(FileWriter {
             tmp_path,
+            dest_path: None,
             file,
             size,
             written_bytes: 0,
@@ -103,7 +144,13 @@ impl FileWriter {
         if !self.is_complete() {
             return Err(BtError::Internal);
         }
-        let FileWriter { tmp_path, file, hasher, .. } = self;
+        let FileWriter {
+            tmp_path,
+            dest_path,
+            file,
+            hasher,
+            ..
+        } = self;
         let _ = file.sync_all();
         drop(file);
 
@@ -117,7 +164,10 @@ impl FileWriter {
             let _ = fs::remove_file(&tmp_path);
             return Err(BtError::ChecksumMismatch);
         }
-        let dest = build_dest_path(save_dir, rel_path, policy)?;
+        let dest = match dest_path {
+            Some(d) => d,
+            None => build_dest_path(save_dir, rel_path, policy)?,
+        };
         if let Some(parent) = dest.parent() {
             fs::create_dir_all(parent).map_err(|_| BtError::PermissionDenied)?;
         }
@@ -182,11 +232,17 @@ fn build_dest_path(
     Err(BtError::Internal)
 }
 
-/// 移动文件（优先 rename；跨卷失败时退化为拷贝+删除）。
+/// 移动文件（优先 rename；Windows 覆盖或跨卷失败时退化为拷贝+删除）。
 fn move_file(from: &Path, to: &Path) -> BtResult<()> {
     match fs::rename(from, to) {
         Ok(()) => Ok(()),
         Err(_) => {
+            if to.exists() {
+                let _ = fs::remove_file(to);
+                if fs::rename(from, to).is_ok() {
+                    return Ok(());
+                }
+            }
             fs::copy(from, to).map_err(|_| BtError::Internal)?;
             let _ = fs::remove_file(from);
             Ok(())
@@ -266,6 +322,60 @@ mod tests {
         let _ = fs::remove_dir_all(&base);
         let mut w = FileWriter::create(&base, "t3", 4).unwrap();
         assert!(w.write_chunk(2, b"abcd").is_err());
+        let _ = fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn bttmp_in_save_dir_lifecycle() {
+        let base = std::env::temp_dir().join(format!("bt-writer-bttmp-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&base);
+        let save = base.join("save");
+
+        let data = b"hello world .bttmp test";
+        let mut w = FileWriter::create_in_save_dir(
+            &save,
+            "docs/notes.txt",
+            NameCollisionPolicy::AutoRename,
+            data.len() as u64,
+        )
+        .unwrap();
+
+        let tmp_path = w.tmp_path().to_path_buf();
+        assert!(tmp_path.ends_with("notes.txt.bttmp"));
+        assert!(tmp_path.exists());
+        assert!(!save.join("docs/notes.txt").exists());
+
+        w.write_chunk(0, data).unwrap();
+        assert!(w.is_complete());
+
+        let hash = blake3::hash(data);
+        let dest = w
+            .verify_and_place(
+                hash.as_bytes(),
+                &save,
+                "docs/notes.txt",
+                NameCollisionPolicy::AutoRename,
+            )
+            .unwrap();
+
+        assert!(!tmp_path.exists(), ".bttmp 文件应已重命名消失");
+        assert_eq!(dest, save.join("docs/notes.txt"));
+        assert!(dest.exists());
+        assert_eq!(fs::read(&dest).unwrap(), data);
+
+        let w2 = FileWriter::create_in_save_dir(
+            &save,
+            "docs/notes.txt",
+            NameCollisionPolicy::AutoRename,
+            10,
+        )
+        .unwrap();
+        let tmp_path2 = w2.tmp_path().to_path_buf();
+        assert!(tmp_path2.ends_with("notes(1).txt.bttmp"));
+        assert!(tmp_path2.exists());
+        w2.discard();
+        assert!(!tmp_path2.exists());
+
         let _ = fs::remove_dir_all(&base);
     }
 }

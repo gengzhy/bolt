@@ -333,7 +333,7 @@ async fn disconnect_aborts_send_immediately() {
     let h_b = Arc::new(AutoHandler::default());
 
     let engine_a = TransferEngine::start(
-        engine_cfg(&dir_a, 8963),
+        engine_cfg(&dir_a, 8943),
         id_a,
         trust_a,
         h_a.clone() as Arc<dyn SessionHandler>,
@@ -341,7 +341,7 @@ async fn disconnect_aborts_send_immediately() {
     .await
     .unwrap();
     let engine_b = TransferEngine::start(
-        engine_cfg(&dir_b, 8964),
+        engine_cfg(&dir_b, 8944),
         id_b,
         trust_b,
         h_b.clone() as Arc<dyn SessionHandler>,

@@ -163,9 +163,12 @@ pub fn on_file_meta(
         mtime_unix: mtime,
     };
 
-    let uid_hex: String = task.req.task_uid.iter().map(|b| format!("{:02x}", b)).collect();
-    let task_tmp = session.cfg.tmp_dir.join(format!("task_{uid_hex}"));
-    let writer = match FileWriter::create(&task_tmp, &format!("f{file_seq}"), size) {
+    let writer = match FileWriter::create_in_save_dir(
+        &session.cfg.save_dir,
+        &rel_path,
+        session.cfg.collision,
+        size,
+    ) {
         Ok(w) => w,
         Err(e) => {
             let _ = session.send_file(
