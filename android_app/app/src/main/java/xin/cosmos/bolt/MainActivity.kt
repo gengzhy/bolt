@@ -16,6 +16,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import xin.cosmos.bolt.engine.BtEngine
 import xin.cosmos.bolt.engine.NsdHelper
+import xin.cosmos.bolt.engine.SharePayloadHelper
 import xin.cosmos.bolt.ui.MainScreen
 import xin.cosmos.bolt.ui.theme.BtTheme
 
@@ -43,6 +44,7 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         ensurePermissions()
         ensureStoragePermission()
+        SharePayloadHelper.handleShareIntent(this, intent)
         setContent {
             BtTheme {
                 MainScreen()
@@ -61,6 +63,7 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
+        SharePayloadHelper.handleShareIntent(this, intent)
         BtEngine.syncTasks()
         PersistentNotification.show(this)
     }

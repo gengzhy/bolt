@@ -36,11 +36,15 @@ object SendStager {
             val paths = ArrayList<String>(uris.size)
             try {
                 for (uri in uris) {
-                    val doc = DocumentFile.fromSingleUri(context, uri) ?: continue
-                    val name = sanitize(doc.name ?: "file")
+                    val rawName = SharePayloadHelper.resolveDisplayName(context, uri)
+                    val name = sanitize(rawName)
                     val dest = uniqueFile(root, name)
-                    total += copyInto(context, uri, dest)
-                    paths += dest.absolutePath
+                    try {
+                        total += copyInto(context, uri, dest)
+                        paths += dest.absolutePath
+                    } catch (_: Exception) {
+                        dest.delete()
+                    }
                 }
             } catch (e: Exception) {
                 root.deleteRecursively()

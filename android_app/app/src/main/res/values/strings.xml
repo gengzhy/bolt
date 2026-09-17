@@ -58,6 +58,16 @@
     <string name="folder_picker_perm_hint">需要所有文件访问权限才能浏览选择文件，请在系统设置中开启。</string>
     <string name="folder_picker_perm_btn">去设置开启</string>
 
+    <!-- 快速分享发送到设备 -->
+    <string name="quick_share_title">发送到设备</string>
+    <string name="quick_share_file_summary">待发送 %1$d 个文件：%2$s</string>
+    <string name="quick_share_file_summary_single">待发送文件：%1$s</string>
+    <string name="quick_share_select_device_hint">选择局域网设备开始发送</string>
+    <string name="quick_share_no_devices">正在搜索局域网设备…</string>
+    <string name="quick_share_manual_connect">手动连接</string>
+    <string name="quick_share_staging">正在准备文件…</string>
+    <string name="quick_share_started">已开始发送</string>
+
     <!-- ========================================== -->
     <!-- 3. 传输模块 (TransfersScreen)              -->
     <!-- ========================================== -->

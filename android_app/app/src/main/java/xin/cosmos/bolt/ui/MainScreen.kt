@@ -63,9 +63,11 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import xin.cosmos.bolt.R
 import xin.cosmos.bolt.engine.BtEngine
+import xin.cosmos.bolt.engine.SharePayloadHelper
 import xin.cosmos.bolt.model.OneShotEvent
 import xin.cosmos.bolt.ui.components.motion.AnimatedPageHost
 import xin.cosmos.bolt.ui.devices.DevicesScreen
+import xin.cosmos.bolt.ui.devices.QuickShareDialog
 import xin.cosmos.bolt.ui.settings.SettingsScreen
 import xin.cosmos.bolt.ui.transfers.TransfersScreen
 
@@ -248,5 +250,17 @@ fun MainScreen() {
     }
     if (state.initError != 0) {
         InitErrorDialog(code = state.initError)
+    }
+
+    // 系统分享快速发送弹窗
+    val pendingShare by SharePayloadHelper.pendingShare.collectAsState()
+    pendingShare?.let { payload ->
+        QuickShareDialog(
+            payload = payload,
+            onDismiss = { SharePayloadHelper.clear() },
+            onSendSuccess = {
+                tab = 1 // 自动切换至传输页签查看传输进度
+            },
+        )
     }
 }

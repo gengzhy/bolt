@@ -58,6 +58,16 @@
     <string name="folder_picker_perm_hint">All files access permission is required to browse and select files.</string>
     <string name="folder_picker_perm_btn">Go to Settings</string>
 
+    <!-- Quick Share to Device -->
+    <string name="quick_share_title">Send to Device</string>
+    <string name="quick_share_file_summary">%1$d file(s) to send: %2$s</string>
+    <string name="quick_share_file_summary_single">File to send: %1$s</string>
+    <string name="quick_share_select_device_hint">Select a nearby device to start sending</string>
+    <string name="quick_share_no_devices">Searching for nearby devices…</string>
+    <string name="quick_share_manual_connect">Manual Connect</string>
+    <string name="quick_share_staging">Preparing files…</string>
+    <string name="quick_share_started">Transfer started</string>
+
     <!-- ========================================== -->
     <!-- 3. Transfers Module (TransfersScreen)      -->
     <!-- ========================================== -->
