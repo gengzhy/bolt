@@ -62,119 +62,47 @@ scripts/          构建与测试脚本
 
 ```
 ┌─────────────┐         QUIC / TCP + TLS 1.3         ┌─────────────┐
-│  发送端 App  │ ◄──────────────────────────────────► │  接收端 App  │
-│   (task)    │    mDNS / UDP 发现  ←→  设备列表     │   (task)    │
-└──────┬───────┘                                      └──────┬───────┘
+│  发送端 App  │ ◄──────────────────────────────────► │  接收端 App │
+│   (task)    │    mDNS / UDP 发现  ←→  设备列表      │   (task)    │
+└──────┬──────┘                                      └──────┬──────┘
        │ FFI (C ABI)                                         │ FFI
 ┌──────┴───────┐                                      ┌──────┴───────┐
-│ Tauri / 前端  │                                      │ Kotlin / UI  │
+│ Tauri（前端） │                                      │ Kotlin（UI） │
 │ (Windows)    │                                      │ (Android)    │
 └──────────────┘                                      └──────────────┘
 ```
 
 ## 🚀 快速开始
 
-### 环境要求
+### 运行预编译版
+Bolt 提供了开箱即用的双端安装包与免安装便携版，可直接从 [dist/](dist/) 目录或 Releases 下载使用：
+- **Windows 端**：直接运行 `dist/windows/bundle/portable/bolt_0.1.0_x64-portable.exe` 或使用 NSIS/MSI 安装向导。
+- **Android 端**：在手机上安装 `dist/android/bolt_0.1.0_universal-release.apk`。
 
-- **Rust** ≥ 1.85（推荐 1.98+），MSVC 工具链（Windows）
-- **Node.js** ≥ 18（Tauri 前端构建）
-- **Android NDK**（Android 端编译）
-- **cargo-ndk**（`cargo install cargo-ndk`）
+### 源码一键构建
+如需从源码编译全平台发行包，可使用一键自动化打包脚本：
 
-### 编译与打包 Windows 桌面端（标准 bundle 目录结构）
+```powershell
+# Windows 端全量打包（便携版 + CLI + NSIS + MSI 四大形态）
+powershell.exe -ExecutionPolicy Bypass -File scripts\build_windows_dist.ps1 -Mode release
 
-Windows 端打包产物统一归档在 `bundle/` 目录下（Release 与 Debug 均包含完整的四类产物，支持便携版与命令行调试工具单独归档）：
-
-```
-bundle/
-├── portable/  -> bolt_0.1.0_x64-portable.exe   (单文件绿色便携版，免安装)
-├── cli/       -> bolt_0.1.0_x64-cli.exe        (命令行联调端，双机互传联调利器)
-├── nsis/      -> bolt_0.1.0_x64-setup.exe      (NSIS 桌面安装引导向导，含卸载程序)
-└── msi/       -> bolt_0.1.0_x64_zh-CN.msi      (WiX MSI 企业标准包，支持域控静默下发)
+# Android 端全量打包（跨编译 SO 动态库 + R8 优化压缩 APK）
+powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_dist.ps1 -Mode release
 ```
 
-- **一键全量打包 Release 版（推荐）**：
-  ```powershell
-  # 自动编译并打包 portable、cli、nsis、msi 四类产物，并同步至 dist\windows\bundle\
-  powershell.exe -ExecutionPolicy Bypass -File scripts\build_windows_dist.ps1 -Mode release
-  # 或在 tauri_app 目录下执行：
-  cd tauri_app && npm run build:all
-  ```
-
-- **一键全量打包 Debug 版**：
-  ```powershell
-  # 自动为开发调试编译全套四类产物（位于 target\debug\bundle\）
-  powershell.exe -ExecutionPolicy Bypass -File scripts\build_windows_dist.ps1 -Mode debug
-  # 或在 tauri_app 目录下执行：
-  cd tauri_app && npm run build:debug
-  ```
-
-- **单独编译与打包指定产物**：
-  ```bash
-  cd tauri_app
-  npm run build:portable    # 仅打包绿色便携版 -> bundle/portable/bolt_0.1.0_x64-portable.exe
-  npm run build:cli         # 仅编译命令行工具 -> bundle/cli/bolt_0.1.0_x64-cli.exe
-  npm run build:nsis        # 仅打包 NSIS 安装包 -> bundle/nsis/bolt_0.1.0_x64-setup.exe
-  npm run build:msi         # 仅打包 MSI 安装包 -> bundle/msi/bolt_0.1.0_x64_zh-CN.msi
-  ```
-
-- **编译 Windows FFI 动态库**：
-  ```cmd
-  scripts\build_rust_lib.bat
-  # 产物输出于：lib/win64/bt_ffi.dll 及 target/release/bolt-cli.exe
-  ```
-
-### 编译与打包 Android 端（规范化命名）
-
-Android 端打包产物命名规范与 Windows 端完全保持一致（`<应用名>_<版本号>_<架构>-<变体>.<扩展名>`）：
-
-```
-dist/android/
-├── bolt_0.1.0_universal-release.apk   (Release 发布版，R8 极致优化压缩，约 15.5 MB)
-└── debug/
-    └── bolt_0.1.0_universal-debug.apk (Debug 调试版，含完整调试信息)
-```
-
-- **一键全量打包脚本（推荐）**：
-  ```powershell
-  # 自动校验 Rust JNI 库并生成 Release APK，归档至 dist\android\
-  powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_dist.ps1 -Mode release
-
-  # 打包 Debug 版：
-  powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_dist.ps1 -Mode debug
-  ```
-
-- **手动 Gradle 构建**：
-  ```bash
-  # 1. 编译 Rust 动态库（.so）（自动覆盖三大架构 aarch64, armv7, x86_64）
-  scripts\build_android_lib.bat    # 或 powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_lib.ps1
-
-  # 2. 构建发布版 APK
-  cd android_app
-  ./gradlew.bat assembleRelease
-  # 产物输出：android_app/app/build/outputs/apk/release/bolt_0.1.0_universal-release.apk
-
-  # 3. （可选）构建调试版 APK
-  ./gradlew.bat assembleDebug
-  # 产物输出：android_app/app/build/outputs/apk/debug/bolt_0.1.0_universal-debug.apk
-
-  # 4. 安装到测试设备
-  adb install -r ./app/build/outputs/apk/release/bolt_0.1.0_universal-release.apk
-  ```
+> 💡 完整的环境搭建、分步打包、单项形态编译、质量门禁与排障细节，请参阅 📖 [编译指南](docs/build_guide.md)。
 
 ### 命令行联调（bolt-cli）
 
 ```bash
-cargo build -p bolt-cli
+# 启动接收端（监听 8899 端口）
+cargo run -p bolt-cli -- serve --port 8899 --data-dir target/cli_a
 
-# 接收端
-./target/debug/bolt-cli.exe serve --port 8899 --data-dir target/cli_a
+# 发送文件至目标设备
+cargo run -p bolt-cli -- send --data-dir target/cli_b 127.0.0.1:8899 ./file.zip
 
-# 发送端
-./target/debug/bolt-cli.exe send --data-dir target/cli_b 127.0.0.1:8899 ./file.zip
-
-# 浏览局域网设备
-./target/debug/bolt-cli.exe discover
+# 浏览局域网中的在线设备
+cargo run -p bolt-cli -- discover
 ```
 
 ## 📱 使用说明
@@ -196,22 +124,14 @@ cargo build -p bolt-cli
 | **文件校验** | BLAKE3 全文件哈希，字节级一致性保证 |
 | **隐私保护** | 零外网请求、零遥测、日志不含文件内容与密钥 |
 
-## 📋 质量门禁
-
-```bash
-cargo fmt --all -- --check           # 代码格式检查
-cargo clippy --workspace --all-targets -- -D warnings   # 静态分析
-cargo test --workspace               # 全量单元测试
-bash scripts/smoke_loopback.sh       # 环回冒烟测试（QUIC + TCP + 校验）
-```
-
 ## 📖 文档
 
 | 文档 | 说明 |
 |------|------|
 | [协议规范](docs/protocol_spec.md) | 帧格式、指令码、握手流程、错误码 |
 | [FFI API](docs/ffi_api.md) | `bt_*` C ABI 接口与事件定义 |
-| [开发指南](docs/dev_guide.md) | 架构速览、环境配置、构建步骤、测试约定 |
+| [开发指南](docs/dev_guide.md) | 架构速览、全局常量、新增功能检查单 |
+| [编译指南](docs/build_guide.md) | 环境配置、质量门禁、Windows/Android 全形态打包流程 |
 | [项目结构](docs/project_structure.md) | 仓库完整文件树、分层约束与打包产物规范 |
 | [隐私政策](docs/privacy_policy.md) | 纯局域网数据安全、操作系统权限与合规声明 |
 
