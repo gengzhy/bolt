@@ -8,7 +8,14 @@
     "dev": "vite",
     "build": "vue-tsc --noEmit && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "build:portable": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Target portable",
+    "build:cli": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Target cli",
+    "build:nsis": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Target nsis",
+    "build:msi": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Target msi",
+    "build:all": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Mode release",
+    "build:debug": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Mode debug",
+    "build:both": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Mode all"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",

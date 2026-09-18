@@ -28,7 +28,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": "all",
+    "targets": ["nsis", "msi"],
     "category": "Utility",
     "icon": [
       "icons/32x32.png",
@@ -37,6 +37,16 @@
       "icons/icon.ico"
     ],
     "shortDescription": "局域网点对点文件传输",
-    "longDescription": "Bolt：纯局域网、无服务器的 P2P 文件传输工具"
+    "longDescription": "Bolt：纯局域网、无服务器的 P2P 文件传输工具",
+    "windows": {
+      "nsis": {
+        "installMode": "currentUser",
+        "displayLanguageSelector": false,
+        "languages": ["SimpChinese", "English"]
+      },
+      "wix": {
+        "language": "zh-CN"
+      }
+    }
   }
 }

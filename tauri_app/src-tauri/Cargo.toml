@@ -30,3 +30,12 @@ serde_json = "1"
 bt_ffi = { package = "ffi", path = "../../crates/ffi" }
 # 待发送清单统计（文件/文件夹大小数量）直接复用遍历器
 file = { path = "../../crates/file" }
+
+# 官方主流发布期尺寸极致优化（消除死代码、跨 crate 链接优化、剥离符号表与展开段）
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+

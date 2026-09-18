@@ -24,7 +24,9 @@ android {
 
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("debug")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -33,7 +35,7 @@ android {
     }
 
     base {
-        archivesName.set("bolt")
+        archivesName.set("bolt_${defaultConfig.versionName}_universal")
     }
 
     compileOptions {
@@ -74,8 +76,34 @@ afterEvaluate {
     tasks.named("assembleDebug").configure {
         doLast {
             val apkDir = layout.buildDirectory.dir("outputs/apk/debug").get().asFile
+            val targetName = "bolt_${android.defaultConfig.versionName}_universal-debug.apk"
             val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != "bolt.apk" }
+            if (apk != null && apk.name != targetName) {
+                apk.copyTo(File(apkDir, targetName), overwrite = true)
+            }
             apk?.copyTo(File(apkDir, "bolt.apk"), overwrite = true)
+            // 同步至 dist/android/debug/
+            val distDebug = rootProject.projectDir.parentFile.resolve("dist/android/debug")
+            distDebug.mkdirs()
+            val finalApk = File(apkDir, targetName).takeIf { it.exists() } ?: apk
+            finalApk?.copyTo(distDebug.resolve(targetName), overwrite = true)
+        }
+    }
+    tasks.named("assembleRelease").configure {
+        doLast {
+            val apkDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
+            val targetName = "bolt_${android.defaultConfig.versionName}_universal-release.apk"
+            val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != "bolt.apk" && it.name != "bolt-release.apk" }
+            if (apk != null && apk.name != targetName) {
+                apk.copyTo(File(apkDir, targetName), overwrite = true)
+            }
+            apk?.copyTo(File(apkDir, "bolt.apk"), overwrite = true)
+            apk?.copyTo(File(apkDir, "bolt-release.apk"), overwrite = true)
+            // 同步至 dist/android/
+            val distRelease = rootProject.projectDir.parentFile.resolve("dist/android")
+            distRelease.mkdirs()
+            val finalApk = File(apkDir, targetName).takeIf { it.exists() } ?: apk
+            finalApk?.copyTo(distRelease.resolve(targetName), overwrite = true)
         }
     }
 }

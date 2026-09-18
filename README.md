@@ -81,44 +81,86 @@ scripts/          构建与测试脚本
 - **Android NDK**（Android 端编译）
 - **cargo-ndk**（`cargo install cargo-ndk`）
 
-### 编译 Windows 桌面端
+### 编译与打包 Windows 桌面端（标准 bundle 目录结构）
 
-- **直接打包独立可执行文件（推荐，免 Node 环境）**：
-  静态资产已内嵌于 `tauri_app/dist`，直接通过 Rust 工具链构建：
-  ```bash
-  cd tauri_app/src-tauri
-  cargo build --release
-  # 产物输出于：tauri_app/src-tauri/target/release/bolt.exe
+Windows 端打包产物统一归档在 `bundle/` 目录下（Release 与 Debug 均包含完整的四类产物，支持便携版与命令行调试工具单独归档）：
+
+```
+bundle/
+├── portable/  -> bolt_0.1.0_x64-portable.exe   (单文件绿色便携版，免安装)
+├── cli/       -> bolt_0.1.0_x64-cli.exe        (命令行联调端，双机互传联调利器)
+├── nsis/      -> bolt_0.1.0_x64-setup.exe      (NSIS 桌面安装引导向导，含卸载程序)
+└── msi/       -> bolt_0.1.0_x64_zh-CN.msi      (WiX MSI 企业标准包，支持域控静默下发)
+```
+
+- **一键全量打包 Release 版（推荐）**：
+  ```powershell
+  # 自动编译并打包 portable、cli、nsis、msi 四类产物，并同步至 dist\windows\bundle\
+  powershell.exe -ExecutionPolicy Bypass -File scripts\build_windows_dist.ps1 -Mode release
+  # 或在 tauri_app 目录下执行：
+  cd tauri_app && npm run build:all
   ```
 
-- **编译 Windows FFI 动态库与 CLI 工具**：
+- **一键全量打包 Debug 版**：
+  ```powershell
+  # 自动为开发调试编译全套四类产物（位于 target\debug\bundle\）
+  powershell.exe -ExecutionPolicy Bypass -File scripts\build_windows_dist.ps1 -Mode debug
+  # 或在 tauri_app 目录下执行：
+  cd tauri_app && npm run build:debug
+  ```
+
+- **单独编译与打包指定产物**：
+  ```bash
+  cd tauri_app
+  npm run build:portable    # 仅打包绿色便携版 -> bundle/portable/bolt_0.1.0_x64-portable.exe
+  npm run build:cli         # 仅编译命令行工具 -> bundle/cli/bolt_0.1.0_x64-cli.exe
+  npm run build:nsis        # 仅打包 NSIS 安装包 -> bundle/nsis/bolt_0.1.0_x64-setup.exe
+  npm run build:msi         # 仅打包 MSI 安装包 -> bundle/msi/bolt_0.1.0_x64_zh-CN.msi
+  ```
+
+- **编译 Windows FFI 动态库**：
   ```cmd
   scripts\build_rust_lib.bat
   # 产物输出于：lib/win64/bt_ffi.dll 及 target/release/bolt-cli.exe
   ```
 
-- **完整前端热重载开发 / NSIS 打包（需 Node.js）**：
-  ```bash
-  cd tauri_app && npm install && npm run tauri dev
-  cd tauri_app && npm run tauri build
+### 编译与打包 Android 端（规范化命名）
+
+Android 端打包产物命名规范与 Windows 端完全保持一致（`<应用名>_<版本号>_<架构>-<变体>.<扩展名>`）：
+
+```
+dist/android/
+├── bolt_0.1.0_universal-release.apk   (Release 发布版，R8 极致优化压缩，约 15.5 MB)
+└── debug/
+    └── bolt_0.1.0_universal-debug.apk (Debug 调试版，含完整调试信息)
+```
+
+- **一键全量打包脚本（推荐）**：
+  ```powershell
+  # 自动校验 Rust JNI 库并生成 Release APK，归档至 dist\android\
+  powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_dist.ps1 -Mode release
+
+  # 打包 Debug 版：
+  powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_dist.ps1 -Mode debug
   ```
 
-### 编译 Android 端
+- **手动 Gradle 构建**：
+  ```bash
+  # 1. 编译 Rust 动态库（.so）（自动覆盖三大架构 aarch64, armv7, x86_64）
+  scripts\build_android_lib.bat    # 或 powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_lib.ps1
 
-```bash
-# 1. 添加 Android 编译目标（首次需要）
-rustup target add aarch64-linux-android armv7-linux-androideabi x86_64-linux-android
+  # 2. 构建发布版 APK
+  cd android_app
+  ./gradlew.bat assembleRelease
+  # 产物输出：android_app/app/build/outputs/apk/release/bolt_0.1.0_universal-release.apk
 
-# 2. 编译 Rust 动态库（.so）（自动支持三大架构 aarch64, armv7, x86_64）
-scripts\build_android_lib.bat    # 或 powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_lib.ps1
+  # 3. （可选）构建调试版 APK
+  ./gradlew.bat assembleDebug
+  # 产物输出：android_app/app/build/outputs/apk/debug/bolt_0.1.0_universal-debug.apk
 
-# 3. 构建 APK
-cd android_app
-./gradlew.bat :app:assembleDebug
-
-# 4. 安装到设备
-adb install -r ./app/build/outputs/apk/debug/bolt.apk
-```
+  # 4. 安装到测试设备
+  adb install -r ./app/build/outputs/apk/release/bolt_0.1.0_universal-release.apk
+  ```
 
 ### 命令行联调（bolt-cli）
 
