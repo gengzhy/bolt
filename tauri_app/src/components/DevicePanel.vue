@@ -50,9 +50,9 @@ function transportOf(uuid: string): string {
   return t ? ` · ${t.toUpperCase()}` : "";
 }
 
-// 设备类型图标（PC / Android / iPhone）
+// 设备类型图标（PC / Android / iPhone / Linux）
 function typeIcon(t: number): string {
-  if (t === 1) return "M2 4h20v13H2zM8 21h8M12 17v4";
+  if (t === 1 || t === 4 || t === 5) return "M2 4h20v13H2zM8 21h8M12 17v4";
   if (t === 2 || t === 3) return "M7 2h10a1 1 0 0 1 1 1v18a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1V3a1 1 0 0 1 1-1zM11 18h2";
   return "M2 4h20v13H2zM8 21h8M12 17v4";
 }
@@ -61,6 +61,8 @@ function typeTitle(t: number): string {
     case 1: return "电脑（Windows）";
     case 2: return "手机（Android）";
     case 3: return "手机（iOS）";
+    case 4: return "电脑（Linux）";
+    case 5: return "电脑（macOS）";
     default: return "设备";
   }
 }

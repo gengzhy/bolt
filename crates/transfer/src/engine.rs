@@ -308,6 +308,8 @@ impl TransferEngine {
 pub fn device_type() -> DeviceType {
     if cfg!(windows) {
         DeviceType::Windows
+    } else if cfg!(target_os = "linux") {
+        DeviceType::Linux
     } else {
         DeviceType::Android
     }

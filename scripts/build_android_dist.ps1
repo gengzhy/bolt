@@ -1,8 +1,9 @@
 <#
 .SYNOPSIS
-    Builds and packages Bolt for Android matching the Windows naming format:
+    Builds and packages Bolt for Android matching the unified directory structure:
     dist/android/
-      ├── bolt_<version>_universal-release.apk
+      ├── release/
+      │     └── bolt_<version>_universal.apk
       └── debug/
             └── bolt_<version>_universal-debug.apk
 

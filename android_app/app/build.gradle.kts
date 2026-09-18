@@ -92,15 +92,15 @@ afterEvaluate {
     tasks.named("assembleRelease").configure {
         doLast {
             val apkDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
-            val targetName = "bolt_${android.defaultConfig.versionName}_universal-release.apk"
+            val targetName = "bolt_${android.defaultConfig.versionName}_universal.apk"
             val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != "bolt.apk" && it.name != "bolt-release.apk" }
             if (apk != null && apk.name != targetName) {
                 apk.copyTo(File(apkDir, targetName), overwrite = true)
             }
             apk?.copyTo(File(apkDir, "bolt.apk"), overwrite = true)
             apk?.copyTo(File(apkDir, "bolt-release.apk"), overwrite = true)
-            // 同步至 dist/android/
-            val distRelease = rootProject.projectDir.parentFile.resolve("dist/android")
+            // 同步至 dist/android/release/
+            val distRelease = rootProject.projectDir.parentFile.resolve("dist/android/release")
             distRelease.mkdirs()
             val finalApk = File(apkDir, targetName).takeIf { it.exists() } ?: apk
             finalApk?.copyTo(distRelease.resolve(targetName), overwrite = true)

@@ -68,14 +68,18 @@ object Format {
         1 -> xin.cosmos.bolt.R.string.device_type_pc
         2 -> xin.cosmos.bolt.R.string.device_type_android
         3 -> xin.cosmos.bolt.R.string.device_type_ios
+        4 -> xin.cosmos.bolt.R.string.device_type_linux
+        5 -> xin.cosmos.bolt.R.string.device_type_macos
         else -> xin.cosmos.bolt.R.string.device_type_unknown
     }
 
-    /** 设备类型码 → 「类型（操作系统）」中文标签（1=Windows/PC，2=Android，见 protocol_spec）。 */
+    /** 设备类型码 → 「类型（操作系统）」中文标签（1=Windows/PC，2=Android，4=Linux，见 protocol_spec）。 */
     fun deviceType(type: Int): String = when (type) {
         1 -> "电脑（Windows）"
         2 -> "手机（Android）"
         3 -> "手机（iOS）"
+        4 -> "电脑（Linux）"
+        5 -> "电脑（macOS）"
         else -> "设备"
     }
 }

@@ -217,26 +217,41 @@ bolt/
 ├── scripts/                                   # 【构建、跨平台编译与打包发布自动化脚本】
 │   ├── build_windows_dist.ps1                 # Windows 四大形态发布包 (portable/cli/nsis/msi) 一键编译打包归档脚本
 │   ├── build_android_dist.ps1                 # Android 全架构 SO 跨编译、R8 代码/资源压缩、通用命名 APK 打包归档脚本
+│   ├── build_linux_dist.sh                    # Linux 四大形态发布包 (appimage/deb/rpm/cli) 一键编译打包归档脚本
 │   ├── build_android_lib.ps1                  # Android JNI SO 跨编译并同步拷贝至 jniLibs (PowerShell 版)
 │   ├── build_android_lib.bat                  # Android JNI SO 跨编译批处理脚本 (Windows CMD 版)
 │   ├── build_rust_lib.bat                     # Windows 平台编译 FFI 库并拷贝至 lib/win64/
 │   ├── clean_all.bat                          # 全项目深度清理脚本 (cargo/tauri/gradle/dist)
 │   └── smoke_loopback.sh                      # 本地回环双节点传输冒烟自动化验证脚本
 │
-├── dist/                                      # 【全形态最终编译打包产物归档目录】
+├── dist/                                      # 【全平台统一归档产物根目录：dist/[平台]/[debug|release]/**】
 │   ├── windows/                               # Windows 平台打包归档
-│   │   └── bundle/                            # 最终多形态分发集合
-│   │       ├── portable/                      # 便携绿色版
-│   │       │   └── bolt_0.1.0_x64-portable.exe
-│   │       ├── cli/                           # 命令行工具
-│   │       │   └── bolt_0.1.0_x64-cli.exe
-│   │       ├── nsis/                          # 标准向导安装包
-│   │       │   └── bolt_0.1.0_x64-setup.exe
-│   │       └── msi/                           # 企业级 Windows Installer 安装包
-│   │           └── bolt_0.1.0_x64_zh-CN.msi
+│   │   ├── release/                           # 正式发布版 (Release 四大形态)
+│   │   │   ├── portable/                      # 便携绿色版
+│   │   │   │   └── bolt_0.1.0_x64-portable.exe
+│   │   │   ├── cli/                           # 命令行工具
+│   │   │   │   └── bolt_0.1.0_x64-cli.exe
+│   │   │   ├── nsis/                          # 标准向导安装包
+│   │   │   │   └── bolt_0.1.0_x64-setup.exe
+│   │   │   └── msi/                           # 企业级 Windows Installer 安装包
+│   │   │       └── bolt_0.1.0_x64_zh-CN.msi
+│   │   └── debug/                             # 调试版归档 (Debug 四大形态)
+│   │
+│   ├── linux/                                 # Linux 平台打包归档
+│   │   ├── release/                           # 正式发布版 (Release 四大形态)
+│   │   │   ├── appimage/                      # 单文件免安装通用绿色版
+│   │   │   │   └── bolt_0.1.0_amd64.AppImage
+│   │   │   ├── cli/                           # 命令行独立终端工具
+│   │   │   │   └── bolt_0.1.0_amd64-cli
+│   │   │   ├── deb/                           # Debian / Ubuntu 安装包
+│   │   │   │   └── bolt_0.1.0_amd64.deb
+│   │   │   └── rpm/                           # Fedora / RHEL 安装包
+│   │   │       └── bolt-0.1.0-1.x86_64.rpm
+│   │   └── debug/                             # 调试版归档 (Debug 四大形态)
 │   │
 │   └── android/                               # Android 平台打包归档
-│       ├── bolt_0.1.0_universal-release.apk   # 正式发布版 (经 R8 代码混淆与无用资源剔除优化)
+│       ├── release/                           # 正式发布版 (经 R8 代码混淆与无用资源剔除优化)
+│       │   └── bolt_0.1.0_universal.apk
 │       └── debug/                             # 调试版归档
 │           └── bolt_0.1.0_universal-debug.apk
 │
@@ -310,17 +325,24 @@ graph TD
 
 ## 编译与打包产物规范
 
-### 1. Windows 端四大多元形态 (`dist/windows/bundle/`)
-通过运行 `powershell -ExecutionPolicy Bypass -File scripts/build_windows_dist.ps1`，将一次性在 `dist/windows/bundle/` 下生成以下四大形态：
+### 1. Windows 端四大多元形态 (`dist/windows/[release|debug]/`)
+通过运行 `powershell -ExecutionPolicy Bypass -File scripts/build_windows_dist.ps1`，将一次性在 `dist/windows/[release|debug]/` 下生成以下四大形态：
 - `portable/bolt_{version}_x64-portable.exe`：单文件免安装便携版（集成 Rust 核心与 Webview2 宿主）。
 - `cli/bolt_{version}_x64-cli.exe`：轻量级控制台 CLI 终端工具，用于运维、自动化测试或无图形界面环境。
 - `nsis/bolt_{version}_x64-setup.exe`：经典向导安装程序（支持创建桌面快捷方式、开机启动与卸载配置）。
 - `msi/bolt_{version}_x64_zh-CN.msi`：企业级 Windows Installer 格式部署包。
 
-### 2. Android 端统一归档 (`dist/android/`)
+### 2. Android 端统一归档 (`dist/android/[release|debug]/`)
 通过运行 `powershell -ExecutionPolicy Bypass -File scripts/build_android_dist.ps1`，将自动编译 `arm64-v8a`、`armeabi-v7a`、`x86_64` 三大 ABI 的 `libbt_ffi.so` 并完成打包：
-- `bolt_{version}_universal-release.apk`：经过 R8 深度编译优化、死代码移除（Tree Shaking）与资源缩减的轻量级正式发布包。
+- `release/bolt_{version}_universal.apk`：经过 R8 深度编译优化、死代码移除（Tree Shaking）与资源缩减的轻量级正式发布包。
 - `debug/bolt_{version}_universal-debug.apk`：包含调试符号与日志堆栈的开发测试安装包。
+
+### 3. Linux 端四大多元形态 (`dist/linux/[release|debug]/`)
+通过运行 `bash scripts/build_linux_dist.sh` 或 GitHub Actions 自动化工作流，将在 `dist/linux/[release|debug]/` 下生成以下四大形态：
+- `appimage/bolt_{version}_amd64.AppImage`：单文件通用免安装便携版（各 Linux 发行版开箱即用）。
+- `cli/bolt_{version}_amd64-cli`：轻量级独立控制台 CLI 终端工具（适用于无图形界面服务器与 NAS）。
+- `deb/bolt_{version}_amd64.deb`：Debian / Ubuntu / Deepin / UOS 标准安装包。
+- `rpm/bolt-{version}-1.x86_64.rpm`：Fedora / RHEL / openSUSE 标准安装包。
 
 ---
 

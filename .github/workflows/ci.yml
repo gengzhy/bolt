@@ -1,0 +1,73 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint-test:
+    name: fmt + clippy + test
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - name: Format check
+        run: cargo fmt --all -- --check
+      - name: Clippy (deny warnings)
+        run: cargo clippy --workspace --all-targets -- -D warnings
+      - name: Tests
+        run: cargo test --workspace
+
+  smoke:
+    name: loopback smoke (QUIC + TCP + resume)
+    runs-on: windows-latest
+    needs: lint-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Build bolt-cli
+        run: cargo build -p bolt-cli
+      - name: Run smoke script
+        shell: bash
+        run: bash scripts/smoke_loopback.sh ./target/debug/bolt-cli.exe
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: smoke-logs
+          path: target/smoke/*.log
+
+  android-lib:
+    name: android FFI lib (aarch64/armv7/x86_64)
+    runs-on: windows-latest
+    needs: lint-test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
+      - name: Install NDK
+        shell: powershell
+        run: |
+          $ndk = "$env:RUNNER_TEMP\ndk"
+          $zip = "$env:RUNNER_TEMP\ndk.zip"
+          Invoke-WebRequest -Uri "https://dl.google.com/android/repository/android-ndk-r26d-windows.zip" -OutFile $zip
+          Expand-Archive -Path $zip -DestinationPath $ndk
+          $dir = Get-ChildItem $ndk | Select-Object -First 1
+          "ANDROID_NDK_HOME=$ndk\$dir" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+      - name: Build Android libs
+        shell: cmd
+        run: scripts\build_android_lib.bat
+      - name: Upload libs
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-jniLibs
+          path: android_app/app/src/main/jniLibs/**

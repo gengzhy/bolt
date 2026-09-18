@@ -54,10 +54,10 @@ bash scripts/smoke_loopback.sh
 
 ## 💻 3. Windows 桌面端编译与打包
 
-### 产物结构规范 (`dist/windows/bundle/`)
-Windows 端打包脚本将生成四类标准形态：
+### 产物结构规范 (`dist/windows/[release|debug]/`)
+Windows 端打包脚本将生成四类标准形态，归档于对应模式目录下：
 ```text
-dist/windows/bundle/
+dist/windows/[release|debug]/
 ├── portable/ -> bolt_0.1.0_x64-portable.exe   # 单文件绿色便携版（免安装，即开即用）
 ├── cli/      -> bolt_0.1.0_x64-cli.exe        # 命令行联调工具（终端交互与自动化测试）
 ├── nsis/     -> bolt_0.1.0_x64-setup.exe      # NSIS 安装引导程序（含创建快捷方式与卸载）
@@ -65,7 +65,7 @@ dist/windows/bundle/
 ```
 
 ### 一键全量打包（推荐）
-Bolt 提供了全自动化打包脚本，自动构建上述四类形态并归档至 `dist/windows/bundle/`：
+Bolt 提供了全自动化打包脚本，自动构建上述四类形态并归档至 `dist/windows/[release|debug]/`：
 
 ```powershell
 # 1. 构建 Release 正式发布包（带 strip/LTO/z 压缩优化）
@@ -106,13 +106,14 @@ scripts\build_rust_lib.bat
 
 ## 📱 4. Android 移动端编译与打包
 
-### 产物结构规范 (`dist/android/`)
-Android 端产物命名与 Windows 保持统一规范：`<应用名>_<版本号>_<架构>-<变体>.<扩展名>`：
+### 产物结构规范 (`dist/android/[release|debug]/`)
+Android 端产物归档于对应模式目录下，命名与 Windows/Linux 保持统一规范：`<应用名>_<版本号>_<架构>-<变体>.<扩展名>`：
 ```text
 dist/android/
-├── bolt_0.1.0_universal-release.apk   # Release 发布包（R8 深度优化代码与资源，体积约 15.5 MB）
+├── release/
+│   └── bolt_0.1.0_universal.apk           # Release 发布包（R8 深度优化代码与资源，体积约 16 MB）
 └── debug/
-    └── bolt_0.1.0_universal-debug.apk # Debug 调试包（含调试日志与符号表，体积约 25 MB）
+    └── bolt_0.1.0_universal-debug.apk     # Debug 调试包（含调试日志与符号表，体积约 27 MB）
 ```
 
 ### 一键全量打包（推荐）
@@ -135,19 +136,62 @@ powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_lib.ps1
 # 步骤 2：构建 Release APK
 cd android_app
 ./gradlew.bat assembleRelease
-# 输出：android_app/app/build/outputs/apk/release/bolt_0.1.0_universal-release.apk
+# 输出：android_app/app/build/outputs/apk/release/bolt_0.1.0_universal.apk
 
 # 步骤 3：（可选）构建 Debug APK
 ./gradlew.bat assembleDebug
 # 输出：android_app/app/build/outputs/apk/debug/bolt_0.1.0_universal-debug.apk
 
 # 步骤 4：通过 ADB 安装到真机或模拟器
-adb install -r ./app/build/outputs/apk/release/bolt_0.1.0_universal-release.apk
+adb install -r ./app/build/outputs/apk/release/bolt_0.1.0_universal.apk
 ```
 
 ---
 
-## 🖥 5. 命令行工具（bolt-cli）编译与联调
+## 🐧 5. Linux 桌面端与控制台编译打包
+
+### 产物结构规范 (`dist/linux/[release|debug]/`)
+Linux 端打包脚本将生成四类标准形态，归档于对应模式目录下：
+```text
+dist/linux/[release|debug]/
+├── appimage/ -> bolt_0.1.0_amd64.AppImage     # 单文件免安装通用绿色版（主流发行版双击即跑）
+├── cli/      -> bolt_0.1.0_amd64-cli          # 命令行独立控制台工具（适用于无界面服务器与 NAS）
+├── deb/      -> bolt_0.1.0_amd64.deb          # Debian / Ubuntu / Deepin / UOS 安装包
+└── rpm/      -> bolt-0.1.0-1.x86_64.rpm       # Fedora / RHEL / openSUSE 安装包
+```
+
+### Linux 编译环境准备（Ubuntu / Debian 示例）
+在 Linux 开发机或 CI 环境中执行：
+```bash
+sudo apt-get update && sudo apt-get install -y \
+  build-essential \
+  pkg-config \
+  libglib2.0-dev \
+  libgtk-3-dev \
+  libwebkit2gtk-4.1-dev \
+  libayatana-appindicator3-dev \
+  librsvg2-dev \
+  patchelf \
+  rpm
+```
+
+### 一键全量打包（推荐）
+Bolt 提供了全自动化打包脚本，自动构建上述四类形态并归档至 `dist/linux/[release|debug]/`：
+
+```bash
+# 1. 构建 Release 正式发布包（带符号剥离与尺寸优化）
+bash scripts/build_linux_dist.sh -m release
+
+# 2. 构建 Debug 调试包（保留调试符号）
+bash scripts/build_linux_dist.sh -m debug
+```
+
+### CI/CD 自动化构建
+项目已内置 GitHub Actions 工作流（`.github/workflows/build-linux.yml`），每次推送到 main/master 分支或发布标签时，均会在 `ubuntu-latest` 容器上全自动编译出这 4 大形态发布包并供直接下载。
+
+---
+
+## 🖥 6. 命令行工具（bolt-cli）编译与联调
 
 `bolt-cli` 是独立于界面的控制台联调工具，适用于服务器、无图形桌面或双机快速验证：
 
@@ -167,7 +211,7 @@ cargo build -p bolt-cli
 
 ---
 
-## 🧹 6. 清理工程缓存
+## 🧹 7. 清理工程缓存
 
 当遇到构建缓存不一致、目标平台切换或清理磁盘占用时，可执行全量清理：
 

@@ -282,6 +282,8 @@
     <string name="device_type_pc">Computer (Windows)</string>
     <string name="device_type_android">Phone (Android)</string>
     <string name="device_type_ios">Phone (iOS)</string>
+    <string name="device_type_linux">Computer (Linux)</string>
+    <string name="device_type_macos">Computer (macOS)</string>
     <string name="device_type_unknown">Device</string>
 
     <!-- ========================================== -->

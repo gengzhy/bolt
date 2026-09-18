@@ -1,7 +1,7 @@
 <#
 .SYNOPSIS
-    Builds and packages Bolt for Windows into the standard bundle structure:
-    bundle/
+    Builds and packages Bolt for Windows into the unified directory structure:
+    dist/windows/[debug|release]/
       ├── portable/   -> bolt_<version>_x64-portable.exe (Standalone green exe)
       ├── cli/        -> bolt_<version>_x64-cli.exe      (Command line debugging tool)
       ├── nsis/       -> bolt_<version>_x64-setup.exe    (NSIS Setup wizard with LZMA)
@@ -51,10 +51,7 @@ function Build-And-Package([string]$buildMode) {
     $isDebug = ($buildMode -eq "debug")
     $targetTauriDir = Join-Path $TauriAppDir "src-tauri\target\$buildMode"
     $bundleDir = Join-Path $targetTauriDir "bundle"
-    $distDir = Join-Path $ProjectRoot "dist\windows\$buildMode\bundle"
-    if ($buildMode -eq "release") {
-        $rootDistBundle = Join-Path $ProjectRoot "dist\windows\bundle"
-    }
+    $distDir = Join-Path $ProjectRoot "dist\windows\$buildMode"
 
     # Ensure bundle directories exist
     $portableDir = Join-Path $bundleDir "portable"
@@ -136,12 +133,8 @@ function Build-And-Package([string]$buildMode) {
         Write-Host "    -> [CLI]      $cliTarget" -ForegroundColor Green
     }
 
-    # (c) Sync all bundles to dist/windows/
+    # (c) Sync all bundles to dist/windows/[buildMode]/
     Copy-Item -Path "$bundleDir\*" -Destination $distDir -Recurse -Force
-    if ($buildMode -eq "release") {
-        if (-not (Test-Path $rootDistBundle)) { New-Item -ItemType Directory -Path $rootDistBundle -Force | Out-Null }
-        Copy-Item -Path "$bundleDir\*" -Destination $rootDistBundle -Recurse -Force
-    }
 
     # Print Summary for this mode
     Write-Host "`n  =================================================" -ForegroundColor Cyan

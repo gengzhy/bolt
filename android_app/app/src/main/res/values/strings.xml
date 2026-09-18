@@ -282,6 +282,8 @@
     <string name="device_type_pc">电脑（Windows）</string>
     <string name="device_type_android">手机（Android）</string>
     <string name="device_type_ios">手机（iOS）</string>
+    <string name="device_type_linux">电脑（Linux）</string>
+    <string name="device_type_macos">电脑（macOS）</string>
     <string name="device_type_unknown">设备</string>
 
     <!-- ========================================== -->

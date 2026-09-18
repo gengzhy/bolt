@@ -113,12 +113,19 @@ fn default_device_name() -> String {
 
 fn bt_hostname() -> String {
     // Windows 取「设置→系统→关于」中的设备名称（含 DNS 后缀的物理机全限定名）；
-    // 其他平台取 HOSTNAME 环境变量，Android 上回落 "device"，由 App 层
-    // 改写为「关于手机」中的设备名称。
+    // Linux 取 /etc/hostname；其他平台取 COMPUTERNAME / HOSTNAME 环境变量，
+    // Android 上回落 "device"，由 App 层改写为「关于手机」中的设备名称。
     #[cfg(target_os = "windows")]
     if let Some(name) = windows_device_name() {
         if !name.is_empty() {
             return name;
+        }
+    }
+    #[cfg(target_os = "linux")]
+    if let Ok(name) = std::fs::read_to_string("/etc/hostname") {
+        let name = name.trim();
+        if !name.is_empty() {
+            return name.to_string();
         }
     }
     std::env::var("COMPUTERNAME")
