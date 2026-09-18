@@ -247,7 +247,8 @@ bolt/
     ├── protocol_spec.md                       # Bolt 二进制/JSON 局域网高速传输协议规范
     ├── privacy_policy.md                      # Bolt 离线局域网隐私政策与合规说明
     ├── project_structure.md                   # 本文档 (完整项目目录结构与架构指南)
-    └── bolt.png                               # 项目品牌 Logo 原图
+    ├── bolt.png                               # 项目品牌 Logo 原图
+    └── badge_*.svg                            # 项目状态与许可矢量徽标 (license/rust/platform)
 ```
 
 ---

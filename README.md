@@ -9,6 +9,12 @@
   多端互传 · 全程加密 · 开箱即用
 </p>
 
+<p align="center">
+  <a href="LICENSE"><img src="docs/badge_license.svg" alt="License: MIT" /></a>
+  <img src="docs/badge_rust.svg" alt="Rust" />
+  <img src="docs/badge_platform.svg" alt="Platform" />
+</p>
+
 ---
 
 ## 📖 项目简介
@@ -137,4 +143,4 @@ cargo run -p bolt-cli -- discover
 
 ## 📜 许可
 
-本项目仅供学习与个人使用。
+本项目基于 [MIT License](LICENSE) 开源协议分发与使用。
