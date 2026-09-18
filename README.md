@@ -209,11 +209,11 @@ bash scripts/smoke_loopback.sh       # 环回冒烟测试（QUIC + TCP + 校验�
 
 | 文档 | 说明 |
 |------|------|
-| [传输协议规范](docs/protocol_spec.md) | 帧格式、指令码、握手流程、错误码 |
-| [FFI API 参考](docs/ffi_api.md) | `bt_*` C ABI 接口与事件定义 |
+| [协议规范](docs/protocol_spec.md) | 帧格式、指令码、握手流程、错误码 |
+| [FFI API](docs/ffi_api.md) | `bt_*` C ABI 接口与事件定义 |
 | [开发指南](docs/dev_guide.md) | 架构速览、环境配置、构建步骤、测试约定 |
-| [QUIC 性能优化](docs/QUIC性能优化执行计划.md) | 传输层调优方案与实测验证 |
-| [可行性实施方案](docs/Bolt-可行性实施方案.txt) | 原始设计方案 |
+| [项目结构](docs/project_structure.md) | 仓库完整文件树、分层约束与打包产物规范 |
+| [隐私政策](docs/privacy_policy.md) | 纯局域网数据安全、操作系统权限与合规声明 |
 
 ## 📜 许可
 

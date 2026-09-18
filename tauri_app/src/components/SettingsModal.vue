@@ -12,6 +12,9 @@ import { useBt } from "../composables/useBt";
 import { useTransferLogs } from "../composables/useTransferLogs";
 import logoSvg from "../assets/logo.svg";
 import appConfig from "../config/app.json";
+import PrivacyPolicyModal from "./PrivacyPolicyModal.vue";
+
+const showPrivacyModal = ref(false);
 
 const appName = appConfig.appName || "Bolt";
 const appAuthor = appConfig.author || "ian";
@@ -537,6 +540,22 @@ async function copyFingerprint() {
                 </div>
                 <div class="setting-desc">Bolt Rust P2P Core 核心底层引擎</div>
               </div>
+
+              <!-- 隐私政策与安全规范 -->
+              <div class="setting-item">
+                <div class="setting-row">
+                  <span class="setting-title">隐私政策与安全规范</span>
+                  <div class="setting-ctrl">
+                    <button class="policy-trigger-btn" @click="showPrivacyModal = true">
+                      <span>查看条款</span>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m9 18 6-6-6-6"/>
+                      </svg>
+                    </button>
+                  </div>
+                </div>
+                <div class="setting-desc">纯局域网点对点、零云端上传、无第三方追踪安全承诺</div>
+              </div>
             </div>
           </section>
 
@@ -545,11 +564,15 @@ async function copyFingerprint() {
             <img :src="logoSvg" alt="Bolt" class="footer-logo" />
             <span class="app-name">{{ appName }}</span>
             <span class="app-ver">v{{ version || appConfig.version || "0.1.0" }}</span>
+            <button class="footer-policy-link" @click="showPrivacyModal = true">《隐私政策》</button>
             <span class="app-copyright">{{ copyright }}</span>
           </div>
         </div>
       </aside>
     </Transition>
+
+    <!-- 隐私政策弹窗 -->
+    <PrivacyPolicyModal :show="showPrivacyModal" @close="showPrivacyModal = false" />
   </Teleport>
 </template>
 
@@ -913,6 +936,41 @@ async function copyFingerprint() {
 .app-copyright {
   font-size: 12px;
   color: var(--faint);
+}
+
+.policy-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: rgba(14, 165, 233, 0.12);
+  border: 1px solid rgba(14, 165, 233, 0.28);
+  color: #38bdf8;
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.policy-trigger-btn:hover {
+  background: rgba(14, 165, 233, 0.22);
+  border-color: #38bdf8;
+  color: #fff;
+}
+
+.footer-policy-link {
+  background: transparent;
+  border: none;
+  color: #0ea5e9;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 2px 6px;
+  margin: 2px 0;
+  border-radius: 4px;
+  transition: color 0.15s ease;
+}
+.footer-policy-link:hover {
+  color: #38bdf8;
+  text-decoration: underline;
 }
 
 /* 遮罩淡入淡出与滑入 */

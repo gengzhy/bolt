@@ -224,6 +224,11 @@
     <string name="setting_fingerprint_hide">Hide security fingerprint</string>
     <string name="setting_engine_ver_title">Transfer Engine Version</string>
     <string name="setting_engine_ver_desc">Bolt Rust P2P Core Engine</string>
+    <string name="setting_privacy_policy_title">Privacy Policy &amp; Security</string>
+    <string name="setting_privacy_policy_desc">Local P2P only, zero cloud upload, no third-party tracking</string>
+    <string name="privacy_policy_dialog_title">Bolt Privacy Policy &amp; Security</string>
+    <string name="privacy_policy_dialog_subtitle">Pure LAN P2P · Zero Cloud Upload · TLS 1.3 Encryption</string>
+    <string name="privacy_policy_dialog_btn">I Understand</string>
 
     <!-- Dialogs -->
     <string name="dialog_edit_name_title">Edit Device Name</string>

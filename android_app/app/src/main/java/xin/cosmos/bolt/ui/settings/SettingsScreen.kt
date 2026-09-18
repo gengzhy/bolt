@@ -12,6 +12,7 @@ import android.provider.DocumentsContract
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -51,6 +52,7 @@ import xin.cosmos.bolt.data.TransferLogRepository
 import xin.cosmos.bolt.engine.BtEngine
 import xin.cosmos.bolt.model.UiState
 import xin.cosmos.bolt.ui.components.card.BtCard
+import xin.cosmos.bolt.ui.components.dialogs.BtPrivacyPolicyDialog
 import xin.cosmos.bolt.ui.components.dialogs.BtValueEditDialog
 import xin.cosmos.bolt.ui.components.form.BtDropdownOption
 import xin.cosmos.bolt.ui.components.form.BtDropdownPicker
@@ -71,6 +73,7 @@ import java.util.Locale
 @Composable
 fun SettingsScreen(modifier: Modifier) {
     val state by BtEngine.uiState.collectAsState()
+    var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier
@@ -84,9 +87,12 @@ fun SettingsScreen(modifier: Modifier) {
         ReceiveModule(state)
         DiscoveryModule(state)
         MaintenanceModule(state)
-        AboutModule(state)
+        AboutModule(
+            state = state,
+            onShowPrivacyPolicy = { showPrivacyPolicyDialog = true },
+        )
 
-        // 底部品牌展示区：logo、APP名称、版本、版权分别单独成行展示
+        // 底部品牌展示区：logo、APP名称、版本、隐私政策、版权分别单独成行展示
         val currentYear = remember { java.util.Calendar.getInstance().get(java.util.Calendar.YEAR) }
         val author = stringResource(R.string.app_author)
         val appName = stringResource(R.string.app_name)
@@ -125,7 +131,17 @@ fun SettingsScreen(modifier: Modifier) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 textAlign = androidx.compose.ui.text.style.TextAlign.Center,
             )
-            // 4. 版权（@当前年份 + 作者）
+            // 4. 隐私政策入口
+            Text(
+                text = "《" + stringResource(R.string.setting_privacy_policy_title) + "》",
+                style = MaterialTheme.typography.bodySmall.copy(fontWeight = androidx.compose.ui.text.font.FontWeight.Medium),
+                color = MaterialTheme.colorScheme.primary,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                modifier = Modifier
+                    .padding(vertical = 2.dp)
+                    .clickable { showPrivacyPolicyDialog = true },
+            )
+            // 5. 版权（@当前年份 + 作者）
             Text(
                 text = copyright,
                 style = MaterialTheme.typography.bodySmall,
@@ -135,6 +151,12 @@ fun SettingsScreen(modifier: Modifier) {
         }
 
         Spacer(Modifier.height(32.dp))
+    }
+
+    if (showPrivacyPolicyDialog) {
+        BtPrivacyPolicyDialog(
+            onDismiss = { showPrivacyPolicyDialog = false },
+        )
     }
 }
 
@@ -540,7 +562,10 @@ private fun MaintenanceModule(state: UiState) {
 // ---------------- 6. 关于本机模块 ----------------
 
 @Composable
-private fun AboutModule(state: UiState) {
+private fun AboutModule(
+    state: UiState,
+    onShowPrivacyPolicy: () -> Unit,
+) {
     val context = LocalContext.current
     val clipboardManager = LocalClipboardManager.current
     var fingerprintVisible by remember { mutableStateOf(false) }
@@ -617,6 +642,21 @@ private fun AboutModule(state: UiState) {
                 BtValueBadge(
                     text = state.version.ifEmpty { "0.1.0" },
                     mono = true,
+                )
+            }
+
+            BtSettingDivider()
+
+            BtSettingRow(
+                title = stringResource(R.string.setting_privacy_policy_title),
+                subtitle = stringResource(R.string.setting_privacy_policy_desc),
+                onClick = onShowPrivacyPolicy,
+            ) {
+                Icon(
+                    painter = painterResource(R.drawable.ic_chevron_right),
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(20.dp),
                 )
             }
         }

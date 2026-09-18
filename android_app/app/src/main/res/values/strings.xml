@@ -224,6 +224,11 @@
     <string name="setting_fingerprint_hide">隐藏安全指纹</string>
     <string name="setting_engine_ver_title">传输引擎版本</string>
     <string name="setting_engine_ver_desc">Bolt Rust P2P Core 核心底层引擎</string>
+    <string name="setting_privacy_policy_title">隐私政策与安全规范</string>
+    <string name="setting_privacy_policy_desc">纯局域网点对点、零云端、无第三方追踪安全承诺</string>
+    <string name="privacy_policy_dialog_title">Bolt 隐私政策与数据安全声明</string>
+    <string name="privacy_policy_dialog_subtitle">纯局域网传输 · 零云端上传 · TLS 1.3 强制加密</string>
+    <string name="privacy_policy_dialog_btn">我已阅读并知悉</string>
 
     <!-- 设置弹窗 -->
     <string name="dialog_edit_name_title">修改设备名称</string>
