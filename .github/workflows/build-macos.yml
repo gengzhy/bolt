@@ -1,0 +1,60 @@
+name: Build macOS Dist
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-macos:
+    name: macOS Packages (Universal DMG, APP, CLI)
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: tauri_app/package-lock.json
+
+      - name: Install Rust Toolchain (Universal Targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin, x86_64-apple-darwin
+
+      - name: Build All macOS Packages (Universal)
+        run: bash scripts/build_macos_dist.sh -m release -t universal-apple-darwin
+
+      - name: Upload macOS Dist Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-macos-dist
+          path: dist/macos/**
+          if-no-files-found: warn
+
+      - name: Upload Bolt DMG
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-macos-dmg
+          path: dist/macos/release/dmg/*.dmg
+          if-no-files-found: warn
+
+      - name: Upload Bolt APP Zip
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-macos-app
+          path: dist/macos/release/app/*.app.zip
+          if-no-files-found: warn
+
+      - name: Upload Bolt CLI
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-macos-cli
+          path: dist/macos/release/cli/*-cli
+          if-no-files-found: warn

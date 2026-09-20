@@ -1,0 +1,74 @@
+name: Build Android Dist
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-android:
+    name: Android Packages (Release APK, Debug APK, JNI Libs)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Java JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Install Rust Toolchain (Android Targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-linux-android, armv7-linux-androideabi, x86_64-linux-android
+
+      - name: Install cargo-ndk
+        run: cargo install cargo-ndk --locked
+
+      - name: Setup Android NDK
+        run: |
+          NDK_PATH=$(ls -d $ANDROID_HOME/ndk/* 2>/dev/null | sort -V | tail -n 1)
+          if [ -z "$NDK_PATH" ]; then
+            echo "NDK not found, installing..."
+            $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;26.1.10909125"
+            NDK_PATH="$ANDROID_HOME/ndk/26.1.10909125"
+          fi
+          echo "ANDROID_NDK_HOME=$NDK_PATH" >> $GITHUB_ENV
+          echo "Selected NDK: $NDK_PATH"
+
+      - name: Build All Android Packages
+        run: bash scripts/build_android_dist.sh -m all
+
+      - name: Upload Android Dist Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-android-dist
+          path: dist/android/**
+          if-no-files-found: warn
+
+      - name: Upload Release APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-android-release-apk
+          path: dist/android/release/*.apk
+          if-no-files-found: warn
+
+      - name: Upload Debug APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-android-debug-apk
+          path: dist/android/debug/*.apk
+          if-no-files-found: warn
+
+      - name: Upload JNI Libraries
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-android-jniLibs
+          path: android_app/app/src/main/jniLibs/**
+          if-no-files-found: warn

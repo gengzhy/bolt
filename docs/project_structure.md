@@ -102,7 +102,7 @@ bolt/
 │       ├── bt_ffi.dll                         # Windows x64 C ABI 动态链接库
 │       └── bt_ffi.dll.lib                     # Windows MSVC 静态导入链接库
 │
-├── tauri_app/                                 # 【PC 桌面端】(Tauri v2 + Vue 3 + TypeScript)
+├── tauri_app/                                 # 【跨平台桌面端：Windows / Linux / macOS】(Tauri v2 + Vue 3 + TypeScript)
 │   ├── package.json                           # 前端 Node 依赖与脚本定义
 │   ├── tsconfig.json                          # TypeScript 编译器配置
 │   ├── vite.config.ts                         # Vite 构建与开发服务器配置
@@ -256,8 +256,10 @@ bolt/
 │
 ├── scripts/                                   # 【构建、跨平台编译与打包发布自动化脚本】
 │   ├── build_windows_dist.ps1                 # Windows 四大形态发布包 (portable/cli/nsis/msi) 一键编译打包归档脚本
-│   ├── build_android_dist.ps1                 # Android 全架构 SO 跨编译、R8 代码/资源压缩、通用命名 APK 打包归档脚本
+│   ├── build_android_dist.ps1                 # Android 全架构 SO 跨编译、R8 代码/资源压缩、通用命名 APK 打包归档脚本 (PowerShell 版)
+│   ├── build_android_dist.sh                  # Android 全架构 SO 跨编译与通用命名 APK 打包归档脚本 (Bash 版，支持 Linux/CI)
 │   ├── build_linux_dist.sh                    # Linux 四大形态发布包 (appimage/deb/rpm/cli) 一键编译打包归档脚本
+│   ├── build_macos_dist.sh                    # macOS 三大形态发布包 (dmg/app/cli) 一键编译打包归档脚本
 │   ├── build_ios_lib.sh                       # iOS 全架构 (arm64/sim) 静态库跨编译与 BoltEngine.xcframework 生成脚本
 │   ├── build_ios_dist.sh                      # iOS 应用 xcodebuild archive 自动化归档与导出脚本
 │   ├── build_android_lib.ps1                  # Android JNI SO 跨编译并同步拷贝至 jniLibs (PowerShell 版)
@@ -291,6 +293,21 @@ bolt/
 │   │   │       └── bolt-0.1.0-1.x86_64.rpm
 │   │   └── debug/                             # 调试版归档 (Debug 四大形态)
 │   │
+│   ├── macos/                                 # macOS 平台打包归档
+│   │   ├── release/                           # 正式发布版 (Universal 双架构)
+│   │   │   ├── dmg/                           # 免安装拖拽磁盘镜像
+│   │   │   │   └── bolt_0.1.0_universal.dmg
+│   │   │   ├── app/                           # 独立应用程序 Bundle 与 Zip
+│   │   │   │   ├── Bolt.app
+│   │   │   │   └── bolt_0.1.0_universal.app.zip
+│   │   │   └── cli/                           # 控制台独立工具
+│   │   │       └── bolt_0.1.0_universal-cli
+│   │   └── debug/                             # 调试版归档
+│   │
+│   ├── ios/                                   # iOS 平台打包归档
+│   │   ├── Bolt.ipa                           # 免越狱侧载安装包
+│   │   └── Bolt.xcarchive                     # Xcode 标准归档
+│   │
 │   └── android/                               # Android 平台打包归档
 │       ├── release/                           # 正式发布版 (经 R8 代码混淆与无用资源剔除优化)
 │       │   └── bolt_0.1.0_universal.apk
@@ -316,9 +333,9 @@ bolt/
 graph TD
     subgraph UI_Layer ["上层呈现与宿主适配 (UI & Host)"]
         CLI["tools/cli (命令行调试终端)"]
-        Tauri["tauri_app (Windows 桌面端: Vue3 + Tauri v2)"]
+        Tauri["tauri_app (桌面端 Windows/Linux/macOS: Vue3 + Tauri v2)"]
         Android["android_app (移动端: Jetpack Compose)"]
-        IOS["ios_app (规划中: Swift UI)"]
+        IOS["ios_app (移动端: Swift 5.9+ + SwiftUI)"]
     end
 
     subgraph Bridge_Layer ["边界与协议适配 (Bridge & FFI)"]
@@ -342,7 +359,7 @@ graph TD
     CLI --> App
     Tauri --> Tauri_Cmd --> App
     Android --> FFI_JNI --> FFI_C --> App
-    IOS -.-> FFI_C
+    IOS --> FFI_C --> App
 
     App --> Discovery
     App --> Transfer
@@ -386,6 +403,17 @@ graph TD
 - `deb/bolt_{version}_amd64.deb`：Debian / Ubuntu / Deepin / UOS 标准安装包。
 - `rpm/bolt-{version}-1.x86_64.rpm`：Fedora / RHEL / openSUSE 标准安装包。
 
+### 4. macOS 端三大形态 (`dist/macos/[release|debug]/`)
+通过运行 `bash scripts/build_macos_dist.sh -m release -t universal-apple-darwin` 或 GitHub Actions 自动化工作流，将在 `dist/macos/[release|debug]/` 下生成以下三大形态：
+- `dmg/bolt_{version}_universal.dmg`：通用磁盘镜像安装包（拖拽式安装至 Applications，原生支持 Apple Silicon 与 Intel）。
+- `app/Bolt.app` 与 `app/bolt_{version}_universal.app.zip`：标准独立应用 Bundle 与便于网络分发的 ZIP 压缩包。
+- `cli/bolt_{version}_universal-cli`：通用架构命令行终端工具。
+
+### 5. iOS 端统一归档 (`dist/ios/`)
+通过运行 `bash scripts/build_ios_dist.sh Release` 或 GitHub Actions 自动化工作流，将在 `dist/ios/` 下生成以下产物：
+- `Bolt.ipa`：免越狱侧载安装包（可通过 AltStore、TrollStore、Sideloadly 等工具直接安装）。
+- `Bolt.xcarchive`：Xcode 工业级标准归档包（支持分发与后续重签名）。
+
 ---
 
 ## 开发常用指令速查
@@ -406,6 +434,9 @@ cargo run -p bolt-cli -- send --data-dir target/cli_b 127.0.0.1:8899 ./path/to/f
 cd tauri_app && npm run tauri dev
 
 # 一键打包全平台发行物
-powershell -ExecutionPolicy Bypass -File scripts/build_windows_dist.ps1
-powershell -ExecutionPolicy Bypass -File scripts/build_android_dist.ps1
+powershell -ExecutionPolicy Bypass -File scripts/build_windows_dist.ps1  # Windows 4大形态
+powershell -ExecutionPolicy Bypass -File scripts/build_android_dist.ps1  # Android APK
+bash scripts/build_macos_dist.sh -m release -t universal-apple-darwin    # macOS DMG/APP/CLI
+bash scripts/build_linux_dist.sh -m release                              # Linux 4大形态
+bash scripts/build_ios_dist.sh Release                                  # iOS IPA
 ```

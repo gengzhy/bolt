@@ -12,17 +12,18 @@ crates/
   task       应用门面 App：事件、任务记录、配置、发现/引擎编排
   ffi        C ABI（bt_* 前缀，cbindgen 生成 include/bt_api.h，产出 bt_ffi）
 tools/cli    命令行联调端（bolt-cli，serve/discover/send）
-tauri_app/      Windows 桌面端（Tauri v2 + Vue3 + TS）
+tauri_app/      跨平台桌面端（Tauri v2 + Vue3 + TS，支持 Windows / macOS / Linux）
 android_app/    Android 端（Kotlin + Gradle，jniLibs 装载 libbt_ffi.so）
+ios_app/        iOS 端（Swift 5.9+ + SwiftUI 原生应用，链接 BoltEngine.xcframework）
 scripts/        构建/冒烟脚本
 docs/           方案与规范文档
 ```
 
 ## 环境要求
 
-- Rust ≥ 1.85（开发环境 1.98），MSVC 工具链（Windows）
-- Windows：`cargo` + MSVC；Android：`cargo-ndk` + NDK；Tauri：Node 18+
-- Git Bash（运行 bash 脚本）
+- Rust ≥ 1.85（建议稳定版 1.98+），各平台对应工具链
+- Windows/Linux/macOS：`cargo` + 对应编译工具链；Android：`cargo-ndk` + NDK；iOS：macOS + Xcode 15+；Tauri 桌面端：Node 18+
+- Git Bash / Terminal（运行 bash 脚本）
 
 ## 常用命令
 
@@ -83,17 +84,21 @@ cargo run -p bolt-cli -- discover
 - [ ] CLI 联调：`tools/cli/src/main.rs`
 - [ ] `cargo fmt` + `cargo clippy -D warnings` + `cargo test --workspace`
 
-## Windows 桌面端（tauri_app）
+## 跨平台桌面端（tauri_app: Windows / macOS / Linux）
 
 ```bash
 cd tauri_app
 npm install
-npm run tauri dev      # 开发模式
-npm run tauri build    # 安装包（NSIS）
+npm run tauri dev      # 开发模式（热重载与实时调试）
+
+# 平台一键全量打包
+npm run build:all      # Windows 全形态 (便携版/CLI/NSIS/MSI)
+bash ../scripts/build_macos_dist.sh -m release -t universal-apple-darwin # macOS (DMG/APP/CLI)
+bash ../scripts/build_linux_dist.sh -m release  # Linux (AppImage/DEB/RPM/CLI)
 ```
 
-Rust 侧在 `src-tauri` 内以 `#[tauri::command]` 封装 `bt_ffi`，
-经 `Emitter` 把 `bt_set_event_callback` 的事件转发给前端。产物输出为 `bolt.exe`。
+Rust 侧在 `src-tauri` 内以 `#[tauri::command]` 封装应用门面，经 `Emitter` 把事件转发给前端。
+macOS 端支持原生交通灯按钮自适应与 Universal 双架构（Apple Silicon + Intel）二进制构建。
 
 **UI 说明**：当前版本传输任务卡片只有「取消」按钮，
 不提供暂停/恢复功能（已移除）。
@@ -121,6 +126,22 @@ cd android_app
 
 注意：Android 上 Rust 侧不启用 mDNS（`use_mdns=false`），Kotlin 用
 `NsdManager` 发现并调 `bt_nsd_inject_device` 桥接；文件访问走 SAF 授权路径。
+
+## iOS 端（ios_app）
+
+1. `rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios`
+2. 跨平台编译 Rust C ABI 静态库并封装生成 XCFramework：
+   `bash scripts/build_ios_lib.sh release`
+   产物输出于：`ios_app/Frameworks/BoltEngine.xcframework`
+3. 构建 IPA 与 Archive（macOS 环境）：
+   ```bash
+   # 打开 Xcode 进行真机或模拟器图形化调试：
+   open ios_app/Bolt.xcodeproj
+   # 或执行一键全自动化打包：
+   bash scripts/build_ios_dist.sh Release
+   ```
+   产物归档于 `dist/ios/Bolt.ipa` 与 `dist/ios/Bolt.xcarchive`。
+4. iOS 上设备发现走系统原生 Bonjour（`NetService`），文件访问走系统 Files 沙盒与 `PhotosPicker`。
 
 ## 测试约定
 

@@ -1,6 +1,6 @@
 # Bolt 编译与构建指南
 
-> 本指南汇总 Bolt 项目的全平台编译构建环境准备、代码质量门禁、Windows 桌面端与 Android 移动端的全量/单项打包流程及常见问题排障。
+> 本指南汇总 Bolt 项目的全平台（Windows / macOS / Linux / Android / iOS）编译构建环境准备、代码质量门禁、桌面端与移动端各形态打包流程及常见问题排障。
 
 ---
 
@@ -25,11 +25,15 @@
   cargo install cargo-ndk
   ```
 
-### 移动端（iOS）专用工具链
-- **开发设备**：macOS（推荐 macOS 14+）
-- **Xcode**：≥ 15.0（内置 iOS SDK 与 Clang）
-- **Rust iOS 跨编译目标**：
+### 苹果平台（macOS / iOS）专用工具链
+- **开发设备**：macOS（推荐 macOS 14+，支持 Apple Silicon 与 Intel）
+- **Node.js**：≥ 18.0.0（macOS 桌面端 Tauri 前端构建）
+- **Xcode**：≥ 15.0（内置 Clang、macOS SDK 与 iOS SDK）
+- **Rust Apple 跨编译目标**：
   ```bash
+  # macOS 桌面端 Universal 双架构支持
+  rustup target add aarch64-apple-darwin x86_64-apple-darwin
+  # iOS 移动端架构支持
   rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
   ```
 
@@ -200,7 +204,40 @@ bash scripts/build_linux_dist.sh -m debug
 
 ---
 
-## 📱 5. iOS 移动端编译与打包
+## 🍏 6. macOS 桌面端与控制台编译打包
+
+### 产物结构规范 (`dist/macos/[release|debug]/`)
+macOS 端打包脚本将生成三大标准形态，归档于对应模式目录下：
+```text
+dist/macos/[release|debug]/
+├── dmg/ -> bolt_0.1.0_universal.dmg               # 免安装拖拽磁盘镜像（标准 DMG，双击直接拖拽至 Applications）
+├── app/ -> Bolt.app & bolt_0.1.0_universal.app.zip # 独立应用程序 Bundle 与便于分发的 ZIP 压缩包
+└── cli/ -> bolt_0.1.0_universal-cli              # 命令行独立终端工具（原生支持 M 系列与 Intel 芯片）
+```
+
+### 一键全量打包（推荐）
+Bolt 提供了全自动化打包脚本，自动构建上述三大形态并归档至 `dist/macos/[release|debug]/`：
+
+```bash
+# 1. 构建 Release 正式发布包（Universal 双架构，通用支持 Apple Silicon 与 Intel Mac）
+bash scripts/build_macos_dist.sh -m release -t universal-apple-darwin
+
+# 2. 快速构建当前本机芯片原生 Release 包
+bash scripts/build_macos_dist.sh -m release
+
+# 3. 构建 Debug 调试包（保留调试符号）
+bash scripts/build_macos_dist.sh -m debug
+```
+
+### CI/CD 自动化构建
+项目内置 GitHub Actions 工作流（`.github/workflows/build-macos.yml`），运行于原生 `macos-14`（Apple Silicon）虚拟环境：
+- 触发机制：推送代码至 main/master、发布 `v*` Release 标签、或手动触发 `workflow_dispatch`；
+- 产出构建：自动跨编译 Universal 双架构二进制并组装 `.dmg`、`.app.zip` 与 `-cli` 文件；
+- 无 Mac 设备的开发者可直接在 GitHub Actions Artifacts 页面点击一键下载完整的 macOS 发行包。
+
+---
+
+## 📱 7. iOS 移动端编译与打包
 
 ### 架构设计说明
 - **核心引擎**：基于 Rust FFI（`crates/ffi`）编译为标准 C ABI 静态库，并通过 `lipo` 与 `xcodebuild -create-xcframework` 封装为通用的 `BoltEngine.xcframework`。
@@ -234,7 +271,7 @@ bash scripts/build_ios_dist.sh Release
 
 ---
 
-## 🖥 6. 命令行工具（bolt-cli）编译与联调
+## 🖥 8. 命令行工具（bolt-cli）编译与联调
 
 `bolt-cli` 是独立于界面的控制台联调工具，适用于服务器、无图形桌面或双机快速验证：
 
@@ -254,7 +291,7 @@ cargo build -p bolt-cli
 
 ---
 
-## 🧹 7. 清理工程缓存
+## 🧹 9. 清理工程缓存
 
 当遇到构建缓存不一致、目标平台切换或清理磁盘占用时，可执行全量清理：
 

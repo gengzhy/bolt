@@ -19,7 +19,7 @@
 
 ## 📖 项目简介
 
-Bolt 是一款基于 **Rust** 构建的局域网文件传输工具，支持 Windows、Linux、Android 与 iOS 全平台互传。
+Bolt 是一款基于 **Rust** 构建的局域网文件传输工具，支持 Windows、macOS、Linux、Android 与 iOS 全平台互传。
 无需任何服务器、账号或互联网连接，设备处于同一局域网即可快速安全地传输文件。
 
 ## ✨ 核心优势
@@ -40,7 +40,7 @@ Bolt 是一款基于 **Rust** 构建的局域网文件传输工具，支持 Wind
 | **传输协议** | QUIC（Quinn 0.11）+ TCP + TLS 1.3（rustls） |
 | **加密体系** | Ed25519 签名 · BLAKE3 哈希 · ring 密码库 |
 | **设备发现** | mDNS（mdns-sd）+ Apple Bonjour（NetService）+ UDP 广播探测 |
-| **桌面客户端** | Tauri v2 + Vue 3 + TypeScript（支持 Windows / Linux） |
+| **桌面客户端** | Tauri v2 + Vue 3 + TypeScript（支持 Windows / macOS / Linux） |
 | **Android 端** | Kotlin + Jetpack Compose + Gradle |
 | **iOS 端** | Swift 5.9+ + SwiftUI + Xcode |
 | **CLI 命令行端** | Rust 原生二进制（跨平台支持） |
@@ -60,7 +60,7 @@ crates/
   ffi             C ABI 导出（Windows bt_ffi.dll / Android libbt_ffi.so / iOS BoltEngine.xcframework）
 
 tools/cli         命令行联调工具（serve / send / discover）
-tauri_app/        跨平台桌面客户端（Tauri v2 + Vue 3，支持 Windows / Linux）
+tauri_app/        跨平台桌面客户端（Tauri v2 + Vue 3，支持 Windows / macOS / Linux）
 android_app/      Android 客户端（Kotlin + Jetpack Compose）
 ios_app/          iOS 客户端（Swift + SwiftUI）
 docs/             设计文档与规范
@@ -77,7 +77,7 @@ scripts/          构建与测试脚本
         │ FFI (C ABI)                                             │ FFI (C ABI)
 ┌───────┴────────┐                                        ┌───────┴────────┐
 │  Tauri (前端)  │                                        │  Swift / Kotlin│
-│(Windows/Linux) │                                        │ (iOS / Android)│
+│(Win/Mac/Linux) │                                        │ (iOS / Android)│
 └────────────────┘                                        └────────────────┘
 ```
 
@@ -86,6 +86,7 @@ scripts/          构建与测试脚本
 ### 运行预编译版
 Bolt 提供了开箱即用的多端安装包与免安装便携版，可直接从 [dist/](dist/) 目录或 Releases 下载使用：
 - **Windows 端**：直接运行 `dist/windows/release/portable/bolt_0.1.0_x64-portable.exe` 或使用 NSIS/MSI 安装向导。
+- **macOS 端**：双击挂载 `dist/macos/release/dmg/bolt_0.1.0_universal.dmg` 并拖入 Applications，或直接运行解压后的 `Bolt.app`。
 - **Linux 端**：赋予可执行权限后直接运行 `dist/linux/release/appimage/bolt_0.1.0_amd64.AppImage`，或安装 `.deb` / `.rpm` 软件包。
 - **Android 端**：在手机上安装 `dist/android/release/bolt_0.1.0_universal.apk`。
 - **iOS 端**：在 Xcode 中打开 `ios_app/Bolt.xcodeproj` 并连接真机运行，或使用 `scripts/build_ios_dist.sh` 编译导出。
@@ -102,6 +103,9 @@ powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_dist.ps1 -Mod
 ```
 
 ```bash
+# macOS 端全量打包（Universal DMG + APP + CLI 三大形态）
+bash scripts/build_macos_dist.sh -m release -t universal-apple-darwin
+
 # Linux 端全量打包（AppImage + DEB + RPM + CLI 四大形态）
 bash scripts/build_linux_dist.sh -m release
 
@@ -128,7 +132,7 @@ cargo run -p bolt-cli -- discover
 ## 📱 使用说明
 
 1. **确保设备在同一局域网**（Wi-Fi 或有线均可）
-2. **启动应用**：Windows / Linux 桌面端打开应用，Android 端打开 App
+2. **启动应用**：Windows / macOS / Linux 桌面端打开应用，Android / iOS 端打开 App
 3. **自动发现**：设备列表自动显示对方设备
 4. **首次配对**：点击设备名连接，双方屏幕显示 4 位验证码，确认一致后信任
 5. **选择文件发送**：选择文件或文件夹，点击发送，对方确认接收即开始传输

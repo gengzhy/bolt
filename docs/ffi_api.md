@@ -1,7 +1,7 @@
 # Bolt FFI API（`bt_` 前缀）
 
 > 头文件由 cbindgen 生成：`crates/ffi/include/bt_api.h`。
-> 库产物：Windows `bt_ffi.dll`；Android `libbt_ffi.so`。
+> 库产物：Windows `bt_ffi.dll`；Android `libbt_ffi.so`；iOS `BoltEngine.xcframework` (`libbt_ffi.a`)。
 > 线程模型：任何线程可调用；事件由专用分发线程回调（不在调用线程上执行）。
 
 ## 约定
@@ -78,10 +78,11 @@
 
 ## 集成要点
 
-- **Windows/Tauri**：静态或动态链接 `bt_ffi`，事件回调通过 `crossbeam_channel`
+- **Windows / macOS / Linux (Tauri)**：直接调用 `crates/task` 门面或链接 `bt_ffi`，事件回调通过 `crossbeam_channel`
   桥接到 Tauri 主线程，再经 `Emitter` 转发给 Vue 前端。
 - **Android**：`System.loadLibrary("bt_ffi")`；发现走 NSD 桥（Kotlin 调
   `bt_nsd_inject_device`），Rust 侧不初始化 mDNS；发送用 SAF 路径或共享
   存储绝对路径；长时间任务置于前台服务。
-- **回调内禁止**：阻塞、再次调用可能持锁的 bt_* 接口（事件线程与内部
-  状态耦合，重入会死锁）。
+- **iOS**：通过 Clang 桥接头文件（`Bolt-Bridging-Header.h`）直接引入 `bt_api.h`，链接 `BoltEngine.xcframework`；
+  通过强类型 `BoltNative` 封装器提供高层 Swift API；局域网发现走原生 Bonjour（`NetService`），文件访问走系统 Files 沙盒与 `PhotosPicker`。
+- **回调内禁止**：阻塞、再次调用可能持锁的 bt_* 接口（事件线程与内部状态耦合，重入会死锁）。

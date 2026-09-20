@@ -21,6 +21,7 @@ const { logsOpen } = useTransferLogs();
 const settingsOpen = ref(false);
 const win = getCurrentWindow();
 const maximized = ref(false);
+const isMac = ref(typeof navigator !== "undefined" && /Macintosh|Mac OS X/i.test(navigator.userAgent));
 
 async function syncMaximized() {
   maximized.value = await win.isMaximized();
@@ -109,7 +110,20 @@ function startDrag(e: PointerEvent) {
 <template>
   <main class="shell">
     <!-- 自定义标题栏 -->
-    <div class="titlebar" data-tauri-drag-region>
+    <div class="titlebar" :class="{ 'is-mac': isMac }" data-tauri-drag-region>
+      <!-- macOS 左侧原生交通灯红黄绿控制按钮 -->
+      <div v-if="isMac" class="tb-mac-traffic">
+        <button class="tb-mac-dot dot-close" title="关闭" aria-label="关闭" @click="closeWin">
+          <svg viewBox="0 0 24 24" class="dot-icon"><path d="M18 6 6 18M6 6l12 12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        </button>
+        <button class="tb-mac-dot dot-min" title="最小化" aria-label="最小化" @click="minimize">
+          <svg viewBox="0 0 24 24" class="dot-icon"><path d="M5 12h14" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+        </button>
+        <button class="tb-mac-dot dot-max" :title="maximized ? '向下还原' : '最大化'" aria-label="最大化" @click="toggleMax">
+          <svg viewBox="0 0 24 24" class="dot-icon"><path d="M6 18L18 6M6 6h12v12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </button>
+      </div>
+
       <div class="tb-brand" data-tauri-drag-region>
         <img :src="logoSvg" alt="Bolt" class="tb-logo" />
         <h1>Bolt</h1>
@@ -122,21 +136,23 @@ function startDrag(e: PointerEvent) {
             <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
           </svg>
         </button>
-        <span class="tb-sep"></span>
-        <button class="tb-btn" title="最小化" aria-label="最小化" @click="minimize">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14" /></svg>
-        </button>
-        <button class="tb-btn" :title="maximized ? '向下还原' : '最大化'" aria-label="最大化" @click="toggleMax">
-          <svg v-if="!maximized" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.8"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
-          <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.8"><rect x="5" y="8" width="11" height="11" rx="2" /><path d="M9 5h8a2 2 0 0 1 2 2v8" /></svg>
-        </button>
-        <button class="tb-btn tb-close" title="关闭" aria-label="关闭" @click="closeWin">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-            stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
-        </button>
+        <template v-if="!isMac">
+          <span class="tb-sep"></span>
+          <button class="tb-btn" title="最小化" aria-label="最小化" @click="minimize">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round"><path d="M5 12h14" /></svg>
+          </button>
+          <button class="tb-btn" :title="maximized ? '向下还原' : '最大化'" aria-label="最大化" @click="toggleMax">
+            <svg v-if="!maximized" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.8"><rect x="5" y="5" width="14" height="14" rx="2" /></svg>
+            <svg v-else width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.8"><rect x="5" y="8" width="11" height="11" rx="2" /><path d="M9 5h8a2 2 0 0 1 2 2v8" /></svg>
+          </button>
+          <button class="tb-btn tb-close" title="关闭" aria-label="关闭" @click="closeWin">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="1.8" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12" /></svg>
+          </button>
+        </template>
       </div>
     </div>
 
@@ -251,6 +267,42 @@ body {
 }
 .tb-btn:hover { background: var(--accent-soft); color: var(--accent); }
 .tb-close:hover { background: var(--danger); color: #fff; }
+
+/* macOS 交通灯控制按钮 */
+.tb-mac-traffic {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 12px;
+  padding-left: 2px;
+}
+.tb-mac-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-sizing: border-box;
+  transition: opacity 0.15s ease, filter 0.15s ease;
+}
+.tb-mac-dot.dot-close { background: #ff5f56; border-color: #e0443e; }
+.tb-mac-dot.dot-min { background: #ffbd2e; border-color: #dea123; }
+.tb-mac-dot.dot-max { background: #27c93f; border-color: #1aab29; }
+.tb-mac-dot:hover { filter: brightness(0.92); }
+.tb-mac-dot .dot-icon {
+  width: 8px;
+  height: 8px;
+  opacity: 0;
+  transition: opacity 0.12s ease;
+  color: rgba(0, 0, 0, 0.65);
+}
+.tb-mac-traffic:hover .dot-icon {
+  opacity: 1;
+}
 
 /* ---- 两栏布局 ---- */
 .grid {
