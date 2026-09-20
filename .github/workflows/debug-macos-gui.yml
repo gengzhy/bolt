@@ -1,0 +1,98 @@
+name: Debug macOS GUI (Remote Desktop)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  macos-gui:
+    name: macOS Web Remote Desktop
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: 'npm'
+          cache-dependency-path: tauri_app/package-lock.json
+
+      - name: Install Rust Toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin
+
+      - name: Build macOS Application (Release)
+        run: |
+          bash scripts/build_macos_dist.sh -m release -t aarch64-apple-darwin
+
+      - name: Setup Screen Sharing & Web Remote Desktop
+        run: |
+          # 1. 设置系统 runner 用户密码
+          sudo dscl . -passwd /Users/runner "BoltMac123!"
+
+          # 2. 开启 macOS 原生屏幕共享 (VNC)
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+            -activate -configure -access -on \
+            -clientopts -setvncmode -vncmode configure -vncpw "BoltMac123!" \
+            -restart -agent -privs -all
+
+          # 3. 安装 noVNC 网页客户端与临时公网穿透工具
+          brew install novnc cloudflared
+
+          # 4. 获取 novnc 安装路径并启动 websockify 桥接 5900 到 6080
+          NOVNC_DIR="$(brew --prefix novnc)/share/novnc"
+          websockify --web "$NOVNC_DIR" 6080 localhost:5900 > /dev/null 2>&1 &
+          sleep 2
+
+          # 5. 启动 Cloudflare 免注册穿透隧道
+          cloudflared tunnel --url http://localhost:6080 > tunnel.log 2>&1 &
+
+          # 等待获取公网 HTTPS 链接
+          URL=""
+          for i in {1..30}; do
+            URL=$(grep -Eo 'https://[-a-zA-Z0-9]+\.trycloudflare\.com' tunnel.log | head -n 1 || true)
+            if [ -n "$URL" ]; then
+              break
+            fi
+            sleep 2
+          done
+
+          # 6. 在 Mac 桌面上直接启动编译好的 Bolt.app
+          if [ -d "dist/macos/release/app/Bolt.app" ]; then
+            open "dist/macos/release/app/Bolt.app"
+          fi
+          sleep 3
+
+          # 7. 截取一张桌面初始截图
+          screencapture -x bolt_macos_screen.png || true
+
+          # 8. 打印访问信息给用户
+          echo "================================================================"
+          echo "🎉 macOS 远程桌面已完全就绪！"
+          if [ -n "$URL" ]; then
+            echo "👉 请在 Windows 浏览器中直接打开以下链接："
+            echo "   $URL/vnc.html?autoconnect=true&resize=scale"
+            echo ""
+            echo "🔑 登录密码：BoltMac123!"
+          else
+            echo "⚠️ 隧道分配较慢，请查看 tunnel.log 获取链接："
+            cat tunnel.log
+          fi
+          echo ""
+          echo "💡 提示：Bolt.app 已经自动在 Mac 桌面上打开！"
+          echo "   您可以直接用鼠标测试窗口交通灯、按钮点击、界面缩放与拖拽；"
+          echo "   测试完成后，请在 GitHub Actions 页面右上角点击 'Cancel run' 结束即可。"
+          echo "================================================================"
+
+          # 保持运行 45 分钟供测试（测试完可随时手动 Cancel run）
+          sleep 2700
+
+      - name: Upload macOS Screen Snapshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-macos-screen-snapshot
+          path: bolt_macos_screen.png
+          if-no-files-found: ignore
