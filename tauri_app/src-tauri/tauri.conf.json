@@ -41,8 +41,7 @@
     "longDescription": "Bolt：纯局域网、无服务器的 P2P 文件传输工具",
     "macOS": {
       "frameworks": [],
-      "minimumSystemVersion": "10.15",
-      "license": "../LICENSE"
+      "minimumSystemVersion": "10.15"
     },
     "windows": {
       "nsis": {
