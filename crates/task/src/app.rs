@@ -254,7 +254,7 @@ impl App {
                 prefer_tcp: !cfg.prefer_quic,
             },
             stealth: cfg.stealth_mode,
-            use_mdns: cfg.use_mdns && cfg!(not(target_os = "android")),
+            use_mdns: cfg.use_mdns && cfg!(not(any(target_os = "android", target_os = "ios"))),
             use_udp_probe: true,
             ..Default::default()
         }

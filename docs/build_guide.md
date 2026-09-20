@@ -25,6 +25,14 @@
   cargo install cargo-ndk
   ```
 
+### 移动端（iOS）专用工具链
+- **开发设备**：macOS（推荐 macOS 14+）
+- **Xcode**：≥ 15.0（内置 iOS SDK 与 Clang）
+- **Rust iOS 跨编译目标**：
+  ```bash
+  rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
+  ```
+
 ---
 
 ## 📋 2. 代码质量门禁与验证
@@ -172,7 +180,8 @@ sudo apt-get update && sudo apt-get install -y \
   libayatana-appindicator3-dev \
   librsvg2-dev \
   patchelf \
-  rpm
+  rpm \
+  fonts-wqy-microhei
 ```
 
 ### 一键全量打包（推荐）
@@ -188,6 +197,40 @@ bash scripts/build_linux_dist.sh -m debug
 
 ### CI/CD 自动化构建
 项目已内置 GitHub Actions 工作流（`.github/workflows/build-linux.yml`），每次推送到 main/master 分支或发布标签时，均会在 `ubuntu-latest` 容器上全自动编译出这 4 大形态发布包并供直接下载。
+
+---
+
+## 📱 5. iOS 移动端编译与打包
+
+### 架构设计说明
+- **核心引擎**：基于 Rust FFI（`crates/ffi`）编译为标准 C ABI 静态库，并通过 `lipo` 与 `xcodebuild -create-xcframework` 封装为通用的 `BoltEngine.xcframework`。
+- **上层原生应用**：位于 `ios_app/`，使用 Swift 5.9+ 与 SwiftUI 原生编写，通过系统原生 Bonjour 协议进行局域网 `_bolt._udp.` 服务发现与广播。
+- **文件沙盒集成**：开启 `UIFileSharingEnabled`，接收文件直通 iOS 系统自带的「文件」(Files) 应用，支持相册 `PhotosPicker` 高速原图原视频发送。
+
+### 步骤一：编译底层静态库与 XCFramework
+在 macOS 环境的终端中执行：
+
+```bash
+# 1. 编译全架构静态库并生成 BoltEngine.xcframework (Debug 模式)
+bash scripts/build_ios_lib.sh debug
+
+# 2. 编译 Release 正式版 XCFramework（含尺寸与性能优化）
+bash scripts/build_ios_lib.sh release
+```
+脚本将自动跨编译 `aarch64-apple-ios`（真机）与 `aarch64-apple-ios-sim` / `x86_64-apple-ios`（模拟器），并在 `ios_app/Frameworks/BoltEngine.xcframework` 下生成开箱即用的多架构 XCFramework。
+
+### 步骤二：Xcode 本地调试或归档打包
+
+#### 方式 A：Xcode 图形化调试
+1. 双击打开 `ios_app/Bolt.xcodeproj`；
+2. 顶部选择真机设备或 iOS 模拟器（如 iPhone 15 Pro）；
+3. 点击 **Run (⌘R)** 即可就地编译运行，享受完整的 SwiftUI 界面与局域网传输能力。
+
+#### 方式 B：自动化构建脚本
+```bash
+# 一键生成 Release 模式的 Xcode Archive 归档包 (dist/ios/Bolt.xcarchive)
+bash scripts/build_ios_dist.sh Release
+```
 
 ---
 

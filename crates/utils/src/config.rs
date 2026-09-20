@@ -74,13 +74,18 @@ fn default_chunk_size() -> usize {
 }
 fn default_save_dir() -> PathBuf {
     // Android：公共下载目录 /Download/Bolt（需「所有文件访问」权限）；
+    // iOS：私有沙盒目录下的 received（由 Swift 层初始化传参 Documents 目录）；
     // 其它平台：系统下载目录（Windows 即 C:\Users\<用户名>\Downloads，用户名动态获取），
     // 取不到时回落数据目录下的 received。
     #[cfg(target_os = "android")]
     {
         return PathBuf::from("/storage/emulated/0/Download/Bolt");
     }
-    #[cfg(not(target_os = "android"))]
+    #[cfg(target_os = "ios")]
+    {
+        return default_data_dir().join("received");
+    }
+    #[cfg(not(any(target_os = "android", target_os = "ios")))]
     dirs::download_dir().unwrap_or_else(|| default_data_dir().join("received"))
 }
 

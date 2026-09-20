@@ -206,7 +206,7 @@ function startDrag(e: PointerEvent) {
 html, body { height: 100%; }
 body {
   margin: 0;
-  font-family: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", "WenQuanYi Micro Hei", "Noto Sans CJK SC", system-ui, sans-serif;
   background: var(--bg);
   color: var(--text);
   user-select: none;

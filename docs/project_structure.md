@@ -211,13 +211,55 @@ bolt/
 │               ├── values-en/                 # 英文国际化字符串定义
 │               └── xml/                       # FileProvider 路径配置与语言规则
 │
-├── ios_app/                                   # 【iOS 客户端】(规划中 / Planned)
-│   └── (预留标准 Xcode Swift + FFI 架构设计)
+├── ios_app/                                   # 【iOS 移动端】(Swift 5.9+ + SwiftUI 原生应用)
+│   ├── Bolt.xcodeproj/                        # Xcode 标准工程配置与构建方案
+│   │   └── project.pbxproj
+│   ├── Frameworks/                            # 跨编译产物归档 (BoltEngine.xcframework)
+│   └── Bolt/                                  # iOS 原生源码目录
+│       ├── App/
+│       │   ├── BoltApp.swift                  # SwiftUI @main 入口与初始化挂载
+│       │   └── AppDelegate.swift              # 后台任务延长与生命周期感知
+│       ├── FFI/
+│       │   ├── bt_api.h                       # C ABI 统一导出头文件
+│       │   ├── Bolt-Bridging-Header.h         # Clang 桥接头文件
+│       │   ├── module.modulemap               # 模块映射定义
+│       │   └── BoltNative.swift               # 强类型 Swift 原生 FFI 封装器
+│       ├── Engine/
+│       │   ├── BoltEngine.swift               # 业务中枢 (@Observable 顶层状态中心)
+│       │   ├── BonjourService.swift           # 原生 NetService/NWBrowser 局域网服务发现与发布
+│       │   ├── StagingService.swift           # 相册/文档选取、安全作用域沙盒暂存与清理
+│       │   └── TransferLogStore.swift         # 历史传输审计日志持久化
+│       ├── Models/
+│       │   ├── Models.swift                   # DeviceUi, TaskUi, ConfigUi 等数据模型
+│       │   └── ErrorMessages.swift            # 统一负错误码至友好中文映射
+│       ├── UI/
+│       │   ├── Theme/
+│       │   │   └── BoltTheme.swift            # 暗黑拟态设计系统、色盘与样式规范
+│       │   ├── Components/
+│       │   │   ├── BtCard.swift               # 玻璃拟态卡片容器
+│       │   │   ├── RadarView.swift            # 局域网动态雷达扫描动画
+│       │   │   ├── ProgressBar.swift          # 平滑渐变传输进度条
+│       │   │   ├── DeviceBadge.swift          # 操作系统徽标胶囊
+│       │   │   └── Formatters.swift           # 速率、容量与时间格式化工具
+│       │   └── Views/
+│       │       ├── MainView.swift             # 底部双页签 (发现/传输) 与全局脚手架
+│       │       ├── DevicesView.swift          # 在线设备流、雷达扫描、手动直连
+│       │       ├── TransfersView.swift        # 进行中任务、速率曲线与历史记录
+│       │       ├── SettingsView.swift         # 设备名、端口、QUIC/TCP 切换、隐身模式
+│       │       ├── TransferLogsView.swift     # 传输审计历史日志视图
+│       │       ├── PairingDialogView.swift    # 4 位验证码屏幕比对弹窗
+│       │       ├── TransferRequestDialogView.swift # 入站传输询问确认弹窗
+│       │       └── QuickShareSheet.swift      # 相册 PhotosPicker / 文件选择投递面板
+│       └── Resources/
+│           ├── Info.plist                     # 权限与配置 (Bonjour, Local Network, File Sharing, Photos)
+│           └── Assets.xcassets/               # 图标与品牌色彩资源目录
 │
 ├── scripts/                                   # 【构建、跨平台编译与打包发布自动化脚本】
 │   ├── build_windows_dist.ps1                 # Windows 四大形态发布包 (portable/cli/nsis/msi) 一键编译打包归档脚本
 │   ├── build_android_dist.ps1                 # Android 全架构 SO 跨编译、R8 代码/资源压缩、通用命名 APK 打包归档脚本
 │   ├── build_linux_dist.sh                    # Linux 四大形态发布包 (appimage/deb/rpm/cli) 一键编译打包归档脚本
+│   ├── build_ios_lib.sh                       # iOS 全架构 (arm64/sim) 静态库跨编译与 BoltEngine.xcframework 生成脚本
+│   ├── build_ios_dist.sh                      # iOS 应用 xcodebuild archive 自动化归档与导出脚本
 │   ├── build_android_lib.ps1                  # Android JNI SO 跨编译并同步拷贝至 jniLibs (PowerShell 版)
 │   ├── build_android_lib.bat                  # Android JNI SO 跨编译批处理脚本 (Windows CMD 版)
 │   ├── build_rust_lib.bat                     # Windows 平台编译 FFI 库并拷贝至 lib/win64/

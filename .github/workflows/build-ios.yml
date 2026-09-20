@@ -1,0 +1,49 @@
+name: Build iOS Dist
+
+on:
+  push:
+    branches: [main, master]
+    tags:
+      - 'v*'
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-ios:
+    name: iOS App & XCFramework (macOS)
+    runs-on: macos-14
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Install Rust Toolchain (iOS Targets)
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-ios, aarch64-apple-ios-sim, x86_64-apple-ios
+
+      - name: Build iOS Rust XCFramework
+        run: bash scripts/build_ios_lib.sh release
+
+      - name: Build iOS Archive & Package IPA
+        run: bash scripts/build_ios_dist.sh Release
+
+      - name: Upload Bolt.ipa (Sideload Installable)
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-ios-ipa
+          path: dist/ios/Bolt.ipa
+          if-no-files-found: error
+
+      - name: Upload BoltEngine.xcframework
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-engine-xcframework
+          path: ios_app/Frameworks/BoltEngine.xcframework
+          if-no-files-found: error
+
+      - name: Upload Bolt.xcarchive
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-ios-xcarchive
+          path: dist/ios/Bolt.xcarchive
+          if-no-files-found: warn

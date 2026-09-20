@@ -1,0 +1,518 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		A00101012C9A000100000001 /* BoltApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000001 /* BoltApp.swift */; };
+		A00101012C9A000100000002 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000002 /* AppDelegate.swift */; };
+		A00101012C9A000100000003 /* BoltNative.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000003 /* BoltNative.swift */; };
+		A00101012C9A000100000004 /* BoltEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000004 /* BoltEngine.swift */; };
+		A00101012C9A000100000005 /* BonjourService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000005 /* BonjourService.swift */; };
+		A00101012C9A000100000006 /* StagingService.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000006 /* StagingService.swift */; };
+		A00101012C9A000100000007 /* TransferLogStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000007 /* TransferLogStore.swift */; };
+		A00101012C9A000100000008 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000008 /* Models.swift */; };
+		A00101012C9A000100000009 /* ErrorMessages.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000009 /* ErrorMessages.swift */; };
+		A00101012C9A000100000010 /* BoltTheme.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000010 /* BoltTheme.swift */; };
+		A00101012C9A000100000011 /* Formatters.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000011 /* Formatters.swift */; };
+		A00101012C9A000100000012 /* BtCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000012 /* BtCard.swift */; };
+		A00101012C9A000100000013 /* RadarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000013 /* RadarView.swift */; };
+		A00101012C9A000100000014 /* ProgressBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000014 /* ProgressBar.swift */; };
+		A00101012C9A000100000015 /* DeviceBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000015 /* DeviceBadge.swift */; };
+		A00101012C9A000100000016 /* MainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000016 /* MainView.swift */; };
+		A00101012C9A000100000017 /* DevicesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000017 /* DevicesView.swift */; };
+		A00101012C9A000100000018 /* TransfersView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000018 /* TransfersView.swift */; };
+		A00101012C9A000100000019 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000019 /* SettingsView.swift */; };
+		A00101012C9A000100000020 /* TransferLogsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000020 /* TransferLogsView.swift */; };
+		A00101012C9A000100000021 /* PairingDialogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000021 /* PairingDialogView.swift */; };
+		A00101012C9A000100000022 /* TransferRequestDialogView.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000022 /* TransferRequestDialogView.swift */; };
+		A00101012C9A000100000023 /* QuickShareSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000023 /* QuickShareSheet.swift */; };
+		A00101012C9A000100000024 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = B00101012C9A000100000024 /* Assets.xcassets */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		B00101012C9A000100000000 /* Bolt.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Bolt.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		B00101012C9A000100000001 /* BoltApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoltApp.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000002 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000003 /* BoltNative.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoltNative.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000004 /* BoltEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoltEngine.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000005 /* BonjourService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BonjourService.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000006 /* StagingService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = StagingService.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000007 /* TransferLogStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferLogStore.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000008 /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000009 /* ErrorMessages.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorMessages.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000010 /* BoltTheme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BoltTheme.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000011 /* Formatters.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Formatters.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000012 /* BtCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = BtCard.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000013 /* RadarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RadarView.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000014 /* ProgressBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProgressBar.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000015 /* DeviceBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DeviceBadge.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000016 /* MainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainView.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000017 /* DevicesView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DevicesView.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000018 /* TransfersView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransfersView.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000019 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000020 /* TransferLogsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferLogsView.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000021 /* PairingDialogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PairingDialogView.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000022 /* TransferRequestDialogView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TransferRequestDialogView.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000023 /* QuickShareSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuickShareSheet.swift; sourceTree = "<group>"; };
+		B00101012C9A000100000024 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		B00101012C9A000100000025 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B00101012C9A000100000026 /* bt_api.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = bt_api.h; sourceTree = "<group>"; };
+		B00101012C9A000100000027 /* Bolt-Bridging-Header.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = "Bolt-Bridging-Header.h"; sourceTree = "<group>"; };
+		B00101012C9A000100000028 /* module.modulemap */ = {isa = PBXFileReference; lastKnownFileType = "sourcecode.module-map"; path = module.modulemap; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		C00101012C9A000100000000 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		D00101012C9A000100000000 = {
+			isa = PBXGroup;
+			children = (
+				D00101012C9A000100000001 /* Bolt */,
+				D00101012C9A000100000002 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000001 /* Bolt */ = {
+			isa = PBXGroup;
+			children = (
+				D00101012C9A000100000010 /* App */,
+				D00101012C9A000100000020 /* FFI */,
+				D00101012C9A000100000030 /* Engine */,
+				D00101012C9A000100000040 /* Models */,
+				D00101012C9A000100000050 /* UI */,
+				D00101012C9A000100000060 /* Resources */,
+			);
+			path = Bolt;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000002 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				B00101012C9A000100000000 /* Bolt.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000010 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				B00101012C9A000100000001 /* BoltApp.swift */,
+				B00101012C9A000100000002 /* AppDelegate.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000020 /* FFI */ = {
+			isa = PBXGroup;
+			children = (
+				B00101012C9A000100000026 /* bt_api.h */,
+				B00101012C9A000100000027 /* Bolt-Bridging-Header.h */,
+				B00101012C9A000100000028 /* module.modulemap */,
+				B00101012C9A000100000003 /* BoltNative.swift */,
+			);
+			path = FFI;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000030 /* Engine */ = {
+			isa = PBXGroup;
+			children = (
+				B00101012C9A000100000004 /* BoltEngine.swift */,
+				B00101012C9A000100000005 /* BonjourService.swift */,
+				B00101012C9A000100000006 /* StagingService.swift */,
+				B00101012C9A000100000007 /* TransferLogStore.swift */,
+			);
+			path = Engine;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000040 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				B00101012C9A000100000008 /* Models.swift */,
+				B00101012C9A000100000009 /* ErrorMessages.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000050 /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				D00101012C9A000100000051 /* Theme */,
+				D00101012C9A000100000052 /* Components */,
+				D00101012C9A000100000053 /* Views */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000051 /* Theme */ = {
+			isa = PBXGroup;
+			children = (
+				B00101012C9A000100000010 /* BoltTheme.swift */,
+			);
+			path = Theme;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000052 /* Components */ = {
+			isa = PBXGroup;
+			children = (
+				B00101012C9A000100000011 /* Formatters.swift */,
+				B00101012C9A000100000012 /* BtCard.swift */,
+				B00101012C9A000100000013 /* RadarView.swift */,
+				B00101012C9A000100000014 /* ProgressBar.swift */,
+				B00101012C9A000100000015 /* DeviceBadge.swift */,
+			);
+			path = Components;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000053 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				B00101012C9A000100000016 /* MainView.swift */,
+				B00101012C9A000100000017 /* DevicesView.swift */,
+				B00101012C9A000100000018 /* TransfersView.swift */,
+				B00101012C9A000100000019 /* SettingsView.swift */,
+				B00101012C9A000100000020 /* TransferLogsView.swift */,
+				B00101012C9A000100000021 /* PairingDialogView.swift */,
+				B00101012C9A000100000022 /* TransferRequestDialogView.swift */,
+				B00101012C9A000100000023 /* QuickShareSheet.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		D00101012C9A000100000060 /* Resources */ = {
+			isa = PBXGroup;
+			children = (
+				B00101012C9A000100000024 /* Assets.xcassets */,
+				B00101012C9A000100000025 /* Info.plist */,
+			);
+			path = Resources;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		E00101012C9A000100000000 /* Bolt */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F00101012C9A000100000000 /* Build configuration list for PBXNativeTarget "Bolt" */;
+			buildPhases = (
+				C00101012C9A000100000001 /* Sources */,
+				C00101012C9A000100000000 /* Frameworks */,
+				C00101012C9A000100000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = Bolt;
+			productName = Bolt;
+			productReference = B00101012C9A000100000000 /* Bolt.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		000101012C9A000100000000 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1500;
+				LastUpgradeCheck = 1500;
+				TargetAttributes = {
+					E00101012C9A000100000000 = {
+						CreatedOnToolsVersion = 15.0;
+					};
+				};
+			};
+			buildConfigurationList = F00101012C9A000100000010 /* Build configuration list for PBXProject "Bolt" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = D00101012C9A000100000000;
+			productRefGroup = D00101012C9A000100000002 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E00101012C9A000100000000 /* Bolt */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		C00101012C9A000100000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00101012C9A000100000024 /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		C00101012C9A000100000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00101012C9A000100000001 /* BoltApp.swift in Sources */,
+				A00101012C9A000100000002 /* AppDelegate.swift in Sources */,
+				A00101012C9A000100000003 /* BoltNative.swift in Sources */,
+				A00101012C9A000100000004 /* BoltEngine.swift in Sources */,
+				A00101012C9A000100000005 /* BonjourService.swift in Sources */,
+				A00101012C9A000100000006 /* StagingService.swift in Sources */,
+				A00101012C9A000100000007 /* TransferLogStore.swift in Sources */,
+				A00101012C9A000100000008 /* Models.swift in Sources */,
+				A00101012C9A000100000009 /* ErrorMessages.swift in Sources */,
+				A00101012C9A000100000010 /* BoltTheme.swift in Sources */,
+				A00101012C9A000100000011 /* Formatters.swift in Sources */,
+				A00101012C9A000100000012 /* BtCard.swift in Sources */,
+				A00101012C9A000100000013 /* RadarView.swift in Sources */,
+				A00101012C9A000100000014 /* ProgressBar.swift in Sources */,
+				A00101012C9A000100000015 /* DeviceBadge.swift in Sources */,
+				A00101012C9A000100000016 /* MainView.swift in Sources */,
+				A00101012C9A000100000017 /* DevicesView.swift in Sources */,
+				A00101012C9A000100000018 /* TransfersView.swift in Sources */,
+				A00101012C9A000100000019 /* SettingsView.swift in Sources */,
+				A00101012C9A000100000020 /* TransferLogsView.swift in Sources */,
+				A00101012C9A000100000021 /* PairingDialogView.swift in Sources */,
+				A00101012C9A000100000022 /* TransferRequestDialogView.swift in Sources */,
+				A00101012C9A000100000023 /* QuickShareSheet.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F00101012C9A000100000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Bolt/FFI",
+				);
+				INFOPLIST_FILE = Bolt/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					"Security",
+					"-framework",
+					"Network",
+					"-framework",
+					"SystemConfiguration",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = xin.cosmos.bolt;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Bolt/FFI/Bolt-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		F00101012C9A000100000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks",
+				);
+				GENERATE_INFOPLIST_FILE = NO;
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Bolt/FFI",
+				);
+				INFOPLIST_FILE = Bolt/Resources/Info.plist;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				OTHER_LDFLAGS = (
+					"$(inherited)",
+					"-framework",
+					"Security",
+					"-framework",
+					"Network",
+					"-framework",
+					"SystemConfiguration",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = xin.cosmos.bolt;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "Bolt/FFI/Bolt-Bridging-Header.h";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		F00101012C9A000100000011 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		F00101012C9A000100000012 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 16.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F00101012C9A000100000000 /* Build configuration list for PBXNativeTarget "Bolt" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F00101012C9A000100000001 /* Debug */,
+				F00101012C9A000100000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F00101012C9A000100000010 /* Build configuration list for PBXProject "Bolt" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F00101012C9A000100000011 /* Debug */,
+				F00101012C9A000100000012 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 000101012C9A000100000000 /* Project object */;
+}

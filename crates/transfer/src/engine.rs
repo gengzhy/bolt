@@ -310,6 +310,10 @@ pub fn device_type() -> DeviceType {
         DeviceType::Windows
     } else if cfg!(target_os = "linux") {
         DeviceType::Linux
+    } else if cfg!(target_os = "ios") {
+        DeviceType::Ios
+    } else if cfg!(target_os = "macos") {
+        DeviceType::Macos
     } else {
         DeviceType::Android
     }
