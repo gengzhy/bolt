@@ -30,7 +30,7 @@ graph TD
         R_Win["windows-latest<br/>(Node 24, MSVC, WiX, NSIS)"]
         R_Mac["macos-14 (Apple Silicon M1)<br/>(Node 24, Xcode 15, Rust Universal)"]
         R_Linux["ubuntu-latest<br/>(WebKitGTK, AppImage, RPM/DEB)"]
-        R_Android["ubuntu-latest<br/>(Java 17, Android SDK & NDK)"]
+        R_Android["ubuntu-latest<br/>(Java 21, Android SDK & NDK)"]
     end
 
     subgraph Artifacts ["构建产物 (GitHub Actions Artifacts)"]
@@ -64,7 +64,7 @@ graph TD
 | [`.github/workflows/build-windows.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-windows.yml) | **Windows** 桌面端 | `windows-latest` | Node.js 24, Rust MSVC, WiX, NSIS | `bolt-windows-portable`, `bolt-windows-setup`, `bolt-windows-msi`, `bolt-windows-cli`, `bolt-windows-dist` |
 | [`.github/workflows/build-macos.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-macos.yml) | **macOS** 桌面端 | `macos-14` (ARM64) | Node.js 24, Rust Universal targets, lipo | `bolt-macos-dmg`, `bolt-macos-app`, `bolt-macos-cli`, `bolt-macos-dist` |
 | [`.github/workflows/build-linux.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-linux.yml) | **Linux** 桌面端 | `ubuntu-latest` | Node.js 24, WebKit2GTK, patchelf, rpm | `bolt-linux-dist` (包含 AppImage, DEB, RPM, CLI) |
-| [`.github/workflows/build-android.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-android.yml) | **Android** 移动端 | `ubuntu-latest` | Java 17, Android SDK, NDK r26+, cargo-ndk | `bolt-android-release-apk`, `bolt-android-debug-apk`, `bolt-android-jniLibs`, `bolt-android-dist` |
+| [`.github/workflows/build-android.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-android.yml) | **Android** 移动端 | `ubuntu-latest` | Java 21, Android SDK, NDK r26+, cargo-ndk | `bolt-android-release-apk`, `bolt-android-debug-apk`, `bolt-android-jniLibs`, `bolt-android-dist` |
 | [`.github/workflows/build-ios.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-ios.yml) | **iOS** 移动端 | `macos-14` (ARM64) | Xcode 15+, iOS SDK, Rust iOS targets | `bolt-ios-ipa`, `bolt-engine-xcframework`, `bolt-ios-xcarchive` |
 
 ---
@@ -164,7 +164,7 @@ git push origin v0.1.0
 
 - **文件路径**：[`.github/workflows/build-android.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-android.yml)
 - **核心逻辑**：
-  1. 配置 Temurin JDK 17 与 Gradle 缓存；
+  1. 配置 Temurin JDK 21 与 Gradle 缓存；
   2. 配置 Android NDK，安装 `cargo-ndk`；
   3. 编译 `arm64-v8a`、`armeabi-v7a`、`x86_64` 三套架构的 `libbt_ffi.so`；
   4. 调用 Gradle 执行 R8 混淆压缩与通用打包，生成经过深度优化的 Release APK 与包含堆栈的 Debug APK。
