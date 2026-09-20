@@ -25,6 +25,7 @@ android_app/local.properties
 # IDE
 .vscode/
 .agents/
+.claude/
 
 # Temp scripts
 scratch/
