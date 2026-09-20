@@ -27,8 +27,8 @@ graph TD
     end
 
     subgraph Runners ["云端虚拟机环境 (GitHub-hosted Runners)"]
-        R_Win["windows-latest<br/>(Node 20, MSVC, WiX, NSIS)"]
-        R_Mac["macos-14 (Apple Silicon M1)<br/>(Node 20, Xcode 15, Rust Universal)"]
+        R_Win["windows-latest<br/>(Node 24, MSVC, WiX, NSIS)"]
+        R_Mac["macos-14 (Apple Silicon M1)<br/>(Node 24, Xcode 15, Rust Universal)"]
         R_Linux["ubuntu-latest<br/>(WebKitGTK, AppImage, RPM/DEB)"]
         R_Android["ubuntu-latest<br/>(Java 17, Android SDK & NDK)"]
     end
@@ -61,9 +61,9 @@ graph TD
 | 流水线文件 | 目标平台 | 云端 Runner | 依赖工具链与环境 | 最终输出产物 Artifacts |
 | :--- | :--- | :--- | :--- | :--- |
 | [`.github/workflows/ci.yml`](file:///e:/AIProjects/bolt/.github/workflows/ci.yml) | 核心门禁 | `windows-latest` | Rust stable, rustfmt, clippy, NDK r26d | `smoke-logs` (仅失败时), `android-jniLibs` |
-| [`.github/workflows/build-windows.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-windows.yml) | **Windows** 桌面端 | `windows-latest` | Node.js 20, Rust MSVC, WiX, NSIS | `bolt-windows-portable`, `bolt-windows-setup`, `bolt-windows-msi`, `bolt-windows-cli`, `bolt-windows-dist` |
-| [`.github/workflows/build-macos.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-macos.yml) | **macOS** 桌面端 | `macos-14` (ARM64) | Node.js 20, Rust Universal targets, lipo | `bolt-macos-dmg`, `bolt-macos-app`, `bolt-macos-cli`, `bolt-macos-dist` |
-| [`.github/workflows/build-linux.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-linux.yml) | **Linux** 桌面端 | `ubuntu-latest` | Node.js 20, WebKit2GTK, patchelf, rpm | `bolt-linux-dist` (包含 AppImage, DEB, RPM, CLI) |
+| [`.github/workflows/build-windows.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-windows.yml) | **Windows** 桌面端 | `windows-latest` | Node.js 24, Rust MSVC, WiX, NSIS | `bolt-windows-portable`, `bolt-windows-setup`, `bolt-windows-msi`, `bolt-windows-cli`, `bolt-windows-dist` |
+| [`.github/workflows/build-macos.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-macos.yml) | **macOS** 桌面端 | `macos-14` (ARM64) | Node.js 24, Rust Universal targets, lipo | `bolt-macos-dmg`, `bolt-macos-app`, `bolt-macos-cli`, `bolt-macos-dist` |
+| [`.github/workflows/build-linux.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-linux.yml) | **Linux** 桌面端 | `ubuntu-latest` | Node.js 24, WebKit2GTK, patchelf, rpm | `bolt-linux-dist` (包含 AppImage, DEB, RPM, CLI) |
 | [`.github/workflows/build-android.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-android.yml) | **Android** 移动端 | `ubuntu-latest` | Java 17, Android SDK, NDK r26+, cargo-ndk | `bolt-android-release-apk`, `bolt-android-debug-apk`, `bolt-android-jniLibs`, `bolt-android-dist` |
 | [`.github/workflows/build-ios.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-ios.yml) | **iOS** 移动端 | `macos-14` (ARM64) | Xcode 15+, iOS SDK, Rust iOS targets | `bolt-ios-ipa`, `bolt-engine-xcframework`, `bolt-ios-xcarchive` |
 
