@@ -29,16 +29,17 @@ jobs:
 
       - name: Setup Screen Sharing & Web Remote Desktop
         run: |
-          # 1. 设置系统 runner 用户密码
-          sudo dscl . -passwd /Users/runner "BoltMac123!"
-
-          # 2. 开启 macOS 原生屏幕共享 (VNC)
+          # 1. 开启 macOS 原生屏幕共享 (VNC) 并设置连接密码
           sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
-            -activate -configure -access -on \
-            -clientopts -setvncmode -vncmode configure -vncpw "BoltMac123!" \
-            -restart -agent -privs -all
+            -configure -allowAccessFor -allUsers -privs -all || true
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+            -configure -clientopts -setvnclegacy -vnclegacy yes || true
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+            -configure -clientopts -setvncpw -vncpw "BoltMac123!" || true
+          sudo /System/Library/CoreServices/RemoteManagement/ARDAgent.app/Contents/Resources/kickstart \
+            -activate -configure -access -on -restart -agent || true
 
-          # 3. 安装 noVNC 网页客户端与临时公网穿透工具
+          # 2. 安装 noVNC 网页客户端与临时公网穿透工具
           brew install novnc cloudflared
 
           # 4. 获取 novnc 安装路径并启动 websockify 桥接 5900 到 6080
