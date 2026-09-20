@@ -37,6 +37,9 @@
   rustup target add aarch64-apple-ios aarch64-apple-ios-sim x86_64-apple-ios
   ```
 
+> 💡 **无需本地配置复杂的各平台跨编译环境？**
+> Bolt 具备完整的 GitHub Actions 云端自动化构建体系。任何推送到主分支或发布标签的操作均会自动编译出 Windows、macOS、Linux、Android 与 iOS 最新安装包，您也可以随时在 GitHub 网页上一键手动触发构建并直接下载成品。详细使用方法请参阅 📖 [CI/CD 打包指南](github_actions_guide.md)。
+
 ---
 
 ## 📋 2. 代码质量门禁与验证

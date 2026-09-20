@@ -155,7 +155,8 @@ cargo run -p bolt-cli -- discover
 | [协议规范](docs/protocol_spec.md) | 帧格式、指令码、握手流程、错误码 |
 | [FFI API](docs/ffi_api.md) | `bt_*` C ABI 接口与事件定义 |
 | [开发指南](docs/dev_guide.md) | 架构速览、全局常量、新增功能检查单 |
-| [编译指南](docs/build_guide.md) | 环境配置、质量门禁、Windows/Linux/Android 全形态打包流程 |
+| [编译指南](docs/build_guide.md) | 环境配置、质量门禁、全平台本地编译打包流程 |
+| [CI/CD 打包指南](docs/github_actions_guide.md) | GitHub Actions 云端全平台自动化打包与安装包下载教程 |
 | [项目结构](docs/project_structure.md) | 仓库完整文件树、分层约束与打包产物规范 |
 | [隐私政策](docs/privacy_policy.md) | 纯局域网数据安全、操作系统权限与合规声明 |
 

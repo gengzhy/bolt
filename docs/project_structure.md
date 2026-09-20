@@ -317,6 +317,7 @@ bolt/
 └── docs/                                      # 【项目设计、开发、协议与政策文档】
     ├── dev_guide.md                           # 开发环境准备、常用指令与联调排障指南
     ├── build_guide.md                         # 全平台编译环境、质量门禁与打包发布指南
+    ├── github_actions_guide.md                # GitHub Actions 云端全平台自动化打包与安装包下载教程
     ├── ffi_api.md                             # C ABI 跨语言导出接口与事件系统规范
     ├── protocol_spec.md                       # Bolt 二进制/JSON 局域网高速传输协议规范
     ├── privacy_policy.md                      # Bolt 离线局域网隐私政策与合规说明
