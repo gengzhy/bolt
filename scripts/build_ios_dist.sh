@@ -22,8 +22,8 @@ echo "============================================================"
 
 # 1. 确保核心库就绪
 if [ ! -d "${IOS_DIR}/Frameworks/BoltEngine.xcframework" ]; then
-    echo "[!] 未检测到 BoltEngine.xcframework，正在触发底层库编译..."
-    bash "${SCRIPT_DIR}/build_ios_lib.sh" "${CONFIGURATION,,}"
+    MODE_LOWER="$(echo "${CONFIGURATION}" | tr '[:upper:]' '[:lower:]')"
+    bash "${SCRIPT_DIR}/build_ios_lib.sh" "${MODE_LOWER}"
 fi
 
 # 2. 清理与创建产物目录
@@ -39,9 +39,7 @@ xcodebuild archive \
     -configuration "${CONFIGURATION}" \
     -destination "generic/platform=iOS" \
     -archivePath "${ARCHIVE_PATH}" \
-    CODE_SIGNING_ALLOWED=NO \
-    LIBRARY_SEARCH_PATHS="\$(inherited) ${IOS_DIR}/Frameworks/BoltEngine.xcframework/ios-arm64 ${ROOT_DIR}/target/aarch64-apple-ios/${CONFIGURATION,,}" \
-    OTHER_LDFLAGS="\$(inherited) -framework Security -framework Network -framework SystemConfiguration -lbt_ffi"
+    CODE_SIGNING_ALLOWED=NO
 
 # 4. 自动生成无签名发行版 IPA（便于通过 Sideloadly / AltStore / TrollStore 等在 Windows 上直接侧载安装）
 echo "[2/3] 正在打包 Bolt.ipa..."
