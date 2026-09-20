@@ -54,8 +54,6 @@ public final class StagingService {
             }
 
             let filename = url.lastPathComponent
-            let dest = taskDir.appendingPathComponent(filename)
-
             // 若同名则追加序号
             let uniqueDest = makeUniqueDest(taskDir: taskDir, filename: filename)
 
