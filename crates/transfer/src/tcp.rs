@@ -7,9 +7,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use crypto::{tls, DeviceIdentity};
-use utils::{BtError, BtResult};
 use tokio::net::{TcpListener, TcpStream};
 use tokio_rustls::{TlsAcceptor, TlsConnector};
+use utils::{BtError, BtResult};
 
 use crate::conn::Pipe;
 
@@ -97,8 +97,8 @@ pub async fn dial(
     bump_buffers(&stream);
     let kill = kill_handle(&stream)?;
     let connector = connector(identity)?;
-    let server_name = rustls::pki_types::ServerName::try_from("bolt.local")
-        .map_err(|_| BtError::Internal)?;
+    let server_name =
+        rustls::pki_types::ServerName::try_from("bolt.local").map_err(|_| BtError::Internal)?;
     let tls = connector.connect(server_name, stream).await.map_err(|e| {
         tracing::debug!(error = %e, %target, "tls connect failed");
         BtError::ConnectTimeout

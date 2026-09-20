@@ -6,9 +6,9 @@ use std::net::SocketAddr;
 use std::sync::Arc;
 
 use crypto::{tls, DeviceIdentity};
+use socket2::{Domain, Protocol, Socket, Type};
 use utils::constants::*;
 use utils::{BtError, BtResult};
-use socket2::{Domain, Protocol, Socket, Type};
 
 use crate::conn::Pipe;
 

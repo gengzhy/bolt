@@ -52,6 +52,7 @@ impl TaskSendTracker {
     }
 
     /// 更新某文件的已确认/已落盘进度，并在满足 250ms 节流时发射全局进度
+    #[allow(clippy::too_many_arguments)]
     pub fn update_file(
         &mut self,
         file_seq: usize,
@@ -71,7 +72,10 @@ impl TaskSendTracker {
         if !force && now.duration_since(self.last_emit) < INTERVAL_PROGRESS_EMIT {
             return;
         }
-        let dt = now.duration_since(self.rate_time_last).as_secs_f64().max(0.001);
+        let dt = now
+            .duration_since(self.rate_time_last)
+            .as_secs_f64()
+            .max(0.001);
         let instant_rate = (current_done.saturating_sub(self.rate_bytes_last)) as f64 / dt;
         self.smoothed_rate = if force {
             0.0
@@ -178,7 +182,10 @@ pub async fn send_files(
     let fail_count = Arc::new(AtomicU32::new(0));
     let cancel_sent = Arc::new(AtomicBool::new(false));
     let chunk_size = session.cfg.chunk_size;
-    let tracker = Arc::new(std::sync::Mutex::new(TaskSendTracker::new(total_size, items.len())));
+    let tracker = Arc::new(std::sync::Mutex::new(TaskSendTracker::new(
+        total_size,
+        items.len(),
+    )));
 
     let mut handles = Vec::new();
     for (idx, item) in items.into_iter().enumerate() {
@@ -219,7 +226,12 @@ pub async fn send_files(
                 Err(e) => {
                     if e == BtError::Cancelled {
                         if !cancel_sent.swap(true, Ordering::SeqCst) {
-                            let _ = session.send_control(task_id, Message::Cancel { reason: CANCEL_REASON_USER });
+                            let _ = session.send_control(
+                                task_id,
+                                Message::Cancel {
+                                    reason: CANCEL_REASON_USER,
+                                },
+                            );
                         }
                     } else {
                         sink(EngineEvent::Error {
@@ -285,6 +297,7 @@ pub async fn send_files(
 }
 
 /// 发送单个文件。Ok(true)=成功，Ok(false)=对端判失败，Err=异常。
+#[allow(clippy::too_many_arguments)]
 async fn send_one_file(
     session: Arc<Session>,
     task_id: u64,
@@ -344,11 +357,7 @@ async fn send_one_file_on_pipe(
         .await
         .map_err(|_| BtError::ConnectTimeout)?
         .map_err(|_| BtError::ConnectTimeout)?;
-    let Message::FileMetaAck {
-        accept: true,
-        ..
-    } = meta_ack
-    else {
+    let Message::FileMetaAck { accept: true, .. } = meta_ack else {
         return Ok(false); // 对端拒收该文件
     };
 

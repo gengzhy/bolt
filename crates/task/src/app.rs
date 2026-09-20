@@ -140,7 +140,11 @@ impl App {
                 for entry in entries.flatten() {
                     if let Ok(meta) = entry.metadata() {
                         if let Ok(mtime) = meta.modified() {
-                            if now.duration_since(mtime).map(|d| d > max_age).unwrap_or(false) {
+                            if now
+                                .duration_since(mtime)
+                                .map(|d| d > max_age)
+                                .unwrap_or(false)
+                            {
                                 let _ = std::fs::remove_file(entry.path());
                             }
                         }
@@ -225,12 +229,11 @@ impl App {
     }
 
     fn engine_busy(&self) -> bool {
-        self.tasks.lock().unwrap().values().any(|t| {
-            matches!(
-                t.state,
-                TaskState::WaitingAccept | TaskState::Transferring
-            )
-        })
+        self.tasks
+            .lock()
+            .unwrap()
+            .values()
+            .any(|t| matches!(t.state, TaskState::WaitingAccept | TaskState::Transferring))
     }
 
     fn discovery_config(&self) -> DiscoveryConfig {
@@ -389,7 +392,11 @@ impl App {
                             state: "disconnected".into(),
                             conn_id: 0,
                             transport: String::new(),
-                            err: if e == BtError::Cancelled { None } else { Some(e.code()) },
+                            err: if e == BtError::Cancelled {
+                                None
+                            } else {
+                                Some(e.code())
+                            },
                         });
 
                         if e != BtError::Cancelled {
@@ -438,7 +445,11 @@ impl App {
                             state: "disconnected".into(),
                             conn_id: 0,
                             transport: String::new(),
-                            err: if e == BtError::Cancelled { None } else { Some(e.code()) },
+                            err: if e == BtError::Cancelled {
+                                None
+                            } else {
+                                Some(e.code())
+                            },
                         });
 
                         if e != BtError::Cancelled {
@@ -530,8 +541,7 @@ impl App {
 
     /// 发送文件给某设备（未连接时自动连接）。返回任务 ID。
     pub fn send_files(self: &Arc<App>, uuid: &str, paths: &[String]) -> BtResult<u64> {
-        let items =
-            file::traverse::traverse(&paths.iter().map(PathBuf::from).collect::<Vec<_>>())?;
+        let items = file::traverse::traverse(&paths.iter().map(PathBuf::from).collect::<Vec<_>>())?;
         if items.items.is_empty() {
             return Err(BtError::InvalidArgument);
         }
@@ -637,7 +647,8 @@ impl App {
         });
         let peer_uuid = session.info().peer_uuid;
         self.rt.spawn(async move {
-            let result = transfer::send::send_files(session, task_id, task_uid, items, sink, cancel).await;
+            let result =
+                transfer::send::send_files(session, task_id, task_uid, items, sink, cancel).await;
             let Some(app) = weak.upgrade() else { return };
             let mut tasks = app.tasks.lock().unwrap();
             let Some(t) = tasks.get_mut(&task_id) else {
@@ -647,7 +658,12 @@ impl App {
             // 若世代不匹配，说明该协程是之前被暂停/取消的过期历史任务，
             // 此时已有新的续传协程在运行，绝不可篡改当前任务的状态！
             if t.generation != gen {
-                tracing::info!(task_id, gen, current = t.generation, "superseded send task exiting silently");
+                tracing::info!(
+                    task_id,
+                    gen,
+                    current = t.generation,
+                    "superseded send task exiting silently"
+                );
                 return;
             }
             match result {
@@ -688,7 +704,8 @@ impl App {
                     if t.start_time_ms > 0 && now >= t.start_time_ms {
                         t.duration_ms = now - t.start_time_ms;
                         if t.duration_ms > 0 {
-                            t.avg_rate_bps = (t.done_bytes as u128 * 1000 / t.duration_ms as u128) as u64;
+                            t.avg_rate_bps =
+                                (t.done_bytes as u128 * 1000 / t.duration_ms as u128) as u64;
                         }
                     }
                     drop(tasks);
@@ -720,7 +737,8 @@ impl App {
             if task.start_time_ms > 0 && now >= task.start_time_ms {
                 task.duration_ms = now - task.start_time_ms;
                 if task.duration_ms > 0 {
-                    task.avg_rate_bps = (task.done_bytes as u128 * 1000 / task.duration_ms as u128) as u64;
+                    task.avg_rate_bps =
+                        (task.done_bytes as u128 * 1000 / task.duration_ms as u128) as u64;
                 }
             }
             incoming = matches!(task.direction, Direction::Recv);
@@ -948,7 +966,14 @@ impl App {
                     // 接收任务兜底建档（正常路径在 transfer_incoming 已建）
                     tasks.insert(
                         task_id,
-                        TaskRecord::new_recv(task_id, String::new(), String::new(), String::new(), 0, 0),
+                        TaskRecord::new_recv(
+                            task_id,
+                            String::new(),
+                            String::new(),
+                            String::new(),
+                            0,
+                            0,
+                        ),
                     );
                 }
                 drop(tasks);
@@ -1087,7 +1112,8 @@ impl App {
                         if t.start_time_ms > 0 && now >= t.start_time_ms {
                             t.duration_ms = now - t.start_time_ms;
                             if t.duration_ms > 0 {
-                                t.avg_rate_bps = (t.done_bytes as u128 * 1000 / t.duration_ms as u128) as u64;
+                                t.avg_rate_bps =
+                                    (t.done_bytes as u128 * 1000 / t.duration_ms as u128) as u64;
                             }
                         }
                     }
@@ -1161,7 +1187,6 @@ impl App {
             transport: transport_str(&info),
             err: None,
         });
-
     }
 
     fn handler_pair_needed(
@@ -1188,7 +1213,7 @@ impl App {
         // 也无 UI 可设，用它做条件会导致开关永远不生效——实测 bug）。
         let auto =
             self.cfg.lock().unwrap().auto_accept_trusted && self.trust.is_paired(&req.sender_uuid);
-        
+
         let req_uid_hex: String = req.task_uid.iter().map(|b| format!("{:02x}", b)).collect();
 
         // 1. 根据全局唯一 task_uid 精确查找是否为历史任务的续传（断网重连复用/暂停恢复接管）
@@ -1202,21 +1227,25 @@ impl App {
         {
             let mut tasks = self.tasks.lock().unwrap();
             for (&id, t) in tasks.iter_mut() {
-                if t.direction == Direction::Recv && t.task_uid == req_uid_hex {
-                    if matches!(t.state, TaskState::Transferring | TaskState::Cancelled | TaskState::Error) {
-                        local_id = Some(id);
-                        is_resume = true;
-                        // 重试任务无论 auto 开关与否，均直接扭转为传输中并重置计数器
-                        t.state = TaskState::Transferring;
-                        t.transport = transport_str(&session.info());
-                        t.rate_bps = 0;
-                        t.eta_secs = 0;
-                        t.current_file = String::new();
-                        t.ok_files = 0;
-                        t.failed_files = 0;
-                        t.done_bytes = 0;
-                        break;
-                    }
+                if t.direction == Direction::Recv
+                    && t.task_uid == req_uid_hex
+                    && matches!(
+                        t.state,
+                        TaskState::Transferring | TaskState::Cancelled | TaskState::Error
+                    )
+                {
+                    local_id = Some(id);
+                    is_resume = true;
+                    // 重试任务无论 auto 开关与否，均直接扭转为传输中并重置计数器
+                    t.state = TaskState::Transferring;
+                    t.transport = transport_str(&session.info());
+                    t.rate_bps = 0;
+                    t.eta_secs = 0;
+                    t.current_file = String::new();
+                    t.ok_files = 0;
+                    t.failed_files = 0;
+                    t.done_bytes = 0;
+                    break;
                 }
             }
         }
@@ -1224,7 +1253,10 @@ impl App {
         let local_id = if let Some(id) = local_id {
             // 清理可能的悬空旧映射（旧的 conn_id）并更新新映射
             self.recv_ids.lock().unwrap().retain(|_, v| *v != id);
-            self.recv_ids.lock().unwrap().insert((req.conn_id, req.req_id), id);
+            self.recv_ids
+                .lock()
+                .unwrap()
+                .insert((req.conn_id, req.req_id), id);
             id
         } else {
             // 入站任务分配本地任务号，并以「(conn_id, 线上号) → 本地号」登记映射。
@@ -1312,7 +1344,9 @@ impl App {
             // 找出属于该断开设备的所有处于传输中/等待中的任务，强制置为 Error
             let mut tasks = self.tasks.lock().unwrap();
             for (id, t) in tasks.iter_mut() {
-                if t.peer_uuid == *u && matches!(t.state, TaskState::Transferring | TaskState::WaitingAccept) {
+                if t.peer_uuid == *u
+                    && matches!(t.state, TaskState::Transferring | TaskState::WaitingAccept)
+                {
                     t.state = TaskState::Error;
                     self.emit(BtEvent::TaskState {
                         task_id: *id,

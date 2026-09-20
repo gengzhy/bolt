@@ -375,13 +375,18 @@ async fn disconnect_aborts_send_immediately() {
 
     let res = tokio::time::timeout(Duration::from_secs(3), send_fut).await;
     assert!(res.is_ok(), "send_files 应该在断开后迅速熔断退出，不应超时");
-    let sum = res.unwrap().unwrap().expect("send_files 应该正常返回 SendSummary");
+    let sum = res
+        .unwrap()
+        .unwrap()
+        .expect("send_files 应该正常返回 SendSummary");
     assert_eq!(sum.ok, 0, "断开连接后不应该有成功发送的文件");
     assert_eq!(sum.failed, 1, "断开连接后文件应该计入 failed");
-    assert!(t0.elapsed() < Duration::from_millis(800), "断开后熔断应在 800ms 内完成");
+    assert!(
+        t0.elapsed() < Duration::from_millis(800),
+        "断开后熔断应在 800ms 内完成"
+    );
 
     engine_a.shutdown();
     engine_b.shutdown();
     let _ = std::fs::remove_dir_all(&root);
 }
-

@@ -5,7 +5,8 @@ use task::App;
 fn test_two_windows_apps_transfer_and_resume() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("bt_e2e_{}_{}", std::process::id(), fastrand()));
+    let temp_root =
+        std::env::temp_dir().join(format!("bt_e2e_{}_{}", std::process::id(), fastrand()));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -40,10 +41,17 @@ fn test_two_windows_apps_transfer_and_resume() {
     let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
     app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
     app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
-    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#, save_dir_json)).unwrap();
+    app_b
+        .set_config(&format!(
+            r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#,
+            save_dir_json
+        ))
+        .unwrap();
 
     // 4. A 直连 B
-    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    app_a
+        .connect_addr("127.0.0.1", port_b)
+        .expect("connect_addr");
 
     // 等待连接建立
     let start = Instant::now();
@@ -59,7 +67,9 @@ fn test_two_windows_apps_transfer_and_resume() {
 
     // 5. A 发送文件到 B
     let src_path_str = src_file.to_str().unwrap().to_string();
-    let task_id_a = app_a.send_files(&uuid_b, &[src_path_str]).expect("send_files");
+    let task_id_a = app_a
+        .send_files(&uuid_b, &[src_path_str])
+        .expect("send_files");
     println!("Started task {} on Client A", task_id_a);
 
     // 6. 等待传输完成并验证
@@ -69,7 +79,9 @@ fn test_two_windows_apps_transfer_and_resume() {
         let tasks_a_json = app_a.get_tasks_json();
         let tasks_b_json = app_b.get_tasks_json();
 
-        if tasks_a_json.contains("\"state\":\"done\"") && tasks_b_json.contains("\"state\":\"done\"") {
+        if tasks_a_json.contains("\"state\":\"done\"")
+            && tasks_b_json.contains("\"state\":\"done\"")
+        {
             success = true;
             println!("Transfer completed successfully on both ends!");
             println!("Tasks A: {}", tasks_a_json);
@@ -78,7 +90,12 @@ fn test_two_windows_apps_transfer_and_resume() {
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-    assert!(success, "Transfer timed out! Tasks A: {}, Tasks B: {}", app_a.get_tasks_json(), app_b.get_tasks_json());
+    assert!(
+        success,
+        "Transfer timed out! Tasks A: {}, Tasks B: {}",
+        app_a.get_tasks_json(),
+        app_b.get_tasks_json()
+    );
 
     // 7. 验证两端 task_uid 完全一致
     let tasks_a: Vec<serde_json::Value> = serde_json::from_str(&app_a.get_tasks_json()).unwrap();
@@ -91,7 +108,10 @@ fn test_two_windows_apps_transfer_and_resume() {
     println!("Task UID on A: {}", uid_a);
     println!("Task UID on B: {}", uid_b);
     assert!(!uid_a.is_empty(), "task_uid must not be empty");
-    assert_eq!(uid_a, uid_b, "task_uid on Sender and Receiver must be 100% identical!");
+    assert_eq!(
+        uid_a, uid_b,
+        "task_uid on Sender and Receiver must be 100% identical!"
+    );
 
     // 8. 验证两端 done_bytes 与 total_size 严格一致
     let done_a = tasks_a[0]["done_bytes"].as_u64().unwrap();
@@ -109,7 +129,11 @@ fn test_two_windows_apps_transfer_and_resume() {
         .unwrap()
         .filter_map(|e| e.ok())
         .collect();
-    assert!(!received_files.is_empty(), "Received file not found in {:?}", save_dir);
+    assert!(
+        !received_files.is_empty(),
+        "Received file not found in {:?}",
+        save_dir
+    );
     let recv_content = std::fs::read(received_files[0].path()).unwrap();
     let recv_hash = blake3::hash(&recv_content);
     assert_eq!(recv_hash, expected_hash, "Received file corrupted!");
@@ -124,7 +148,11 @@ fn test_two_windows_apps_transfer_and_resume() {
 fn test_two_windows_apps_cancel_task() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("bt_e2e_cancel_{}_{}", std::process::id(), fastrand()));
+    let temp_root = std::env::temp_dir().join(format!(
+        "bt_e2e_cancel_{}_{}",
+        std::process::id(),
+        fastrand()
+    ));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -154,21 +182,34 @@ fn test_two_windows_apps_cancel_task() {
     let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
     app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
     app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
-    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#, save_dir_json)).unwrap();
+    app_b
+        .set_config(&format!(
+            r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#,
+            save_dir_json
+        ))
+        .unwrap();
 
     // 3. A 直连 B
-    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    app_a
+        .connect_addr("127.0.0.1", port_b)
+        .expect("connect_addr");
     std::thread::sleep(Duration::from_millis(300));
 
     // 4. A 发送文件到 B
     let src_path_str = src_file.to_str().unwrap().to_string();
-    let task_id_a = app_a.send_files(&uuid_b, &[src_path_str]).expect("send_files");
+    let task_id_a = app_a
+        .send_files(&uuid_b, &[src_path_str])
+        .expect("send_files");
 
     // 5. 等待传输进行中后触发取消
     let wait_start = Instant::now();
     loop {
-        let tasks_a: Vec<serde_json::Value> = serde_json::from_str(&app_a.get_tasks_json()).unwrap();
-        let done = tasks_a.first().and_then(|t| t["done_bytes"].as_u64()).unwrap_or(0);
+        let tasks_a: Vec<serde_json::Value> =
+            serde_json::from_str(&app_a.get_tasks_json()).unwrap();
+        let done = tasks_a
+            .first()
+            .and_then(|t| t["done_bytes"].as_u64())
+            .unwrap_or(0);
         if done >= 1024 * 1024 || wait_start.elapsed() > Duration::from_secs(5) {
             break;
         }
@@ -192,7 +233,11 @@ fn test_two_windows_apps_cancel_task() {
 fn test_multi_files_batch_transfer() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("bt_e2e_multi_{}_{}", std::process::id(), fastrand()));
+    let temp_root = std::env::temp_dir().join(format!(
+        "bt_e2e_multi_{}_{}",
+        std::process::id(),
+        fastrand()
+    ));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -201,11 +246,11 @@ fn test_multi_files_batch_transfer() {
 
     // 1. 创建 5 个混合大小的测试文件，总计约 16MB
     let file_sizes = [
-        ("file_1_small.dat", 256 * 1024),         // 256KB
-        ("file_2_medium.dat", 2 * 1024 * 1024),    // 2MB
-        ("file_3_large.dat", 8 * 1024 * 1024),     // 8MB
-        ("file_4_medium.dat", 2 * 1024 * 1024),    // 2MB
-        ("file_5_small.dat", 512 * 1024),         // 512KB
+        ("file_1_small.dat", 256 * 1024),       // 256KB
+        ("file_2_medium.dat", 2 * 1024 * 1024), // 2MB
+        ("file_3_large.dat", 8 * 1024 * 1024),  // 8MB
+        ("file_4_medium.dat", 2 * 1024 * 1024), // 2MB
+        ("file_5_small.dat", 512 * 1024),       // 512KB
     ];
 
     let mut send_paths = Vec::new();
@@ -238,10 +283,17 @@ fn test_multi_files_batch_transfer() {
     let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
     app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
     app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
-    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#, save_dir_json)).unwrap();
+    app_b
+        .set_config(&format!(
+            r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#,
+            save_dir_json
+        ))
+        .unwrap();
 
     // 3. A 直连 B
-    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    app_a
+        .connect_addr("127.0.0.1", port_b)
+        .expect("connect_addr");
     std::thread::sleep(Duration::from_millis(300));
 
     // 4. A 批量发送 5 个文件
@@ -255,18 +307,29 @@ fn test_multi_files_batch_transfer() {
         let tasks_a_json = app_a.get_tasks_json();
         let tasks_b_json = app_b.get_tasks_json();
 
-        if tasks_a_json.contains("\"state\":\"done\"") && tasks_b_json.contains("\"state\":\"done\"") {
+        if tasks_a_json.contains("\"state\":\"done\"")
+            && tasks_b_json.contains("\"state\":\"done\"")
+        {
             success = true;
             break;
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-    assert!(success, "Multi-file transfer timed out! Tasks A: {}, Tasks B: {}", app_a.get_tasks_json(), app_b.get_tasks_json());
+    assert!(
+        success,
+        "Multi-file transfer timed out! Tasks A: {}, Tasks B: {}",
+        app_a.get_tasks_json(),
+        app_b.get_tasks_json()
+    );
 
     // 6. 验证落盘文件哈希
     for (name, _) in &file_sizes {
         let dest_file = save_dir.join(name);
-        assert!(dest_file.exists(), "Received file {:?} does not exist!", dest_file);
+        assert!(
+            dest_file.exists(),
+            "Received file {:?} does not exist!",
+            dest_file
+        );
         let content = std::fs::read(&dest_file).unwrap();
         let actual_hash = blake3::hash(&content);
         let expected = expected_hashes.get(*name).unwrap();
@@ -283,7 +346,11 @@ fn test_multi_files_batch_transfer() {
 fn test_auto_rename_on_collision_and_smooth_progress() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("bt_e2e_collision_{}_{}", std::process::id(), fastrand()));
+    let temp_root = std::env::temp_dir().join(format!(
+        "bt_e2e_collision_{}_{}",
+        std::process::id(),
+        fastrand()
+    ));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -317,10 +384,17 @@ fn test_auto_rename_on_collision_and_smooth_progress() {
     let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
     app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
     app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
-    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}, "collision": "rename"}}"#, save_dir_json)).unwrap();
+    app_b
+        .set_config(&format!(
+            r#"{{"auto_accept_trusted": true, "save_dir": {}, "collision": "rename"}}"#,
+            save_dir_json
+        ))
+        .unwrap();
 
     // 4. A 连 B
-    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    app_a
+        .connect_addr("127.0.0.1", port_b)
+        .expect("connect_addr");
     let start = Instant::now();
     loop {
         if app_a.get_config_json().contains(&uuid_b) || app_b.get_config_json().contains(&uuid_a) {
@@ -344,31 +418,57 @@ fn test_auto_rename_on_collision_and_smooth_progress() {
         let tasks_a_json = app_a.get_tasks_json();
         let tasks_b_json = app_b.get_tasks_json();
 
-        if tasks_a_json.contains("\"state\":\"done\"") && tasks_b_json.contains("\"state\":\"done\"") {
+        if tasks_a_json.contains("\"state\":\"done\"")
+            && tasks_b_json.contains("\"state\":\"done\"")
+        {
             success = true;
             break;
         }
         std::thread::sleep(Duration::from_millis(50));
     }
-    assert!(success, "Collision transfer timed out! Tasks A: {}, Tasks B: {}", app_a.get_tasks_json(), app_b.get_tasks_json());
+    assert!(
+        success,
+        "Collision transfer timed out! Tasks A: {}, Tasks B: {}",
+        app_a.get_tasks_json(),
+        app_b.get_tasks_json()
+    );
 
     // 7. 【核心验证 Bug 4】：
     // 接收端原有的 report.docx 必须完好无损（内容仍为 existing_content）
     let existing_now = std::fs::read(&existing_file).unwrap();
-    assert_eq!(&existing_now, existing_content, "Existing file was unexpectedly overwritten!");
+    assert_eq!(
+        &existing_now, existing_content,
+        "Existing file was unexpectedly overwritten!"
+    );
 
     // 自动重命名的文件 report(1).docx 必须生成，且内容与新发送的文件 100% 吻合！
     let renamed_file = save_dir.join("report(1).docx");
-    assert!(renamed_file.exists(), "Renamed file report(1).docx does not exist! Bug 4 regression!");
+    assert!(
+        renamed_file.exists(),
+        "Renamed file report(1).docx does not exist! Bug 4 regression!"
+    );
     let renamed_content = std::fs::read(&renamed_file).unwrap();
-    assert_eq!(blake3::hash(&renamed_content), expected_new_hash, "Renamed file content does not match!");
+    assert_eq!(
+        blake3::hash(&renamed_content),
+        expected_new_hash,
+        "Renamed file content does not match!"
+    );
 
     // 8. 两端终态 done_bytes 100% 对齐，且接收端 current_file 精准更新为重命名后的真实文件名
     let tasks_a: Vec<serde_json::Value> = serde_json::from_str(&app_a.get_tasks_json()).unwrap();
     let tasks_b: Vec<serde_json::Value> = serde_json::from_str(&app_b.get_tasks_json()).unwrap();
-    assert_eq!(tasks_a[0]["done_bytes"].as_u64().unwrap(), new_content.len() as u64);
-    assert_eq!(tasks_b[0]["done_bytes"].as_u64().unwrap(), new_content.len() as u64);
-    assert_eq!(tasks_b[0]["current_file"].as_str().unwrap(), "report(1).docx");
+    assert_eq!(
+        tasks_a[0]["done_bytes"].as_u64().unwrap(),
+        new_content.len() as u64
+    );
+    assert_eq!(
+        tasks_b[0]["done_bytes"].as_u64().unwrap(),
+        new_content.len() as u64
+    );
+    assert_eq!(
+        tasks_b[0]["current_file"].as_str().unwrap(),
+        "report(1).docx"
+    );
 
     app_a.shutdown();
     app_b.shutdown();
@@ -379,7 +479,8 @@ fn test_auto_rename_on_collision_and_smooth_progress() {
 fn test_mid_transfer_disconnect_fails_fast_without_lingering() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("bt_e2e_disc_{}_{}", std::process::id(), fastrand()));
+    let temp_root =
+        std::env::temp_dir().join(format!("bt_e2e_disc_{}_{}", std::process::id(), fastrand()));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -406,21 +507,34 @@ fn test_mid_transfer_disconnect_fails_fast_without_lingering() {
     let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
     app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
     app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
-    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#, save_dir_json)).unwrap();
+    app_b
+        .set_config(&format!(
+            r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#,
+            save_dir_json
+        ))
+        .unwrap();
 
     // 3. A 直连 B
-    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    app_a
+        .connect_addr("127.0.0.1", port_b)
+        .expect("connect_addr");
     std::thread::sleep(Duration::from_millis(300));
 
     // 4. A 发送大文件到 B
     let src_path_str = src_file.to_str().unwrap().to_string();
-    let _task_id = app_a.send_files(&uuid_b, &[src_path_str]).expect("send_files");
+    let _task_id = app_a
+        .send_files(&uuid_b, &[src_path_str])
+        .expect("send_files");
 
     // 5. 等待传输开始推进（已有部分字节传输在途）
     let wait_start = Instant::now();
     loop {
-        let tasks_a: Vec<serde_json::Value> = serde_json::from_str(&app_a.get_tasks_json()).unwrap();
-        let done = tasks_a.first().and_then(|t| t["done_bytes"].as_u64()).unwrap_or(0);
+        let tasks_a: Vec<serde_json::Value> =
+            serde_json::from_str(&app_a.get_tasks_json()).unwrap();
+        let done = tasks_a
+            .first()
+            .and_then(|t| t["done_bytes"].as_u64())
+            .unwrap_or(0);
         if done >= 512 * 1024 || wait_start.elapsed() > Duration::from_secs(5) {
             break;
         }
@@ -435,7 +549,8 @@ fn test_mid_transfer_disconnect_fails_fast_without_lingering() {
     let mut failed_fast = false;
     let mut elapsed = Duration::ZERO;
     while disc_t0.elapsed() < Duration::from_secs(3) {
-        let tasks_a: Vec<serde_json::Value> = serde_json::from_str(&app_a.get_tasks_json()).unwrap();
+        let tasks_a: Vec<serde_json::Value> =
+            serde_json::from_str(&app_a.get_tasks_json()).unwrap();
         if let Some(t) = tasks_a.first() {
             let state = t["state"].as_str().unwrap_or("");
             if state == "error" || state == "cancelled" {
@@ -447,8 +562,16 @@ fn test_mid_transfer_disconnect_fails_fast_without_lingering() {
         std::thread::sleep(Duration::from_millis(50));
     }
 
-    assert!(failed_fast, "断开连接后任务未能迅速标记为 error! 当前 tasks: {}", app_a.get_tasks_json());
-    assert!(elapsed < Duration::from_millis(1200), "断开连接后熔断耗时过长: {:?}，存在假死/挂起风险", elapsed);
+    assert!(
+        failed_fast,
+        "断开连接后任务未能迅速标记为 error! 当前 tasks: {}",
+        app_a.get_tasks_json()
+    );
+    assert!(
+        elapsed < Duration::from_millis(1200),
+        "断开连接后熔断耗时过长: {:?}，存在假死/挂起风险",
+        elapsed
+    );
 
     app_a.shutdown();
     app_b.shutdown();
@@ -459,7 +582,8 @@ fn test_mid_transfer_disconnect_fails_fast_without_lingering() {
 fn test_tcp_mode_transfer() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("bt_e2e_tcp_{}_{}", std::process::id(), fastrand()));
+    let temp_root =
+        std::env::temp_dir().join(format!("bt_e2e_tcp_{}_{}", std::process::id(), fastrand()));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -490,15 +614,24 @@ fn test_tcp_mode_transfer() {
     let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
     app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
     app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
-    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#, save_dir_json)).unwrap();
+    app_b
+        .set_config(&format!(
+            r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#,
+            save_dir_json
+        ))
+        .unwrap();
 
     // 3. A 直连 B（走 TCP）
-    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    app_a
+        .connect_addr("127.0.0.1", port_b)
+        .expect("connect_addr");
     std::thread::sleep(Duration::from_millis(300));
 
     // 4. A 发送文件
     let src_path_str = src_file.to_str().unwrap().to_string();
-    let _task_id = app_a.send_files(&uuid_b, &[src_path_str]).expect("send_files");
+    let _task_id = app_a
+        .send_files(&uuid_b, &[src_path_str])
+        .expect("send_files");
 
     // 5. 等待完成
     let start = Instant::now();
@@ -506,24 +639,39 @@ fn test_tcp_mode_transfer() {
     while start.elapsed() < Duration::from_secs(15) {
         let tasks_a_json = app_a.get_tasks_json();
         let tasks_b_json = app_b.get_tasks_json();
-        if tasks_a_json.contains("\"state\":\"done\"") && tasks_b_json.contains("\"state\":\"done\"") {
+        if tasks_a_json.contains("\"state\":\"done\"")
+            && tasks_b_json.contains("\"state\":\"done\"")
+        {
             success = true;
             break;
         }
         std::thread::sleep(Duration::from_millis(100));
     }
-    assert!(success, "TCP transfer timed out! Tasks A: {}, Tasks B: {}", app_a.get_tasks_json(), app_b.get_tasks_json());
+    assert!(
+        success,
+        "TCP transfer timed out! Tasks A: {}, Tasks B: {}",
+        app_a.get_tasks_json(),
+        app_b.get_tasks_json()
+    );
 
     // 6. 验证传输协议为 TCP 且哈希一致
     let tasks_a: Vec<serde_json::Value> = serde_json::from_str(&app_a.get_tasks_json()).unwrap();
-    assert_eq!(tasks_a[0]["transport"].as_str().unwrap(), "tcp", "发送端任务协议应为 tcp");
+    assert_eq!(
+        tasks_a[0]["transport"].as_str().unwrap(),
+        "tcp",
+        "发送端任务协议应为 tcp"
+    );
 
     let received_files: Vec<_> = std::fs::read_dir(&save_dir)
         .unwrap()
         .filter_map(|e| e.ok())
         .collect();
     let recv_content = std::fs::read(received_files[0].path()).unwrap();
-    assert_eq!(blake3::hash(&recv_content), expected_hash, "TCP 传输落盘内容哈希不一致");
+    assert_eq!(
+        blake3::hash(&recv_content),
+        expected_hash,
+        "TCP 传输落盘内容哈希不一致"
+    );
 
     app_a.shutdown();
     app_b.shutdown();
@@ -534,7 +682,11 @@ fn test_tcp_mode_transfer() {
 fn test_large_file_high_speed_transfer() {
     crypto::ensure_provider();
 
-    let temp_root = std::env::temp_dir().join(format!("bt_e2e_large_{}_{}", std::process::id(), fastrand()));
+    let temp_root = std::env::temp_dir().join(format!(
+        "bt_e2e_large_{}_{}",
+        std::process::id(),
+        fastrand()
+    ));
     let dir_a = temp_root.join("client_a");
     let dir_b = temp_root.join("client_b");
     let _ = std::fs::remove_dir_all(&temp_root);
@@ -565,30 +717,46 @@ fn test_large_file_high_speed_transfer() {
     let save_dir_json = serde_json::to_string(save_dir.to_str().unwrap()).unwrap();
     app_a.trust().add(&uuid_b, &fp_b, "ClientB").unwrap();
     app_b.trust().add(&uuid_a, &fp_a, "ClientA").unwrap();
-    app_b.set_config(&format!(r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#, save_dir_json)).unwrap();
+    app_b
+        .set_config(&format!(
+            r#"{{"auto_accept_trusted": true, "save_dir": {}}}"#,
+            save_dir_json
+        ))
+        .unwrap();
 
     // 3. 连接
-    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    app_a
+        .connect_addr("127.0.0.1", port_b)
+        .expect("connect_addr");
     std::thread::sleep(Duration::from_millis(300));
 
     // 4. 发送 20MB 文件并计时
     let src_path_str = src_file.to_str().unwrap().to_string();
     let t0 = Instant::now();
-    let _task_id = app_a.send_files(&uuid_b, &[src_path_str]).expect("send_files");
+    let _task_id = app_a
+        .send_files(&uuid_b, &[src_path_str])
+        .expect("send_files");
 
     let start = Instant::now();
     let mut success = false;
     while start.elapsed() < Duration::from_secs(20) {
         let tasks_a_json = app_a.get_tasks_json();
         let tasks_b_json = app_b.get_tasks_json();
-        if tasks_a_json.contains("\"state\":\"done\"") && tasks_b_json.contains("\"state\":\"done\"") {
+        if tasks_a_json.contains("\"state\":\"done\"")
+            && tasks_b_json.contains("\"state\":\"done\"")
+        {
             success = true;
             break;
         }
         std::thread::sleep(Duration::from_millis(100));
     }
     let total_time = t0.elapsed();
-    assert!(success, "20MB 大文件传输超时! Tasks A: {}, Tasks B: {}", app_a.get_tasks_json(), app_b.get_tasks_json());
+    assert!(
+        success,
+        "20MB 大文件传输超时! Tasks A: {}, Tasks B: {}",
+        app_a.get_tasks_json(),
+        app_b.get_tasks_json()
+    );
 
     // 5. 校验哈希与速率
     let received_files: Vec<_> = std::fs::read_dir(&save_dir)
@@ -596,12 +764,19 @@ fn test_large_file_high_speed_transfer() {
         .filter_map(|e| e.ok())
         .collect();
     let recv_content = std::fs::read(received_files[0].path()).unwrap();
-    assert_eq!(blake3::hash(&recv_content), expected_hash, "20MB 文件哈希不匹配");
+    assert_eq!(
+        blake3::hash(&recv_content),
+        expected_hash,
+        "20MB 文件哈希不匹配"
+    );
 
     let mb = 20.0;
     let sec = total_time.as_secs_f64();
     let speed_mbs = mb / sec;
-    println!("20MB transfer completed in {:.2}s, throughput: {:.2} MB/s", sec, speed_mbs);
+    println!(
+        "20MB transfer completed in {:.2}s, throughput: {:.2} MB/s",
+        sec, speed_mbs
+    );
 
     app_a.shutdown();
     app_b.shutdown();

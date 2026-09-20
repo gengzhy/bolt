@@ -775,7 +775,8 @@ pub(crate) async fn handshake_in(ctx: HandshakeCtx, pipe: Pipe) -> BtResult<Arc<
                         .pair_needed(session.clone(), ctx.conn_id, info, code, false);
                     let deadline = tokio::time::Instant::now() + Duration::from_secs(300);
                     let accept = loop {
-                        let remaining = deadline.saturating_duration_since(tokio::time::Instant::now());
+                        let remaining =
+                            deadline.saturating_duration_since(tokio::time::Instant::now());
                         if remaining.is_zero() {
                             break false;
                         }
@@ -888,7 +889,11 @@ fn finish_handshake(
                 }
                 Ok(None) => {
                     let reason = conn_opt.as_ref().and_then(|c| c.close_reason());
-                    tracing::warn!(conn_id = sess_pipe0.id, ?reason, "pipe 0 read_frame returned EOF");
+                    tracing::warn!(
+                        conn_id = sess_pipe0.id,
+                        ?reason,
+                        "pipe 0 read_frame returned EOF"
+                    );
                     break;
                 }
                 Err(e) => {
@@ -1122,7 +1127,11 @@ fn handle_frame(
                 f.store(true, Ordering::SeqCst);
             }
             crate::recv::on_cancel(session, recv_tasks, task_session, reason);
-            let is_incoming = !session.task_cancels.lock().unwrap().contains_key(&task_session);
+            let is_incoming = !session
+                .task_cancels
+                .lock()
+                .unwrap()
+                .contains_key(&task_session);
             session.emit(EngineEvent::State {
                 conn_id: session.id,
                 task_id: task_session,
@@ -1230,7 +1239,12 @@ fn handle_frame(
             file_seq,
             acked_offset,
         } => {
-            tracing::debug!(task_session, file_seq, acked_offset, "received Message::Ack");
+            tracing::debug!(
+                task_session,
+                file_seq,
+                acked_offset,
+                "received Message::Ack"
+            );
             if let Some(tx) = session
                 .ack_subs
                 .lock()

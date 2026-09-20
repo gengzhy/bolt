@@ -68,6 +68,10 @@ function Build-And-Package([string]$buildMode) {
         Write-Host "  [1/4] Building Frontend (Vue 3 + Vite)..." -ForegroundColor Yellow
         Push-Location $TauriAppDir
         try {
+            if (-not (Test-Path "node_modules")) {
+                Write-Host "  Installing frontend dependencies (npm install)..." -ForegroundColor Yellow
+                npm install
+            }
             npm run build
             if ($LASTEXITCODE -ne 0) { throw "Frontend build failed" }
         } finally {

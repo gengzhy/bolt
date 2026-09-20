@@ -53,8 +53,14 @@ impl RecvTask {
 
     /// 获取全任务当前已安全落盘并确认的字节总数（已完成文件总大小 + 活跃文件已写字节之和）
     pub fn current_done(&self) -> u64 {
-        let active: u64 = self.files.values().map(|rf| rf.writer.written_bytes()).sum();
-        self.completed_files_bytes.saturating_add(active).min(self.total_size)
+        let active: u64 = self
+            .files
+            .values()
+            .map(|rf| rf.writer.written_bytes())
+            .sum();
+        self.completed_files_bytes
+            .saturating_add(active)
+            .min(self.total_size)
     }
 
     /// 发射全任务进度事件（节流或强制发射）
@@ -70,7 +76,10 @@ impl RecvTask {
             return;
         }
         let current_done = self.current_done();
-        let dt = now.duration_since(self.rate_time_last).as_secs_f64().max(0.001);
+        let dt = now
+            .duration_since(self.rate_time_last)
+            .as_secs_f64()
+            .max(0.001);
         let instant_rate = (current_done.saturating_sub(self.rate_bytes_last)) as f64 / dt;
         self.smoothed_rate = if force {
             0.0
@@ -133,6 +142,7 @@ pub struct RecvFile {
     pub rate_time_last: Instant,
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn on_file_meta(
     session: &std::sync::Arc<Session>,
     recv_tasks: &mut HashMap<u64, RecvTask>,
@@ -409,7 +419,13 @@ pub fn on_file_verified(
         Err(e) => {
             task.failed += 1;
             task.emit_progress(session, task_session, Some(rel_path.to_string()), true);
-            let _ = session.send_control(task_session, Message::FileDoneAck { file_seq, ok: false });
+            let _ = session.send_control(
+                task_session,
+                Message::FileDoneAck {
+                    file_seq,
+                    ok: false,
+                },
+            );
             session.emit(EngineEvent::FileFinished {
                 conn_id: session.id,
                 task_id: task_session,
@@ -442,7 +458,12 @@ pub fn on_file_verified(
     if task.finished() {
         let ok = task.ok;
         let failed = task.failed;
-        let uid_hex: String = task.req.task_uid.iter().map(|b| format!("{:02x}", b)).collect();
+        let uid_hex: String = task
+            .req
+            .task_uid
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect();
         session.emit(EngineEvent::Summary {
             conn_id: session.id,
             task_id: task_session,
@@ -468,7 +489,12 @@ pub fn on_cancel(
         for (_, rf) in files {
             rf.writer.discard();
         }
-        let uid_hex: String = task.req.task_uid.iter().map(|b| format!("{:02x}", b)).collect();
+        let uid_hex: String = task
+            .req
+            .task_uid
+            .iter()
+            .map(|b| format!("{:02x}", b))
+            .collect();
         let task_tmp = _session.cfg.tmp_dir.join(format!("task_{uid_hex}"));
         let _ = std::fs::remove_dir_all(&task_tmp);
         task.failed += task.req.file_count.saturating_sub(task.ok + task.failed);

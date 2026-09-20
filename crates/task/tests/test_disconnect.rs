@@ -38,12 +38,22 @@ fn test_connect_disconnect_twice() {
     });
 
     println!("--- ROUND 1: CONNECT ---");
-    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr");
+    app_a
+        .connect_addr("127.0.0.1", port_b)
+        .expect("connect_addr");
 
     let start = Instant::now();
     loop {
-        let connected_a = events_a.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
-        let connected_b = events_b.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
+        let connected_a = events_a
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
+        let connected_b = events_b
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
         if connected_a && connected_b {
             break;
         }
@@ -60,8 +70,16 @@ fn test_connect_disconnect_twice() {
 
     let start = Instant::now();
     loop {
-        let disc_a = events_a.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
-        let disc_b = events_b.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
+        let disc_a = events_a
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
+        let disc_b = events_b
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
         if disc_a && disc_b {
             break;
         }
@@ -92,12 +110,22 @@ fn test_connect_disconnect_twice() {
     println!("--- ROUND 2: CONNECT ---");
     events_a.lock().unwrap().clear();
     events_b.lock().unwrap().clear();
-    app_a.connect_addr("127.0.0.1", port_b).expect("connect_addr 2");
+    app_a
+        .connect_addr("127.0.0.1", port_b)
+        .expect("connect_addr 2");
 
     let start = Instant::now();
     loop {
-        let connected_a = events_a.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
-        let connected_b = events_b.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
+        let connected_a = events_a
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
+        let connected_b = events_b
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "connected"));
         if connected_a && connected_b {
             break;
         }
@@ -116,8 +144,16 @@ fn test_connect_disconnect_twice() {
 
     let start = Instant::now();
     loop {
-        let disc_a = events_a.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
-        let disc_b = events_b.lock().unwrap().iter().any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
+        let disc_a = events_a
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
+        let disc_b = events_b
+            .lock()
+            .unwrap()
+            .iter()
+            .any(|e| matches!(e, BtEvent::ConnState { state, .. } if state == "disconnected"));
         if disc_a && disc_b {
             break;
         }
@@ -132,14 +168,20 @@ fn test_connect_disconnect_twice() {
     for ev in events_a.lock().unwrap().iter() {
         if let BtEvent::ConnState { uuid, state, .. } = ev {
             println!("Round 2 Disconnect A got: state={}, uuid='{}'", state, uuid);
-            assert_eq!(uuid, &uuid_b, "Event A on disconnect 2 MUST contain uuid_b!");
+            assert_eq!(
+                uuid, &uuid_b,
+                "Event A on disconnect 2 MUST contain uuid_b!"
+            );
         }
     }
 
     for ev in events_b.lock().unwrap().iter() {
         if let BtEvent::ConnState { uuid, state, .. } = ev {
             println!("Round 2 Disconnect B got: state={}, uuid='{}'", state, uuid);
-            assert_eq!(uuid, &uuid_a, "Event B on disconnect 2 MUST contain uuid_a!");
+            assert_eq!(
+                uuid, &uuid_a,
+                "Event B on disconnect 2 MUST contain uuid_a!"
+            );
         }
     }
 

@@ -143,7 +143,7 @@ public struct QuickShareSheet: View {
                         .foregroundColor(BoltTheme.textSecondary)
                 }
             }
-            .onChange(of: selectedPhotos) { newItems in
+            .onChange(of: selectedPhotos) { _, newItems in
                 guard !newItems.isEmpty else { return }
                 Task {
                     await engine.sendPhotos(targetUuid: targetDevice.uuid, items: newItems)

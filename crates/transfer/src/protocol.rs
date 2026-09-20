@@ -102,6 +102,7 @@ pub enum Message {
     /// - rel_path (2B 长度 + UTF-8 字符串)
     /// - chunk_size (4B)
     /// - hash_algo (1B)
+    ///
     /// 保持向前兼容的标准帧长，避免破坏 Android 与 Windows 端的二进制互通。
     FileMeta {
         file_seq: u32,
@@ -430,7 +431,8 @@ pub fn decode(opcode: u8, payload: bytes::Bytes) -> Result<Message, CodecError> 
                     let total_size = get_u64(&mut d)?;
                     let sender_name = get_str(&mut d)?;
                     // 旧版本协议兼容：由发送者、数量和大小派生确定性的回退 task_uid
-                    let fallback_hash = blake3::hash(format!("{sender_name}|{file_count}|{total_size}").as_bytes());
+                    let fallback_hash =
+                        blake3::hash(format!("{sender_name}|{file_count}|{total_size}").as_bytes());
                     let mut task_uid = [0u8; 16];
                     task_uid.copy_from_slice(&fallback_hash.as_bytes()[..16]);
                     return Ok(Message::TransferReq {
@@ -464,7 +466,8 @@ pub fn decode(opcode: u8, payload: bytes::Bytes) -> Result<Message, CodecError> 
                 let file_count = get_u32(&mut d)?;
                 let total_size = get_u64(&mut d)?;
                 let sender_name = get_str(&mut d)?;
-                let fallback_hash = blake3::hash(format!("{sender_name}|{file_count}|{total_size}").as_bytes());
+                let fallback_hash =
+                    blake3::hash(format!("{sender_name}|{file_count}|{total_size}").as_bytes());
                 let mut task_uid = [0u8; 16];
                 task_uid.copy_from_slice(&fallback_hash.as_bytes()[..16]);
                 Ok(Message::TransferReq {
@@ -675,7 +678,10 @@ mod tests {
         ));
         // FILE_DONE 哈希不足 32 字节
         assert!(matches!(
-            decode(op::FILE_DONE, bytes::Bytes::from_static(&[0, 0, 0, 1, 1, 2, 3])),
+            decode(
+                op::FILE_DONE,
+                bytes::Bytes::from_static(&[0, 0, 0, 1, 1, 2, 3])
+            ),
             Err(CodecError::Malformed)
         ));
         // 非法 UTF-8 字符串

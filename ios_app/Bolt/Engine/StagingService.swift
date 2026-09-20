@@ -155,9 +155,7 @@ struct MovieFileTransferable: Transferable {
     let url: URL
 
     static var transferRepresentation: some TransferRepresentation {
-        FileRepresentation(exportedContentType: .movie) { movie in
-            SentTransferredFile(movie.url)
-        } importing: { received in
+        FileRepresentation(importedContentType: .movie) { received in
             let copyUrl = FileManager.default.temporaryDirectory.appendingPathComponent(received.file.lastPathComponent)
             try? FileManager.default.removeItem(at: copyUrl)
             try FileManager.default.copyItem(at: received.file, to: copyUrl)

@@ -48,5 +48,3 @@ pub const TASK_STATE_CANCELLED: &str = "cancelled";
 pub const TASK_STATE_DONE: &str = "done";
 pub const TASK_STATE_ERROR: &str = "error";
 pub const TASK_STATE_REJECTED: &str = "rejected";
-
-

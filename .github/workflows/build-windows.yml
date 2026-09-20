@@ -28,6 +28,10 @@ jobs:
         with:
           components: rustfmt, clippy
 
+      - name: Install Frontend Dependencies
+        working-directory: tauri_app
+        run: npm install
+
       - name: Build All Windows Packages
         shell: powershell
         run: powershell.exe -ExecutionPolicy Bypass -File scripts\build_windows_dist.ps1 -Mode release

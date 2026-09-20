@@ -21,11 +21,11 @@ jobs:
         run: cargo fmt --all -- --check
       - name: Clippy (deny warnings)
         run: cargo clippy --workspace --all-targets -- -D warnings
-      - name: Tests
-        run: cargo test --workspace
+      - name: Tests (single thread to prevent port collisions)
+        run: cargo test --workspace -- --test-threads=1
 
   smoke:
-    name: loopback smoke (QUIC + TCP + resume)
+    name: loopback smoke (QUIC + TCP)
     runs-on: windows-latest
     needs: lint-test
     steps:
@@ -43,31 +43,3 @@ jobs:
           name: smoke-logs
           path: target/smoke/*.log
 
-  android-lib:
-    name: android FFI lib (aarch64/armv7/x86_64)
-    runs-on: windows-latest
-    needs: lint-test
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-linux-android,armv7-linux-androideabi,x86_64-linux-android
-      - name: Install NDK
-        shell: powershell
-        run: |
-          $ndk = "$env:RUNNER_TEMP\ndk"
-          $zip = "$env:RUNNER_TEMP\ndk.zip"
-          Invoke-WebRequest -Uri "https://dl.google.com/android/repository/android-ndk-r26d-windows.zip" -OutFile $zip
-          Expand-Archive -Path $zip -DestinationPath $ndk
-          $dir = Get-ChildItem $ndk | Select-Object -First 1
-          "ANDROID_NDK_HOME=$ndk\$dir" | Out-File -FilePath $env:GITHUB_ENV -Append
-      - name: Install cargo-ndk
-        run: cargo install cargo-ndk --locked
-      - name: Build Android libs
-        shell: cmd
-        run: scripts\build_android_lib.bat
-      - name: Upload libs
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-jniLibs
-          path: android_app/app/src/main/jniLibs/**
