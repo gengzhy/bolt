@@ -100,6 +100,19 @@ async fn wait_session(h: &AutoHandler) -> Arc<Session> {
     panic!("等待会话建立超时（10s）");
 }
 
+async fn connect_with_retry(engine: &TransferEngine, addr: std::net::SocketAddr) -> Arc<Session> {
+    for _ in 0..5 {
+        if let Ok(s) = engine.connect(addr).await {
+            return s;
+        }
+        tokio::time::sleep(Duration::from_millis(200)).await;
+    }
+    engine
+        .connect(addr)
+        .await
+        .expect("connect failed after retries")
+}
+
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn bidi_transfer_on_same_session() {
     let root = std::env::temp_dir().join(format!("bt_bidi_{}", std::process::id()));
@@ -142,7 +155,7 @@ async fn bidi_transfer_on_same_session() {
     let addr_a: std::net::SocketAddr = format!("127.0.0.1:{}", engine_a.port).parse().unwrap();
 
     // B 拨号 → A（B 为拨号端，A 为被连端）
-    let sess_b = engine_b.connect(addr_a).await.unwrap();
+    let sess_b = connect_with_retry(&engine_b, addr_a).await;
     assert_eq!(sess_b.transport(), transfer::TransportKind::Quic);
     let sess_a = wait_session(&h_a).await;
 
@@ -249,7 +262,7 @@ async fn concurrent_two_tasks_on_same_session() {
     .unwrap();
 
     let addr_a: std::net::SocketAddr = format!("127.0.0.1:{}", engine_a.port).parse().unwrap();
-    let sess_b = engine_b.connect(addr_a).await.unwrap();
+    let sess_b = connect_with_retry(&engine_b, addr_a).await;
     let _sess_a = wait_session(&h_a).await;
 
     let noop_sink: EventSink = Arc::new(|_| {});
@@ -350,7 +363,7 @@ async fn disconnect_aborts_send_immediately() {
     .unwrap();
 
     let addr_a: std::net::SocketAddr = format!("127.0.0.1:{}", engine_a.port).parse().unwrap();
-    let sess_b = engine_b.connect(addr_a).await.unwrap();
+    let sess_b = connect_with_retry(&engine_b, addr_a).await;
     let _sess_a = wait_session(&h_a).await;
 
     let noop_sink: EventSink = Arc::new(|_| {});

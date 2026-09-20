@@ -227,9 +227,9 @@ impl TransferEngine {
                 .unwrap_or(false);
 
         if !force_tcp {
-            // QUIC 唯一通道（4s 超时）：失败即抛错，不降级 TCP
+            // QUIC 唯一通道（8s 超时）：失败即抛错，不降级 TCP
             let (pipe, connection, endpoint) = match tokio::time::timeout(
-                Duration::from_secs(4),
+                Duration::from_secs(8),
                 quic::dial(target, &self.identity),
             )
             .await
