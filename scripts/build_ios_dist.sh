@@ -39,7 +39,9 @@ xcodebuild archive \
     -configuration "${CONFIGURATION}" \
     -destination "generic/platform=iOS" \
     -archivePath "${ARCHIVE_PATH}" \
-    CODE_SIGNING_ALLOWED=NO
+    CODE_SIGNING_ALLOWED=NO \
+    LIBRARY_SEARCH_PATHS="\$(inherited) ${IOS_DIR}/Frameworks/BoltEngine.xcframework/ios-arm64 ${ROOT_DIR}/target/aarch64-apple-ios/${CONFIGURATION,,}" \
+    OTHER_LDFLAGS="\$(inherited) -framework Security -framework Network -framework SystemConfiguration -lbt_ffi"
 
 # 4. 自动生成无签名发行版 IPA（便于通过 Sideloadly / AltStore / TrollStore 等在 Windows 上直接侧载安装）
 echo "[2/3] 正在打包 Bolt.ipa..."

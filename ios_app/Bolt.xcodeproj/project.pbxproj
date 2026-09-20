@@ -320,6 +320,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks/BoltEngine.xcframework/ios-arm64",
+				);
 				MARKETING_VERSION = 0.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -329,6 +333,7 @@
 					"Network",
 					"-framework",
 					"SystemConfiguration",
+					"-lbt_ffi",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = xin.cosmos.bolt;
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -362,6 +367,10 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/Frameworks/BoltEngine.xcframework/ios-arm64",
+				);
 				MARKETING_VERSION = 0.1.0;
 				OTHER_LDFLAGS = (
 					"$(inherited)",
@@ -371,6 +380,7 @@
 					"Network",
 					"-framework",
 					"SystemConfiguration",
+					"-lbt_ffi",
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = xin.cosmos.bolt;
 				PRODUCT_NAME = "$(TARGET_NAME)";
