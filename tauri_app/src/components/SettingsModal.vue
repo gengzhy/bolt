@@ -134,7 +134,8 @@ async function pickSaveDir() {
   if (picked && !Array.isArray(picked)) {
     let clean = picked.replace(/[/\\]+$/, "");
     if (!/[/\\]Bolt$/i.test(clean)) {
-      clean = clean + "\\Bolt";
+      const sep = clean.includes("/") ? "/" : "\\";
+      clean = clean + sep + "Bolt";
     }
     saveDir.value = clean;
     await updateConfig({ save_dir: clean });

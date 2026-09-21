@@ -17,8 +17,9 @@ const menuOpen = ref(false);
 async function openFolder(t: Task) {
   const cfg = await loadConfig();
   const dir = String(cfg.save_dir ?? "");
-  const rel = (t.current_file ?? "").replace(/\//g, "\\");
-  const full = dir && rel ? `${dir.replace(/[\\/]+$/, "")}\\${rel}` : dir;
+  const rel = t.current_file ?? "";
+  const sep = dir.includes("/") ? "/" : "\\";
+  const full = dir && rel ? `${dir.replace(/[\\/]+$/, "")}${sep}${rel.replace(/^[\\/]+/, "")}` : dir;
   await revealPath(full);
 }
 

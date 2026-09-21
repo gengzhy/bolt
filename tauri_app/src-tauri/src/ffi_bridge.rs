@@ -254,7 +254,12 @@ pub fn clear_temp_cache() -> Result<(), i32> {
 /// 4. 若父目录仍不存在，从当前引擎配置获取 save_dir；若仍无则回落到用户系统 Downloads 目录。
 #[tauri::command]
 pub fn reveal_path(path: String) -> Result<(), String> {
-    let target = std::path::PathBuf::from(&path);
+    let normalized = if cfg!(windows) {
+        path.replace('/', "\\")
+    } else {
+        path.replace('\\', "/")
+    };
+    let target = std::path::PathBuf::from(&normalized);
 
     #[cfg(target_os = "windows")]
     {
@@ -300,7 +305,48 @@ pub fn reveal_path(path: String) -> Result<(), String> {
         }
     }
 
-    #[cfg(not(target_os = "windows"))]
+    #[cfg(target_os = "macos")]
+    {
+        // 1. 文件存在且为普通文件：在 Finder 中高亮选中（open -R）
+        if target.is_file() {
+            let mut cmd = std::process::Command::new("open");
+            cmd.arg("-R").arg(&target);
+            cmd.spawn().map_err(|e| e.to_string())?;
+            return Ok(());
+        }
+
+        // 2. 目标若为目录或文件父目录存在，直接打开该目录
+        let dir_to_open = if target.is_dir() {
+            Some(target)
+        } else if let Some(parent) = target.parent().filter(|p| p.is_dir()) {
+            Some(parent.to_path_buf())
+        } else {
+            let cfg_val = get_config();
+            if let Some(s) = cfg_val.get("save_dir").and_then(|v| v.as_str()) {
+                let p = std::path::PathBuf::from(s.replace('\\', "/"));
+                if p.is_dir() {
+                    Some(p)
+                } else {
+                    None
+                }
+            } else {
+                None
+            }
+        };
+
+        // 3. 回退系统下载目录：$HOME/Downloads
+        let fallback_dir = dir_to_open.or_else(|| {
+            std::env::var_os("HOME").map(|h| std::path::PathBuf::from(h).join("Downloads"))
+        });
+
+        if let Some(dir) = fallback_dir {
+            let mut cmd = std::process::Command::new("open");
+            cmd.arg(&dir);
+            cmd.spawn().map_err(|e| e.to_string())?;
+        }
+    }
+
+    #[cfg(not(any(target_os = "windows", target_os = "macos")))]
     {
         let to_open = if target.exists() {
             target
