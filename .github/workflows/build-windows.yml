@@ -1,11 +1,6 @@
 name: Build Windows Dist
 
 on:
-  push:
-    branches: [main, master]
-    tags:
-      - 'v*'
-  pull_request:
   workflow_dispatch:
 
 jobs:
