@@ -272,51 +272,51 @@ bolt/
 │   ├── windows/                               # Windows 平台打包归档
 │   │   ├── release/                           # 正式发布版 (Release 四大形态)
 │   │   │   ├── portable/                      # 便携绿色版
-│   │   │   │   └── bolt_0.1.0_x64-portable.exe
+│   │   │   │   └── bolt-windows-0.1.0-x64-portable.exe
 │   │   │   ├── cli/                           # 命令行工具
-│   │   │   │   └── bolt_0.1.0_x64-cli.exe
+│   │   │   │   └── bolt-windows-0.1.0-x64-cli.exe
 │   │   │   ├── nsis/                          # 标准向导安装包
-│   │   │   │   └── bolt_0.1.0_x64-setup.exe
+│   │   │   │   └── bolt-windows-0.1.0-x64-setup.exe
 │   │   │   └── msi/                           # 企业级 Windows Installer 安装包
-│   │   │       └── bolt_0.1.0_x64_zh-CN.msi
+│   │   │       └── bolt-windows-0.1.0-x64-zh-CN.msi
 │   │   └── debug/                             # 调试版归档 (Debug 四大形态)
 │   │
 │   ├── linux/                                 # Linux 平台打包归档
 │   │   ├── release/                           # 正式发布版 (Release 四大形态)
 │   │   │   ├── appimage/                      # 单文件免安装通用绿色版
-│   │   │   │   └── bolt_0.1.0_amd64.AppImage
+│   │   │   │   └── bolt-linux-0.1.0-amd64.AppImage
 │   │   │   ├── cli/                           # 命令行独立终端工具
-│   │   │   │   └── bolt_0.1.0_amd64-cli
+│   │   │   │   └── bolt-linux-0.1.0-amd64-cli
 │   │   │   ├── deb/                           # Debian / Ubuntu 安装包
-│   │   │   │   └── bolt_0.1.0_amd64.deb
+│   │   │   │   └── bolt-linux-0.1.0-amd64.deb
 │   │   │   └── rpm/                           # Fedora / RHEL 安装包
-│   │   │       └── bolt-0.1.0-1.x86_64.rpm
+│   │   │       └── bolt-linux-0.1.0-1.x86_64.rpm
 │   │   └── debug/                             # 调试版归档 (Debug 四大形态)
 │   │
 │   ├── macos/                                 # macOS 平台打包归档
 │   │   ├── release/                           # 正式发布版 (Universal 双架构)
 │   │   │   ├── dmg/                           # 免安装拖拽磁盘镜像
-│   │   │   │   └── bolt_0.1.0_universal.dmg
+│   │   │   │   └── bolt-macos-0.1.0-universal.dmg
 │   │   │   ├── app/                           # 独立应用程序 Bundle 与 Zip
 │   │   │   │   ├── Bolt.app
-│   │   │   │   └── bolt_0.1.0_universal.app.zip
+│   │   │   │   └── bolt-macos-0.1.0-universal.app.zip
 │   │   │   └── cli/                           # 控制台独立工具
-│   │   │       └── bolt_0.1.0_universal-cli
+│   │   │       └── bolt-macos-0.1.0-universal-cli
 │   │   └── debug/                             # 调试版归档
 │   │
 │   ├── ios/                                   # iOS 平台打包归档
 │   │   ├── release/                           # 正式发布版 (Release 模式)
-│   │   │   ├── bolt_0.1.0_ios.ipa             # 免越狱侧载直接可装包
+│   │   │   ├── bolt-ios-0.1.0.ipa             # 免越狱侧载直接可装包
 │   │   │   ├── Bolt.ipa                       # 兼容别名
 │   │   │   └── Bolt.xcarchive                 # Xcode 标准归档包
 │   │   └── debug/                             # 调试版归档 (Debug 模式)
-│   │       └── bolt_0.1.0_ios-debug.ipa
+│   │       └── bolt-ios-0.1.0-debug.ipa
 │   │
 │   └── android/                               # Android 平台打包归档
 │       ├── release/                           # 正式发布版 (经 R8 代码混淆与无用资源剔除优化)
-│       │   └── bolt_0.1.0_universal.apk
+│       │   └── bolt-android-0.1.0-universal.apk
 │       └── debug/                             # 调试版归档
-│           └── bolt_0.1.0_universal-debug.apk
+│           └── bolt-android-0.1.0-universal-debug.apk
 │
 └── docs/                                      # 【项目设计、开发、协议与政策文档】
     ├── dev_guide.md                           # 开发环境准备、常用指令与联调排障指南
@@ -391,33 +391,33 @@ graph TD
 
 ### 1. Windows 端四大多元形态 (`dist/windows/[release|debug]/`)
 通过运行 `powershell -ExecutionPolicy Bypass -File scripts/build_windows_dist.ps1`，将一次性在 `dist/windows/[release|debug]/` 下生成以下四大形态：
-- `portable/bolt_{version}_x64-portable.exe`：单文件免安装便携版（集成 Rust 核心与 Webview2 宿主）。
-- `cli/bolt_{version}_x64-cli.exe`：轻量级控制台 CLI 终端工具，用于运维、自动化测试或无图形界面环境。
-- `nsis/bolt_{version}_x64-setup.exe`：经典向导安装程序（支持创建桌面快捷方式、开机启动与卸载配置）。
-- `msi/bolt_{version}_x64_zh-CN.msi`：企业级 Windows Installer 格式部署包。
+- `portable/bolt-windows-{version}-x64-portable.exe`：单文件免安装便携版（集成 Rust 核心与 Webview2 宿主）。
+- `cli/bolt-windows-{version}-x64-cli.exe`：轻量级控制台 CLI 终端工具，用于运维、自动化测试或无图形界面环境。
+- `nsis/bolt-windows-{version}-x64-setup.exe`：经典向导安装程序（支持创建桌面快捷方式、开机启动与卸载配置）。
+- `msi/bolt-windows-{version}-x64-zh-CN.msi`：企业级 Windows Installer 格式部署包。
 
 ### 2. Android 端统一归档 (`dist/android/[release|debug]/`)
 通过运行 `powershell -ExecutionPolicy Bypass -File scripts/build_android_dist.ps1`，将自动编译 `arm64-v8a`、`armeabi-v7a`、`x86_64` 三大 ABI 的 `libbt_ffi.so` 并完成打包：
-- `release/bolt_{version}_universal.apk`：经过 R8 深度编译优化、死代码移除（Tree Shaking）与资源缩减的轻量级正式发布包。
-- `debug/bolt_{version}_universal-debug.apk`：包含调试符号与日志堆栈的开发测试安装包。
+- `release/bolt-android-{version}-universal.apk`：经过 R8 深度编译优化、死代码移除（Tree Shaking）与资源缩减的轻量级正式发布包。
+- `debug/bolt-android-{version}-universal-debug.apk`：包含调试符号与日志堆栈的开发测试安装包。
 
 ### 3. Linux 端四大多元形态 (`dist/linux/[release|debug]/`)
 通过运行 `bash scripts/build_linux_dist.sh` 或 GitHub Actions 自动化工作流，将在 `dist/linux/[release|debug]/` 下生成以下四大形态：
-- `appimage/bolt_{version}_amd64.AppImage`：单文件通用免安装便携版（各 Linux 发行版开箱即用）。
-- `cli/bolt_{version}_amd64-cli`：轻量级独立控制台 CLI 终端工具（适用于无图形界面服务器与 NAS）。
-- `deb/bolt_{version}_amd64.deb`：Debian / Ubuntu / Deepin / UOS 标准安装包。
-- `rpm/bolt-{version}-1.x86_64.rpm`：Fedora / RHEL / openSUSE 标准安装包。
+- `appimage/bolt-linux-{version}-amd64.AppImage`：单文件通用免安装便携版（各 Linux 发行版开箱即用）。
+- `cli/bolt-linux-{version}-amd64-cli`：轻量级独立控制台 CLI 终端工具（适用于无图形界面服务器与 NAS）。
+- `deb/bolt-linux-{version}-amd64.deb`：Debian / Ubuntu / Deepin / UOS 标准安装包。
+- `rpm/bolt-linux-{version}-1.x86_64.rpm`：Fedora / RHEL / openSUSE 标准安装包。
 
 ### 4. macOS 端三大形态 (`dist/macos/[release|debug]/`)
 通过运行 `bash scripts/build_macos_dist.sh -m release -t universal-apple-darwin` 或 GitHub Actions 自动化工作流，将在 `dist/macos/[release|debug]/` 下生成以下三大形态：
-- `dmg/bolt_{version}_universal.dmg`：通用磁盘镜像安装包（拖拽式安装至 Applications，原生支持 Apple Silicon 与 Intel）。
-- `app/Bolt.app` 与 `app/bolt_{version}_universal.app.zip`：标准独立应用 Bundle 与便于网络分发的 ZIP 压缩包。
-- `cli/bolt_{version}_universal-cli`：通用架构命令行终端工具。
+- `dmg/bolt-macos-{version}-universal.dmg`：通用磁盘镜像安装包（拖拽式安装至 Applications，原生支持 Apple Silicon 与 Intel）。
+- `app/Bolt.app` 与 `app/bolt-macos-{version}-universal.app.zip`：标准独立应用 Bundle 与便于网络分发的 ZIP 压缩包。
+- `cli/bolt-macos-{version}-universal-cli`：通用架构命令行终端工具。
 
-### 5. iOS 端统一归档 (`dist/ios/`)
-通过运行 `bash scripts/build_ios_dist.sh Release` 或 GitHub Actions 自动化工作流，将在 `dist/ios/` 下生成以下产物：
-- `Bolt.ipa`：免越狱侧载安装包（可通过 AltStore、TrollStore、Sideloadly 等工具直接安装）。
-- `Bolt.xcarchive`：Xcode 工业级标准归档包（支持分发与后续重签名）。
+### 5. iOS 端统一归档 (`dist/ios/[release|debug]/`)
+通过运行 `bash scripts/build_ios_dist.sh -m release` 或 GitHub Actions 自动化工作流，将在 `dist/ios/[release|debug]/` 下生成以下产物：
+- `bolt-ios-{version}.ipa`：免越狱侧载安装包（可通过 AltStore、TrollStore、Sideloadly 等工具直接安装，同目录下提供 `Bolt.ipa` 兼容别名）。
+- `Bolt.xcarchive`：Xcode 工业级标准归档包（支持导入 Organizer 或分发 App Store）。
 
 ---
 

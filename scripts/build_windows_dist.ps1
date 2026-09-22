@@ -2,10 +2,10 @@
 .SYNOPSIS
     Builds and packages Bolt for Windows into the unified directory structure:
     dist/windows/[debug|release]/
-      ├── portable/   -> bolt_<version>_x64-portable.exe (Standalone green exe)
-      ├── cli/        -> bolt_<version>_x64-cli.exe      (Command line debugging tool)
-      ├── nsis/       -> bolt_<version>_x64-setup.exe    (NSIS Setup wizard with LZMA)
-      └── msi/        -> bolt_<version>_x64_zh-CN.msi    (WiX MSI enterprise package)
+      ├── portable/   -> bolt-windows-<version>-x64-portable.exe (Standalone green exe)
+      ├── cli/        -> bolt-windows-<version>-x64-cli.exe      (Command line debugging tool)
+      ├── nsis/       -> bolt-windows-<version>-x64-setup.exe    (NSIS Setup wizard with LZMA)
+      └── msi/        -> bolt-windows-<version>-x64-zh-CN.msi    (WiX MSI enterprise package)
 
 .EXAMPLE
     .\scripts\build_windows_dist.ps1                        # Build all 4 packages (Release)
@@ -121,23 +121,43 @@ function Build-And-Package([string]$buildMode) {
     # 4. Populate and organize bundle/ subdirectories
     Write-Host "  [4/4] Organizing bundle folders..." -ForegroundColor Yellow
 
-    # (a) Portable Executable -> bundle/portable/bolt_<version>_x64-portable.exe
+    # (a) Portable Executable -> bundle/portable/bolt-windows-<version>-x64-portable.exe
     $rawBolt = Join-Path $targetTauriDir "bolt.exe"
     if (Test-Path $rawBolt) {
-        $portableTarget = Join-Path $portableDir "bolt_${version}_x64-portable.exe"
+        $portableTarget = Join-Path $portableDir "bolt-windows-$version-x64-portable.exe"
         Copy-Item -Path $rawBolt -Destination $portableTarget -Force
+        # 兼容旧命名别名
+        Copy-Item -Path $rawBolt -Destination (Join-Path $portableDir "bolt_${version}_x64-portable.exe") -Force
         Write-Host "    -> [Portable] $portableTarget" -ForegroundColor Green
     }
 
-    # (b) CLI Tool -> bundle/cli/bolt_<version>_x64-cli.exe
+    # (b) CLI Tool -> bundle/cli/bolt-windows-<version>-x64-cli.exe
     $rawCli = Join-Path $ProjectRoot "target\$buildMode\bolt-cli.exe"
     if (Test-Path $rawCli) {
-        $cliTarget = Join-Path $cliDir "bolt_${version}_x64-cli.exe"
+        $cliTarget = Join-Path $cliDir "bolt-windows-$version-x64-cli.exe"
         Copy-Item -Path $rawCli -Destination $cliTarget -Force
+        # 兼容旧命名别名
+        Copy-Item -Path $rawCli -Destination (Join-Path $cliDir "bolt_${version}_x64-cli.exe") -Force
         Write-Host "    -> [CLI]      $cliTarget" -ForegroundColor Green
     }
 
-    # (c) Sync all bundles to dist/windows/[buildMode]/
+    # (c) Standardize NSIS installer name -> bolt-windows-<version>-x64-setup.exe
+    $rawNsis = Get-ChildItem -Path $nsisDir -Filter "*.exe" | Where-Object { $_.Name -notlike "bolt-windows-*" } | Select-Object -First 1
+    if ($rawNsis) {
+        $nsisTarget = Join-Path $nsisDir "bolt-windows-$version-x64-setup.exe"
+        Copy-Item -Path $rawNsis.FullName -Destination $nsisTarget -Force
+        Write-Host "    -> [NSIS]     $nsisTarget" -ForegroundColor Green
+    }
+
+    # (d) Standardize MSI installer name -> bolt-windows-<version>-x64-zh-CN.msi
+    $rawMsi = Get-ChildItem -Path $msiDir -Filter "*.msi" | Where-Object { $_.Name -notlike "bolt-windows-*" } | Select-Object -First 1
+    if ($rawMsi) {
+        $msiTarget = Join-Path $msiDir "bolt-windows-$version-x64-zh-CN.msi"
+        Copy-Item -Path $rawMsi.FullName -Destination $msiTarget -Force
+        Write-Host "    -> [MSI]      $msiTarget" -ForegroundColor Green
+    }
+
+    # (e) Sync all bundles to dist/windows/[buildMode]/
     Copy-Item -Path "$bundleDir\*" -Destination $distDir -Recurse -Force
 
     # Print Summary for this mode

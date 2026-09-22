@@ -7,7 +7,7 @@
 #
 # 产物输出目录规范:
 #   dist/ios/[debug|release]/
-#   ├── bolt_{ver}_ios[-debug].ipa  -> 免越狱侧载直接可装包
+#   ├── bolt-ios-{ver}[-debug].ipa  -> 免越狱侧载直接可装包
 #   ├── bolt.ipa / Bolt.ipa         -> 兼容别名
 #   └── Bolt.xcarchive              -> Xcode 标准归档包
 # ==============================================================================
@@ -92,7 +92,7 @@ PAYLOAD_DIR="${DIST_DIR}/Payload"
 rm -rf "${PAYLOAD_DIR}"
 mkdir -p "${PAYLOAD_DIR}"
 
-IPA_NAME="bolt_${VERSION}_ios${IPA_SUFFIX}.ipa"
+IPA_NAME="bolt-ios-${VERSION}${IPA_SUFFIX}.ipa"
 IPA_PATH="${DIST_DIR}/${IPA_NAME}"
 rm -f "${IPA_PATH}"
 
@@ -104,6 +104,7 @@ if [ -d "${ARCHIVE_PATH}/Products/Applications/Bolt.app" ]; then
     # 建立同目录下兼容别名
     cp "${IPA_PATH}" "${DIST_DIR}/bolt.ipa"
     cp "${IPA_PATH}" "${DIST_DIR}/Bolt.ipa"
+    cp "${IPA_PATH}" "${DIST_DIR}/bolt_${VERSION}_ios${IPA_SUFFIX}.ipa"
     # 向前兼容旧版根 dist/ios/ 路径
     mkdir -p "${ROOT_DIR}/dist/ios"
     cp "${IPA_PATH}" "${ROOT_DIR}/dist/ios/Bolt.ipa" 2>/dev/null || true

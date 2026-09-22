@@ -12,9 +12,9 @@
 #
 # 产物输出目录规范:
 #   dist/macos/[debug|release]/
-#   ├── dmg/ -> bolt_{ver}_{arch}.dmg
-#   ├── app/ -> Bolt.app & bolt_{ver}_{arch}.app.zip
-#   └── cli/ -> bolt_{ver}_{arch}-cli
+#   ├── dmg/ -> bolt-macos-{ver}-{arch}.dmg
+#   ├── app/ -> Bolt.app & bolt-macos-{ver}-{arch}.app.zip
+#   └── cli/ -> bolt-macos-{ver}-{arch}-cli
 # ==============================================================================
 
 set -euo pipefail
@@ -135,7 +135,7 @@ else
   CLI_SRC="$ROOT_DIR/target/$TARGET_SUBDIR/bolt-cli"
 fi
 
-CLI_TARGET="$CLI_DIR/bolt_${VERSION}_${ARCH_LABEL}-cli"
+CLI_TARGET="$CLI_DIR/bolt-macos-${VERSION}-${ARCH_LABEL}-cli"
 
 if [ -f "$CLI_SRC" ]; then
   cp "$CLI_SRC" "$CLI_TARGET"
@@ -143,6 +143,8 @@ if [ -f "$CLI_SRC" ]; then
   if [ "$MODE" = "release" ] && command -v strip >/dev/null 2>&1; then
     strip "$CLI_TARGET" || true
   fi
+  # 兼容旧命名别名
+  cp "$CLI_TARGET" "$CLI_DIR/bolt_${VERSION}_${ARCH_LABEL}-cli"
   echo "  -> CLI 产物已生成: $CLI_TARGET"
 else
   echo "  [警告] 未找到生成的 CLI 二进制: $CLI_SRC"
@@ -193,8 +195,10 @@ if [ -n "$FOUND_APP" ] && [ -d "$FOUND_APP" ]; then
   echo "  -> APP Bundle 归档成功: $APP_DIR/$APP_BASENAME"
 
   # 打包压缩 zip 便于分发与 CI 上传
-  ZIP_TARGET="$APP_DIR/bolt_${VERSION}_${ARCH_LABEL}.app.zip"
+  ZIP_TARGET="$APP_DIR/bolt-macos-${VERSION}-${ARCH_LABEL}.app.zip"
   (cd "$APP_DIR" && zip -r -q "$ZIP_TARGET" "$APP_BASENAME")
+  # 兼容旧命名别名
+  cp "$ZIP_TARGET" "$APP_DIR/bolt_${VERSION}_${ARCH_LABEL}.app.zip"
   echo "  -> APP Zip 压缩包已生成: $ZIP_TARGET"
 fi
 
@@ -214,9 +218,10 @@ for dmg_dir in \
   fi
 done
 
-DMG_TARGET="$DMG_DIR/bolt_${VERSION}_${ARCH_LABEL}.dmg"
+DMG_TARGET="$DMG_DIR/bolt-macos-${VERSION}-${ARCH_LABEL}.dmg"
 if [ -n "$FOUND_DMG" ] && [ -f "$FOUND_DMG" ]; then
   cp "$FOUND_DMG" "$DMG_TARGET"
+  cp "$DMG_TARGET" "$DMG_DIR/bolt_${VERSION}_${ARCH_LABEL}.dmg"
   echo "  -> DMG 归档成功: $DMG_TARGET"
 elif [ -n "$FOUND_APP" ] && [ -d "$FOUND_APP" ]; then
   echo "  [提示] 未发现标准 Tauri DMG，使用 macOS 原生 hdiutil 构建 DMG 镜像..."
@@ -225,6 +230,7 @@ elif [ -n "$FOUND_APP" ] && [ -d "$FOUND_APP" ]; then
     echo "  [警告] hdiutil 打包 DMG 失败。"
   }
   if [ -f "$DMG_TARGET" ]; then
+    cp "$DMG_TARGET" "$DMG_DIR/bolt_${VERSION}_${ARCH_LABEL}.dmg"
     echo "  -> DMG (hdiutil) 归档成功: $DMG_TARGET"
   fi
 else

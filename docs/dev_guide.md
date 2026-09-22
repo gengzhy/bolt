@@ -140,7 +140,7 @@ cd android_app
    # 或执行一键全自动化打包：
    bash scripts/build_ios_dist.sh -m release
    ```
-   产物归档于 `dist/ios/release/bolt_0.1.0_ios.ipa` 与 `dist/ios/release/Bolt.xcarchive`（同时保留兼容别名 `dist/ios/Bolt.ipa`）。
+   产物归档于 `dist/ios/release/bolt-ios-0.1.0.ipa` 与 `dist/ios/release/Bolt.xcarchive`（同时保留兼容别名 `dist/ios/Bolt.ipa`）。
 4. iOS 上设备发现走系统原生 Bonjour（`NetService`），文件访问走系统 Files 沙盒与 `PhotosPicker`。
 
 ## 测试约定

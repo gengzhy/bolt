@@ -85,11 +85,11 @@ scripts/          构建与测试脚本
 
 ### 运行预编译版
 Bolt 提供了开箱即用的多端安装包与免安装便携版，可直接从 [dist/](dist/) 目录或 Releases 下载使用：
-- **Windows 端**：直接运行 `dist/windows/release/portable/bolt_0.1.0_x64-portable.exe` 或使用 NSIS/MSI 安装向导。
-- **macOS 端**：双击挂载 `dist/macos/release/dmg/bolt_0.1.0_universal.dmg` 并拖入 Applications，或直接运行解压后的 `Bolt.app`。
-- **Linux 端**：赋予可执行权限后直接运行 `dist/linux/release/appimage/bolt_0.1.0_amd64.AppImage`，或安装 `.deb` / `.rpm` 软件包。
-- **Android 端**：在手机上安装 `dist/android/release/bolt_0.1.0_universal.apk`。
-- **iOS 端**：在 Xcode 中打开 `ios_app/Bolt.xcodeproj` 并连接真机运行，或使用 `dist/ios/release/bolt_0.1.0_ios.ipa` 侧载安装。
+- **Windows 端**：直接运行 `dist/windows/release/portable/bolt-windows-0.1.0-x64-portable.exe` 或使用 NSIS/MSI 安装向导。
+- **macOS 端**：双击挂载 `dist/macos/release/dmg/bolt-macos-0.1.0-universal.dmg` 并拖入 Applications，或直接运行解压后的 `Bolt.app`。
+- **Linux 端**：赋予可执行权限后直接运行 `dist/linux/release/appimage/bolt-linux-0.1.0-amd64.AppImage`，或安装 `.deb` / `.rpm` 软件包。
+- **Android 端**：在手机上安装 `dist/android/release/bolt-android-0.1.0-universal.apk`。
+- **iOS 端**：在 Xcode 中打开 `ios_app/Bolt.xcodeproj` 并连接真机运行，或使用 `dist/ios/release/bolt-ios-0.1.0.ipa` 侧载安装。
 
 ### 源码一键构建
 如需从源码编译全平台发行包，可使用一键自动化打包脚本：

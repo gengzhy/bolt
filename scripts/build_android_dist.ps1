@@ -3,9 +3,9 @@
     Builds and packages Bolt for Android matching the unified directory structure:
     dist/android/
       ├── release/
-      │     └── bolt_<version>_universal.apk
+      │     └── bolt-android-<version>-universal.apk
       └── debug/
-            └── bolt_<version>_universal-debug.apk
+            └── bolt-android-<version>-universal-debug.apk
 
 .EXAMPLE
     .\scripts\build_android_dist.ps1                 # Build Release APK

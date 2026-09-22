@@ -76,7 +76,8 @@ afterEvaluate {
     tasks.named("assembleDebug").configure {
         doLast {
             val apkDir = layout.buildDirectory.dir("outputs/apk/debug").get().asFile
-            val targetName = "bolt_${android.defaultConfig.versionName}_universal-debug.apk"
+            val targetName = "bolt-android-${android.defaultConfig.versionName}-universal-debug.apk"
+            val legacyName = "bolt_${android.defaultConfig.versionName}_universal-debug.apk"
             val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != "bolt.apk" }
             if (apk != null && apk.name != targetName) {
                 apk.copyTo(File(apkDir, targetName), overwrite = true)
@@ -87,12 +88,14 @@ afterEvaluate {
             distDebug.mkdirs()
             val finalApk = File(apkDir, targetName).takeIf { it.exists() } ?: apk
             finalApk?.copyTo(distDebug.resolve(targetName), overwrite = true)
+            finalApk?.copyTo(distDebug.resolve(legacyName), overwrite = true)
         }
     }
     tasks.named("assembleRelease").configure {
         doLast {
             val apkDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
-            val targetName = "bolt_${android.defaultConfig.versionName}_universal.apk"
+            val targetName = "bolt-android-${android.defaultConfig.versionName}-universal.apk"
+            val legacyName = "bolt_${android.defaultConfig.versionName}_universal.apk"
             val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != "bolt.apk" && it.name != "bolt-release.apk" }
             if (apk != null && apk.name != targetName) {
                 apk.copyTo(File(apkDir, targetName), overwrite = true)
@@ -104,6 +107,7 @@ afterEvaluate {
             distRelease.mkdirs()
             val finalApk = File(apkDir, targetName).takeIf { it.exists() } ?: apk
             finalApk?.copyTo(distRelease.resolve(targetName), overwrite = true)
+            finalApk?.copyTo(distRelease.resolve(legacyName), overwrite = true)
         }
     }
 }
