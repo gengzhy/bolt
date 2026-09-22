@@ -247,6 +247,15 @@ bash scripts/build_macos_dist.sh -m debug
 - **上层原生应用**：位于 `ios_app/`，使用 Swift 5.9+ 与 SwiftUI 原生编写，通过系统原生 Bonjour 协议进行局域网 `_bolt._udp.` 服务发现与广播。
 - **文件沙盒集成**：开启 `UIFileSharingEnabled`，接收文件直通 iOS 系统自带的「文件」(Files) 应用，支持相册 `PhotosPicker` 高速原图原视频发送。
 
+### 产物结构规范 (`dist/ios/[release|debug]/`)
+iOS 端打包脚本将生成标准侧载 IPA 安装包与 Xcode 归档工程，归档于对应模式目录下：
+```text
+dist/ios/[release|debug]/
+├── bolt_0.1.0_ios.ipa      # 免越狱侧载安装包 (通过 Sideloadly / AltStore / TrollStore 直接安装)
+├── Bolt.ipa                # 兼容性短文件名别名
+└── Bolt.xcarchive          # Xcode 标准归档目录 (可导入 Xcode Organizer 或分发 App Store)
+```
+
 ### 步骤一：编译底层静态库与 XCFramework
 在 macOS 环境的终端中执行：
 
@@ -266,10 +275,13 @@ bash scripts/build_ios_lib.sh release
 2. 顶部选择真机设备或 iOS 模拟器（如 iPhone 15 Pro）；
 3. 点击 **Run (⌘R)** 即可就地编译运行，享受完整的 SwiftUI 界面与局域网传输能力。
 
-#### 方式 B：自动化构建脚本
+#### 方式 B：自动化构建脚本（推荐）
 ```bash
-# 一键生成 Release 模式的 Xcode Archive 归档包 (dist/ios/Bolt.xcarchive)
-bash scripts/build_ios_dist.sh Release
+# 1. 一键生成 Release 正式发布包 (包含 bolt_0.1.0_ios.ipa 与 Bolt.xcarchive)
+bash scripts/build_ios_dist.sh -m release
+
+# 2. 一键生成 Debug 调试安装包
+bash scripts/build_ios_dist.sh -m debug
 ```
 
 ---

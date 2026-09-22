@@ -305,8 +305,12 @@ bolt/
 │   │   └── debug/                             # 调试版归档
 │   │
 │   ├── ios/                                   # iOS 平台打包归档
-│   │   ├── Bolt.ipa                           # 免越狱侧载安装包
-│   │   └── Bolt.xcarchive                     # Xcode 标准归档
+│   │   ├── release/                           # 正式发布版 (Release 模式)
+│   │   │   ├── bolt_0.1.0_ios.ipa             # 免越狱侧载直接可装包
+│   │   │   ├── Bolt.ipa                       # 兼容别名
+│   │   │   └── Bolt.xcarchive                 # Xcode 标准归档包
+│   │   └── debug/                             # 调试版归档 (Debug 模式)
+│   │       └── bolt_0.1.0_ios-debug.ipa
 │   │
 │   └── android/                               # Android 平台打包归档
 │       ├── release/                           # 正式发布版 (经 R8 代码混淆与无用资源剔除优化)

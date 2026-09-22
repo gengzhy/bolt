@@ -20,13 +20,20 @@ jobs:
         run: bash scripts/build_ios_lib.sh release
 
       - name: Build iOS Archive & Package IPA
-        run: bash scripts/build_ios_dist.sh Release
+        run: bash scripts/build_ios_dist.sh -m release
 
-      - name: Upload Bolt.ipa (Sideload Installable)
+      - name: Upload iOS Dist Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: bolt-ios-dist
+          path: dist/ios/**
+          if-no-files-found: warn
+
+      - name: Upload Bolt IPA (Sideload Installable)
         uses: actions/upload-artifact@v4
         with:
           name: bolt-ios-ipa
-          path: dist/ios/Bolt.ipa
+          path: dist/ios/release/*.ipa
           if-no-files-found: error
 
       - name: Upload BoltEngine.xcframework
@@ -40,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bolt-ios-xcarchive
-          path: dist/ios/Bolt.xcarchive
+          path: dist/ios/release/Bolt.xcarchive
           if-no-files-found: warn

@@ -65,7 +65,7 @@ graph TD
 | [`.github/workflows/build-macos.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-macos.yml) | **macOS** 桌面端 | `macos-14` (ARM64) | Node.js 24, Rust Universal targets, lipo | `bolt-macos-dmg`, `bolt-macos-app`, `bolt-macos-cli`, `bolt-macos-dist` |
 | [`.github/workflows/build-linux.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-linux.yml) | **Linux** 桌面端 | `ubuntu-latest` | Node.js 24, WebKit2GTK, patchelf, rpm | `bolt-linux-dist` (包含 AppImage, DEB, RPM, CLI) |
 | [`.github/workflows/build-android.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-android.yml) | **Android** 移动端 | `ubuntu-latest` | Java 21, Android SDK, NDK r26+, cargo-ndk | `bolt-android-release-apk`, `bolt-android-debug-apk`, `bolt-android-jniLibs`, `bolt-android-dist` |
-| [`.github/workflows/build-ios.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-ios.yml) | **iOS** 移动端 | `macos-14` (ARM64) | Xcode 15+, iOS SDK, Rust iOS targets | `bolt-ios-ipa`, `bolt-engine-xcframework`, `bolt-ios-xcarchive` |
+| [`.github/workflows/build-ios.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-ios.yml) | **iOS** 移动端 | `macos-14` (ARM64) | Xcode 15+, iOS SDK, Rust iOS targets | `bolt-ios-ipa` (包含 `bolt_0.1.0_ios.ipa`), `bolt-engine-xcframework`, `bolt-ios-xcarchive`, `bolt-ios-dist` |
 
 ---
 
@@ -176,7 +176,7 @@ git push origin v0.1.0
   1. 在 `macos-14` 环境中跨编译真机（`aarch64-apple-ios`）与模拟器（`aarch64-apple-ios-sim` / `x86_64-apple-ios`）底层静态库；
   2. 打包生成 `BoltEngine.xcframework`；
   3. 调用 `xcodebuild archive` 编译 SwiftUI 原生工程；
-  4. 产出免越狱侧载直接可装的 `Bolt.ipa` 以及 Xcode 归档 `Bolt.xcarchive`。
+  4. 产出免越狱侧载直接可装的标准 `bolt_0.1.0_ios.ipa`（及 `Bolt.ipa` 兼容别名）以及 Xcode 归档 `Bolt.xcarchive`。
 
 ---
 
@@ -235,8 +235,8 @@ git push origin v0.1.0
 
 #### 🍎 iOS 端
 - **方式一：通过 AltStore / SideStore / TrollStore / Sideloadly 侧载安装**：
-  1. 下载解压出 `Bolt.ipa`；
-  2. 使用电脑上的 Sideloadly 或手机上的 TrollStore / AltStore，导入 `Bolt.ipa` 进行免费个人证书签名并安装到 iPhone/iPad；
+  1. 下载解压出 `bolt_0.1.0_ios.ipa`（或 `Bolt.ipa`）；
+  2. 使用电脑上的 Sideloadly 或手机上的 TrollStore / AltStore，导入 `bolt_0.1.0_ios.ipa` 进行免费个人证书签名并安装到 iPhone/iPad；
   3. 前往 iOS「设置」→「通用」→「VPN 与设备管理」，信任您的个人证书即可运行。
 - **方式二：Mac 开发者本地编译安装**：
   - 下载 `bolt-engine-xcframework` 放入 `ios_app/Frameworks/`，使用 Xcode 打开 `ios_app/Bolt.xcodeproj`，连接真机按 `⌘R` 运行。

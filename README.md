@@ -89,7 +89,7 @@ Bolt 提供了开箱即用的多端安装包与免安装便携版，可直接从
 - **macOS 端**：双击挂载 `dist/macos/release/dmg/bolt_0.1.0_universal.dmg` 并拖入 Applications，或直接运行解压后的 `Bolt.app`。
 - **Linux 端**：赋予可执行权限后直接运行 `dist/linux/release/appimage/bolt_0.1.0_amd64.AppImage`，或安装 `.deb` / `.rpm` 软件包。
 - **Android 端**：在手机上安装 `dist/android/release/bolt_0.1.0_universal.apk`。
-- **iOS 端**：在 Xcode 中打开 `ios_app/Bolt.xcodeproj` 并连接真机运行，或使用 `scripts/build_ios_dist.sh` 编译导出。
+- **iOS 端**：在 Xcode 中打开 `ios_app/Bolt.xcodeproj` 并连接真机运行，或使用 `dist/ios/release/bolt_0.1.0_ios.ipa` 侧载安装。
 
 ### 源码一键构建
 如需从源码编译全平台发行包，可使用一键自动化打包脚本：
@@ -109,25 +109,16 @@ bash scripts/build_macos_dist.sh -m release -t universal-apple-darwin
 # Linux 端全量打包（AppImage + DEB + RPM + CLI 四大形态）
 bash scripts/build_linux_dist.sh -m release
 
-# iOS 端全量打包（跨编译真机+模拟器静态库与 XCFramework，并导出 Xcode Archive）
+# iOS 端全量打包（跨编译真机+模拟器静态库与 XCFramework，并导出 Xcode Archive 与 IPA）
 bash scripts/build_ios_lib.sh release
-bash scripts/build_ios_dist.sh Release
+bash scripts/build_ios_dist.sh -m release
 ```
 
 > 💡 完整的环境搭建、分步打包、单项形态编译、质量门禁与排障细节，请参阅 📖 [编译指南](docs/build_guide.md)。
 
 ### 命令行联调（bolt-cli）
 
-```bash
-# 启动接收端（监听 8899 端口）
-cargo run -p bolt-cli -- serve --port 8899 --data-dir target/cli_a
-
-# 发送文件至目标设备
-cargo run -p bolt-cli -- send --data-dir target/cli_b 127.0.0.1:8899 ./file.zip
-
-# 浏览局域网中的在线设备
-cargo run -p bolt-cli -- discover
-```
+本项目提供原生免 GUI 命令行独立端 `bolt-cli`，支持局域网设备扫描、无头服务监听与文件直传。详细参数与多场景用法请参阅 📖 [CLI 使用指南](docs/cli_guide.md)。
 
 ## 📱 使用说明
 
@@ -156,6 +147,7 @@ cargo run -p bolt-cli -- discover
 | [FFI API](docs/ffi_api.md) | `bt_*` C ABI 接口与事件定义 |
 | [开发指南](docs/dev_guide.md) | 架构速览、全局常量、新增功能检查单 |
 | [编译指南](docs/build_guide.md) | 环境配置、质量门禁、全平台本地编译打包流程 |
+| [CLI 使用指南](docs/cli_guide.md) | 命令行独立端参数详解、免 GUI 监听与双机/环回联调场景 |
 | [CI/CD 打包指南](docs/github_actions_guide.md) | GitHub Actions 云端全平台自动化打包与安装包下载教程 |
 | [项目结构](docs/project_structure.md) | 仓库完整文件树、分层约束与打包产物规范 |
 | [隐私政策](docs/privacy_policy.md) | 纯局域网数据安全、操作系统权限与合规声明 |

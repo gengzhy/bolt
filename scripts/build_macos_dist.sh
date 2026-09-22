@@ -172,24 +172,6 @@ else
   TAURI_BUNDLE_DIR="$ROOT_DIR/tauri_app/src-tauri/target/$TARGET_SUBDIR/bundle"
 fi
 
-# 归档 DMG
-FOUND_DMG=""
-for dmg_dir in "$TAURI_BUNDLE_DIR/dmg" "$ROOT_DIR/tauri_app/src-tauri/target/$TARGET_SUBDIR/bundle/dmg"; do
-  if [ -d "$dmg_dir" ]; then
-    MATCH=$(find "$dmg_dir" -name "*.dmg" | head -n 1)
-    if [ -n "$MATCH" ] && [ -f "$MATCH" ]; then
-      FOUND_DMG="$MATCH"
-      break
-    fi
-  fi
-done
-
-if [ -n "$FOUND_DMG" ] && [ -f "$FOUND_DMG" ]; then
-  DMG_TARGET="$DMG_DIR/bolt_${VERSION}_${ARCH_LABEL}.dmg"
-  cp "$FOUND_DMG" "$DMG_TARGET"
-  echo "  -> DMG 归档成功: $DMG_TARGET"
-fi
-
 # 归档 APP Bundle
 FOUND_APP=""
 for app_candidate in \
@@ -214,6 +196,39 @@ if [ -n "$FOUND_APP" ] && [ -d "$FOUND_APP" ]; then
   ZIP_TARGET="$APP_DIR/bolt_${VERSION}_${ARCH_LABEL}.app.zip"
   (cd "$APP_DIR" && zip -r -q "$ZIP_TARGET" "$APP_BASENAME")
   echo "  -> APP Zip 压缩包已生成: $ZIP_TARGET"
+fi
+
+# 归档 DMG
+FOUND_DMG=""
+for dmg_dir in \
+  "$TAURI_BUNDLE_DIR/dmg" \
+  "$ROOT_DIR/tauri_app/src-tauri/target/$TARGET_SUBDIR/bundle/dmg" \
+  "$TAURI_BUNDLE_DIR/macos" \
+  "$TAURI_BUNDLE_DIR/osx"; do
+  if [ -d "$dmg_dir" ]; then
+    MATCH=$(find "$dmg_dir" -name "*.dmg" ! -name "rw.*" 2>/dev/null | head -n 1)
+    if [ -n "$MATCH" ] && [ -f "$MATCH" ]; then
+      FOUND_DMG="$MATCH"
+      break
+    fi
+  fi
+done
+
+DMG_TARGET="$DMG_DIR/bolt_${VERSION}_${ARCH_LABEL}.dmg"
+if [ -n "$FOUND_DMG" ] && [ -f "$FOUND_DMG" ]; then
+  cp "$FOUND_DMG" "$DMG_TARGET"
+  echo "  -> DMG 归档成功: $DMG_TARGET"
+elif [ -n "$FOUND_APP" ] && [ -d "$FOUND_APP" ]; then
+  echo "  [提示] 未发现标准 Tauri DMG，使用 macOS 原生 hdiutil 构建 DMG 镜像..."
+  rm -f "$DMG_TARGET"
+  hdiutil create -volname "Bolt" -srcfolder "$FOUND_APP" -ov -format UDZO "$DMG_TARGET" || {
+    echo "  [警告] hdiutil 打包 DMG 失败。"
+  }
+  if [ -f "$DMG_TARGET" ]; then
+    echo "  -> DMG (hdiutil) 归档成功: $DMG_TARGET"
+  fi
+else
+  echo "  [警告] 未找到生成的 DMG 镜像或 APP Bundle。"
 fi
 
 echo "=================================================================="

@@ -138,9 +138,9 @@ cd android_app
    # 打开 Xcode 进行真机或模拟器图形化调试：
    open ios_app/Bolt.xcodeproj
    # 或执行一键全自动化打包：
-   bash scripts/build_ios_dist.sh Release
+   bash scripts/build_ios_dist.sh -m release
    ```
-   产物归档于 `dist/ios/Bolt.ipa` 与 `dist/ios/Bolt.xcarchive`。
+   产物归档于 `dist/ios/release/bolt_0.1.0_ios.ipa` 与 `dist/ios/release/Bolt.xcarchive`（同时保留兼容别名 `dist/ios/Bolt.ipa`）。
 4. iOS 上设备发现走系统原生 Bonjour（`NetService`），文件访问走系统 Files 沙盒与 `PhotosPicker`。
 
 ## 测试约定
