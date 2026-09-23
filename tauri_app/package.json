@@ -13,9 +13,11 @@
     "build:cli": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Target cli",
     "build:nsis": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Target nsis",
     "build:msi": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Target msi",
+    "build:msix": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Target msix",
     "build:all": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Mode release",
     "build:debug": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Mode debug",
-    "build:both": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Mode all"
+    "build:both": "powershell -ExecutionPolicy Bypass -File ../scripts/build_windows_dist.ps1 -Mode all",
+    "tauri:windows:build": "tauri-windows-bundle build"
   },
   "dependencies": {
     "@tauri-apps/api": "^2",
@@ -27,6 +29,7 @@
     "@vitejs/plugin-vue": "^5",
     "typescript": "^5.6",
     "vite": "^6",
-    "vue-tsc": "^2"
+    "vue-tsc": "^2",
+    "@choochmeque/tauri-windows-bundle": "^0.2.0"
   }
 }

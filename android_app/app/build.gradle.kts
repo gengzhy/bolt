@@ -22,11 +22,34 @@ android {
         }
     }
 
+    signingConfigs {
+        create("release") {
+            val keystoreFile = rootProject.file("keystore/bolt-release.jks").takeIf { it.exists() }
+                ?: file("../keystore/bolt-release.jks").takeIf { it.exists() }
+                ?: file("keystore/bolt-release.jks")
+
+            if (keystoreFile.exists()) {
+                storeFile = keystoreFile
+                storePassword = System.getenv("BOLT_KEYSTORE_PASSWORD")
+                    ?: (project.findProperty("BOLT_KEYSTORE_PASSWORD") as String?)
+                    ?: "Bolt@iangeng"
+                keyAlias = System.getenv("BOLT_KEY_ALIAS")
+                    ?: (project.findProperty("BOLT_KEY_ALIAS") as String?)
+                    ?: "bolt"
+                keyPassword = System.getenv("BOLT_KEY_PASSWORD")
+                    ?: (project.findProperty("BOLT_KEY_PASSWORD") as String?)
+                    ?: "Bolt@iangeng"
+            } else {
+                initWith(getByName("debug"))
+            }
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
@@ -76,38 +99,35 @@ afterEvaluate {
     tasks.named("assembleDebug").configure {
         doLast {
             val apkDir = layout.buildDirectory.dir("outputs/apk/debug").get().asFile
-            val targetName = "bolt-android-${android.defaultConfig.versionName}-universal-debug.apk"
-            val legacyName = "bolt_${android.defaultConfig.versionName}_universal-debug.apk"
-            val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != "bolt.apk" }
+            val ver = android.defaultConfig.versionName?.removePrefix("v") ?: "0.1.0"
+            val targetName = "bolt-v${ver}-android-universal-debug.apk"
+            val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") }
             if (apk != null && apk.name != targetName) {
                 apk.copyTo(File(apkDir, targetName), overwrite = true)
             }
-            apk?.copyTo(File(apkDir, "bolt.apk"), overwrite = true)
-            // 同步至 dist/android/debug/
-            val distDebug = rootProject.projectDir.parentFile.resolve("dist/android/debug")
+            // 同步至 dist/debug/
+            val distDebug = rootProject.projectDir.parentFile.resolve("dist/debug")
             distDebug.mkdirs()
             val finalApk = File(apkDir, targetName).takeIf { it.exists() } ?: apk
             finalApk?.copyTo(distDebug.resolve(targetName), overwrite = true)
-            finalApk?.copyTo(distDebug.resolve(legacyName), overwrite = true)
         }
     }
     tasks.named("assembleRelease").configure {
         doLast {
             val apkDir = layout.buildDirectory.dir("outputs/apk/release").get().asFile
-            val targetName = "bolt-android-${android.defaultConfig.versionName}-universal.apk"
-            val legacyName = "bolt_${android.defaultConfig.versionName}_universal.apk"
-            val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") && it.name != "bolt.apk" && it.name != "bolt-release.apk" }
+            val ver = android.defaultConfig.versionName?.removePrefix("v") ?: "0.1.0"
+            val targetName = "bolt-v${ver}-android-universal.apk"
+            val arm64Name = "bolt-v${ver}-android-arm64.apk"
+            val apk = apkDir.listFiles()?.firstOrNull { it.name.endsWith(".apk") }
             if (apk != null && apk.name != targetName) {
                 apk.copyTo(File(apkDir, targetName), overwrite = true)
             }
-            apk?.copyTo(File(apkDir, "bolt.apk"), overwrite = true)
-            apk?.copyTo(File(apkDir, "bolt-release.apk"), overwrite = true)
-            // 同步至 dist/android/release/
-            val distRelease = rootProject.projectDir.parentFile.resolve("dist/android/release")
+            // 同步至 dist/release/
+            val distRelease = rootProject.projectDir.parentFile.resolve("dist/release")
             distRelease.mkdirs()
             val finalApk = File(apkDir, targetName).takeIf { it.exists() } ?: apk
             finalApk?.copyTo(distRelease.resolve(targetName), overwrite = true)
-            finalApk?.copyTo(distRelease.resolve(legacyName), overwrite = true)
+            finalApk?.copyTo(distRelease.resolve(arm64Name), overwrite = true)
         }
     }
 }

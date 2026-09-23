@@ -1,0 +1,23 @@
+{
+  "publisher": "CN=9739D105-BE12-4B41-8961-6E5CBAC36F26",
+  "publisherDisplayName": "Ian Geng",
+  "capabilities": {
+    "general": [
+      "internetClient",
+      "privateNetworkClientServer"
+    ]
+  },
+  "extensions": {
+    "shareTarget": false,
+    "fileAssociations": [],
+    "protocolHandlers": []
+  },
+  "signing": {
+    "pfx": null,
+    "pfxPassword": null
+  },
+  "resourceIndex": {
+    "enabled": false,
+    "keepConfig": false
+  }
+}

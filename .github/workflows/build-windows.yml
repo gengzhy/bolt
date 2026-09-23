@@ -35,33 +35,33 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bolt-windows-dist
-          path: dist/windows/**
+          path: dist/**
           if-no-files-found: warn
 
-      - name: Upload Portable Executable
+      - name: Upload Portable Zip
         uses: actions/upload-artifact@v4
         with:
           name: bolt-windows-portable
-          path: dist/windows/release/portable/*.exe
+          path: dist/release/bolt-*-windows-*-portable.zip
           if-no-files-found: warn
 
       - name: Upload NSIS Setup
         uses: actions/upload-artifact@v4
         with:
           name: bolt-windows-setup
-          path: dist/windows/release/nsis/*.exe
+          path: dist/release/bolt-*-windows-*-setup.exe
           if-no-files-found: warn
 
       - name: Upload WiX MSI
         uses: actions/upload-artifact@v4
         with:
           name: bolt-windows-msi
-          path: dist/windows/release/msi/*.msi
+          path: dist/release/bolt-*-windows-*.msi
           if-no-files-found: warn
 
-      - name: Upload Windows CLI
+      - name: Upload Windows CLI Zip
         uses: actions/upload-artifact@v4
         with:
           name: bolt-windows-cli
-          path: dist/windows/release/cli/*.exe
+          path: dist/release/bolt-cli-*-windows-*.zip
           if-no-files-found: warn

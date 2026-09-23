@@ -1,11 +1,12 @@
 <#
 .SYNOPSIS
-    Builds and packages Bolt for Android matching the unified directory structure:
-    dist/android/
+    Builds and packages Bolt for Android matching the unified flat directory structure:
+    dist/
       ├── release/
-      │     └── bolt-android-<version>-universal.apk
+      │     ├── bolt-v<version>-android-universal.apk
+      │     └── bolt-v<version>-android-arm64.apk
       └── debug/
-            └── bolt-android-<version>-universal-debug.apk
+            └── bolt-v<version>-android-universal-debug.apk
 
 .EXAMPLE
     .\scripts\build_android_dist.ps1                 # Build Release APK
@@ -74,12 +75,12 @@ Write-Host "`n=================================================" -ForegroundColo
 Write-Host "            Android Packaging Summary            " -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 
-$distAndroid = Join-Path $ProjectRoot "dist\android"
-$allOutputs = Get-ChildItem -Path $distAndroid -Recurse -File -Filter "*.apk"
+$distDir = Join-Path $ProjectRoot "dist"
+$allOutputs = Get-ChildItem -Path $distDir -Recurse -File -Filter "*android*.apk"
 foreach ($item in $allOutputs) {
-    $relPath = $item.FullName.Substring($distAndroid.Length + 1)
+    $relPath = $item.FullName.Substring($distDir.Length + 1)
     $sizeMB = [math]::Round($item.Length / 1MB, 2)
     $hash = (Get-FileHash -Path $item.FullName -Algorithm SHA256).Hash.Substring(0, 16)
     Write-Host ("  {0,-42} | {1,7} MB | SHA256: {2}..." -f $relPath, $sizeMB, $hash) -ForegroundColor White
 }
-Write-Host "`nAndroid APK packages ready in: $distAndroid" -ForegroundColor Green
+Write-Host "`nAndroid APK packages ready in: $distDir" -ForegroundColor Green

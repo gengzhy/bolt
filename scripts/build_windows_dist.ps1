@@ -1,11 +1,11 @@
 <#
 .SYNOPSIS
-    Builds and packages Bolt for Windows into the unified directory structure:
-    dist/windows/[debug|release]/
-      ├── portable/   -> bolt-windows-<version>-x64-portable.exe (Standalone green exe)
-      ├── cli/        -> bolt-windows-<version>-x64-cli.exe      (Command line debugging tool)
-      ├── nsis/       -> bolt-windows-<version>-x64-setup.exe    (NSIS Setup wizard with LZMA)
-      └── msi/        -> bolt-windows-<version>-x64-zh-CN.msi    (WiX MSI enterprise package)
+    Builds and packages Bolt for Windows into the unified flat directory structure:
+    dist/[debug|release]/
+      ├── bolt-v<version>-windows-amd64-portable.zip (Standalone green zip containing bolt.exe)
+      ├── bolt-cli-v<version>-windows-amd64.zip      (Command line debugging tool zip)
+      ├── bolt-v<version>-windows-amd64-setup.exe    (NSIS Setup wizard with LZMA)
+      └── bolt-v<version>-windows-amd64.msi          (WiX MSI enterprise package)
 
 .EXAMPLE
     .\scripts\build_windows_dist.ps1                        # Build all 4 packages (Release)
@@ -19,7 +19,7 @@ param(
     [ValidateSet("release", "debug", "all")]
     [string]$Mode = "release",
 
-    [ValidateSet("all", "portable", "cli", "nsis", "msi")]
+    [ValidateSet("all", "portable", "cli", "nsis", "msi", "msix")]
     [string]$Target = "all",
 
     [switch]$CollectOnly
@@ -33,12 +33,13 @@ $TauriConfPath = Join-Path $TauriAppDir "src-tauri\tauri.conf.json"
 
 # Read version dynamically from tauri.conf.json
 $tauriConf = Get-Content $TauriConfPath -Raw -Encoding utf8 | ConvertFrom-Json
-$version = $tauriConf.version
-if (-not $version) { $version = "0.1.0" }
+$rawVersion = $tauriConf.version
+if (-not $rawVersion) { $rawVersion = "0.1.0" }
+$version = $rawVersion.TrimStart('v')
 
 Write-Host "=================================================" -ForegroundColor Cyan
 Write-Host "  Bolt Windows Distribution Packaging Pipeline  " -ForegroundColor Cyan
-Write-Host "  Version: $version | Mode: $Mode | Target: $Target" -ForegroundColor Cyan
+Write-Host "  Version: v$version | Mode: $Mode | Target: $Target" -ForegroundColor Cyan
 Write-Host "=================================================" -ForegroundColor Cyan
 
 # Terminate running bolt / bolt-cli processes to avoid Windows file locks
@@ -51,7 +52,7 @@ function Build-And-Package([string]$buildMode) {
     $isDebug = ($buildMode -eq "debug")
     $targetTauriDir = Join-Path $TauriAppDir "src-tauri\target\$buildMode"
     $bundleDir = Join-Path $targetTauriDir "bundle"
-    $distDir = Join-Path $ProjectRoot "dist\windows\$buildMode"
+    $distDir = Join-Path $ProjectRoot "dist\$buildMode"
 
     # Ensure bundle directories exist
     $portableDir = Join-Path $bundleDir "portable"
@@ -65,17 +66,19 @@ function Build-And-Package([string]$buildMode) {
 
     if (-not $CollectOnly) {
         # 1. Build Frontend
-        Write-Host "  [1/4] Building Frontend (Vue 3 + Vite)..." -ForegroundColor Yellow
-        Push-Location $TauriAppDir
-        try {
-            if (-not (Test-Path "node_modules")) {
-                Write-Host "  Installing frontend dependencies (npm install)..." -ForegroundColor Yellow
-                npm install
+        if ($Target -ne "cli") {
+            Write-Host "  [1/4] Building Frontend (Vue 3 + Vite)..." -ForegroundColor Yellow
+            Push-Location $TauriAppDir
+            try {
+                if (-not (Test-Path "node_modules")) {
+                    Write-Host "  Installing frontend dependencies (npm install)..." -ForegroundColor Yellow
+                    npm install
+                }
+                npm run build
+                if ($LASTEXITCODE -ne 0) { throw "Frontend build failed" }
+            } finally {
+                Pop-Location
             }
-            npm run build
-            if ($LASTEXITCODE -ne 0) { throw "Frontend build failed" }
-        } finally {
-            Pop-Location
         }
 
         # 2. Build bolt-cli
@@ -95,82 +98,133 @@ function Build-And-Package([string]$buildMode) {
         }
 
         # 3. Build Tauri App & Bundles
-        Write-Host "  [3/4] Building Tauri App & Bundles ($buildMode)..." -ForegroundColor Yellow
-        Push-Location $TauriAppDir
-        try {
-            $tauriArgs = @("tauri", "build")
-            if ($isDebug) { $tauriArgs += "--debug" }
+        if ($Target -ne "cli" -and $Target -ne "msix") {
+            Write-Host "  [3/5] Building Tauri App & Bundles ($buildMode)..." -ForegroundColor Yellow
+            Push-Location $TauriAppDir
+            try {
+                $tauriArgs = @("tauri", "build")
+                if ($isDebug) { $tauriArgs += "--debug" }
 
-            if ($Target -eq "portable") {
-                $tauriArgs += "--no-bundle"
-            } elseif ($Target -eq "nsis") {
-                $tauriArgs += @("--bundles", "nsis")
-            } elseif ($Target -eq "msi") {
-                $tauriArgs += @("--bundles", "msi")
-            } else {
-                $tauriArgs += @("--bundles", "nsis,msi")
+                if ($Target -eq "portable") {
+                    $tauriArgs += "--no-bundle"
+                } elseif ($Target -eq "nsis") {
+                    $tauriArgs += @("--bundles", "nsis")
+                } elseif ($Target -eq "msi") {
+                    $tauriArgs += @("--bundles", "msi")
+                } else {
+                    $tauriArgs += @("--bundles", "nsis,msi")
+                }
+
+                npx @tauriArgs
+                if ($LASTEXITCODE -ne 0) { throw "Tauri build failed" }
+            } finally {
+                Pop-Location
             }
+        }
 
-            npx @tauriArgs
-            if ($LASTEXITCODE -ne 0) { throw "Tauri build failed" }
-        } finally {
-            Pop-Location
+        # 4. Build Microsoft Store MSIX Package
+        if ($Target -eq "all" -or $Target -eq "msix") {
+            Write-Host "  [4/5] Building Microsoft Store MSIX Bundle ($buildMode)..." -ForegroundColor Yellow
+            Push-Location $TauriAppDir
+            try {
+                $msixArgs = @("tauri:windows:build", "--", "--runner", "npm")
+                if ($isDebug) { $msixArgs += "--debug" }
+                npm run @msixArgs
+                if ($LASTEXITCODE -ne 0) { throw "MSIX build failed" }
+            } finally {
+                Pop-Location
+            }
         }
     }
 
-    # 4. Populate and organize bundle/ subdirectories
-    Write-Host "  [4/4] Organizing bundle folders..." -ForegroundColor Yellow
+    # 5. Populate and organize bundle/ subdirectories
+    Write-Host "  [5/5] Organizing bundle folders..." -ForegroundColor Yellow
 
-    # (a) Portable Executable -> bundle/portable/bolt-windows-<version>-x64-portable.exe
+    # (a) Portable GUI ZIP -> bundle/portable/bolt-v<version>-windows-amd64-portable.zip (解压即为纯净 bolt.exe)
     $rawBolt = Join-Path $targetTauriDir "bolt.exe"
     if (Test-Path $rawBolt) {
-        $portableTarget = Join-Path $portableDir "bolt-windows-$version-x64-portable.exe"
-        Copy-Item -Path $rawBolt -Destination $portableTarget -Force
-        # 兼容旧命名别名
-        Copy-Item -Path $rawBolt -Destination (Join-Path $portableDir "bolt_${version}_x64-portable.exe") -Force
-        Write-Host "    -> [Portable] $portableTarget" -ForegroundColor Green
+        $portableTargetZip = Join-Path $portableDir "bolt-v$version-windows-amd64-portable.zip"
+        if (Test-Path $portableTargetZip) { Remove-Item -Path $portableTargetZip -Force }
+        Compress-Archive -Path $rawBolt -DestinationPath $portableTargetZip -Force
+        # 清理目录中非规范可执行文件，确保仅保留规范 zip 产物
+        Get-ChildItem -Path $portableDir -Filter "*.exe" | Remove-Item -Force
+        Write-Host "    -> [Portable] $portableTargetZip" -ForegroundColor Green
     }
 
-    # (b) CLI Tool -> bundle/cli/bolt-windows-<version>-x64-cli.exe
+    # (b) CLI Tool ZIP -> bundle/cli/bolt-cli-v<version>-windows-amd64.zip (解压即为纯净 bolt-cli.exe)
     $rawCli = Join-Path $ProjectRoot "target\$buildMode\bolt-cli.exe"
     if (Test-Path $rawCli) {
-        $cliTarget = Join-Path $cliDir "bolt-windows-$version-x64-cli.exe"
-        Copy-Item -Path $rawCli -Destination $cliTarget -Force
-        # 兼容旧命名别名
-        Copy-Item -Path $rawCli -Destination (Join-Path $cliDir "bolt_${version}_x64-cli.exe") -Force
-        Write-Host "    -> [CLI]      $cliTarget" -ForegroundColor Green
+        $cliTargetZip = Join-Path $cliDir "bolt-cli-v$version-windows-amd64.zip"
+        if (Test-Path $cliTargetZip) { Remove-Item -Path $cliTargetZip -Force }
+        Compress-Archive -Path $rawCli -DestinationPath $cliTargetZip -Force
+        # 清理目录中非规范可执行文件，确保仅保留规范 zip 产物
+        Get-ChildItem -Path $cliDir -Filter "*.exe" | Remove-Item -Force
+        Write-Host "    -> [CLI]      $cliTargetZip" -ForegroundColor Green
     }
 
-    # (c) Standardize NSIS installer name -> bolt-windows-<version>-x64-setup.exe
-    $rawNsis = Get-ChildItem -Path $nsisDir -Filter "*.exe" | Where-Object { $_.Name -notlike "bolt-windows-*" } | Select-Object -First 1
+    # (c) Standardize NSIS installer name -> bolt-v<version>-windows-amd64-setup.exe
+    $rawNsis = Get-ChildItem -Path $nsisDir -Filter "*.exe" | Where-Object { $_.Name -notlike "bolt-v*" } | Select-Object -First 1
     if ($rawNsis) {
-        $nsisTarget = Join-Path $nsisDir "bolt-windows-$version-x64-setup.exe"
+        $nsisTarget = Join-Path $nsisDir "bolt-v$version-windows-amd64-setup.exe"
         Copy-Item -Path $rawNsis.FullName -Destination $nsisTarget -Force
+        Get-ChildItem -Path $nsisDir -Filter "*.exe" | Where-Object { $_.Name -ne "bolt-v$version-windows-amd64-setup.exe" } | Remove-Item -Force
         Write-Host "    -> [NSIS]     $nsisTarget" -ForegroundColor Green
     }
 
-    # (d) Standardize MSI installer name -> bolt-windows-<version>-x64-zh-CN.msi
-    $rawMsi = Get-ChildItem -Path $msiDir -Filter "*.msi" | Where-Object { $_.Name -notlike "bolt-windows-*" } | Select-Object -First 1
+    # (d) Standardize MSI installer name -> bolt-v<version>-windows-amd64.msi
+    $rawMsi = Get-ChildItem -Path $msiDir -Filter "*.msi" | Where-Object { $_.Name -notlike "bolt-v*" } | Select-Object -First 1
     if ($rawMsi) {
-        $msiTarget = Join-Path $msiDir "bolt-windows-$version-x64-zh-CN.msi"
+        $msiTarget = Join-Path $msiDir "bolt-v$version-windows-amd64.msi"
         Copy-Item -Path $rawMsi.FullName -Destination $msiTarget -Force
+        Get-ChildItem -Path $msiDir -Filter "*.msi" | Where-Object { $_.Name -ne "bolt-v$version-windows-amd64.msi" } | Remove-Item -Force
         Write-Host "    -> [MSI]      $msiTarget" -ForegroundColor Green
     }
 
-    # (e) Sync all bundles to dist/windows/[buildMode]/
-    Copy-Item -Path "$bundleDir\*" -Destination $distDir -Recurse -Force
+    # (e) Sync MSIX packages -> dist/[buildMode]/
+    $rawMsixDir = Join-Path $TauriAppDir "src-tauri\target\msix"
+    if (Test-Path $rawMsixDir) {
+        $msixBundle = Get-ChildItem -Path $rawMsixDir -Filter "*.msixbundle" | Select-Object -First 1
+        if ($msixBundle) {
+            Copy-Item -Path $msixBundle.FullName -Destination $distDir -Force
+            Write-Host "    -> [MSIXBUNDLE] $($msixBundle.Name)" -ForegroundColor Green
+        }
+        $rawMsix = Get-ChildItem -Path $rawMsixDir -Filter "*_x64.msix" | Select-Object -First 1
+        if ($rawMsix) {
+            $specMsix = Join-Path $distDir "bolt-v$version-windows-amd64.msix"
+            Copy-Item -Path $rawMsix.FullName -Destination $specMsix -Force
+            Write-Host "    -> [MSIX]       bolt-v$version-windows-amd64.msix" -ForegroundColor Green
+        }
+    }
+
+    # (f) Sync all bundles directly to dist/[buildMode]/ (flat structure, no subfolders)
+    if (-not (Test-Path $distDir)) { New-Item -ItemType Directory -Path $distDir -Force | Out-Null }
+    foreach ($sub in @($portableDir, $cliDir, $nsisDir, $msiDir)) {
+        if (Test-Path $sub) {
+            Copy-Item -Path "$sub\*" -Destination $distDir -Force
+        }
+    }
 
     # Print Summary for this mode
     Write-Host "`n  =================================================" -ForegroundColor Cyan
     Write-Host "       Windows [$buildMode] Bundle Summary       " -ForegroundColor Cyan
     Write-Host "  =================================================" -ForegroundColor Cyan
 
-    $allOutputs = Get-ChildItem -Path $bundleDir -Recurse -File
-    foreach ($item in $allOutputs) {
-        $relPath = $item.FullName.Substring($bundleDir.Length + 1)
-        $sizeMB = [math]::Round($item.Length / 1MB, 2)
-        $hash = (Get-FileHash -Path $item.FullName -Algorithm SHA256).Hash.Substring(0, 16)
-        Write-Host ("  {0,-42} | {1,7} MB | SHA256: {2}..." -f $relPath, $sizeMB, $hash) -ForegroundColor White
+    $targetNames = @(
+        "bolt-v$version-windows-amd64-portable.zip",
+        "bolt-cli-v$version-windows-amd64.zip",
+        "bolt-v$version-windows-amd64-setup.exe",
+        "bolt-v$version-windows-amd64.msi",
+        "bolt-v$version-windows-amd64.msix",
+        "Bolt 闪传_0.1.0.0.msixbundle"
+    )
+    foreach ($name in $targetNames) {
+        $tf = Join-Path $distDir $name
+        if (Test-Path $tf) {
+            $item = Get-Item $tf
+            $sizeMB = [math]::Round($item.Length / 1MB, 2)
+            $hash = (Get-FileHash -Path $item.FullName -Algorithm SHA256).Hash.Substring(0, 16)
+            Write-Host ("  {0,-42} | {1,7} MB | SHA256: {2}..." -f $item.Name, $sizeMB, $hash) -ForegroundColor White
+        }
     }
 }
 

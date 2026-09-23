@@ -26,14 +26,14 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bolt-ios-dist
-          path: dist/ios/**
+          path: dist/**
           if-no-files-found: warn
 
       - name: Upload Bolt IPA (Sideload Installable)
         uses: actions/upload-artifact@v4
         with:
           name: bolt-ios-ipa
-          path: dist/ios/release/*.ipa
+          path: dist/release/*.ipa
           if-no-files-found: error
 
       - name: Upload BoltEngine.xcframework
@@ -47,5 +47,5 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bolt-ios-xcarchive
-          path: dist/ios/release/Bolt.xcarchive
+          path: dist/release/Bolt.xcarchive
           if-no-files-found: warn

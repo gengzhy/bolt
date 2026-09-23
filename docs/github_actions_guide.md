@@ -38,7 +38,7 @@ graph TD
         A_Mac["Universal DMG / Bolt.app / CLI"]
         A_Linux["AppImage / DEB / RPM / CLI"]
         A_Android["Release APK / Debug APK / JNI SO"]
-        A_iOS["Bolt.ipa / XCFramework / xcarchive"]
+        A_iOS["bolt-v0.1.0-ios-arm64.ipa / XCFramework / xcarchive"]
     end
 
     Triggers --> CI
@@ -65,7 +65,7 @@ graph TD
 | [`.github/workflows/build-macos.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-macos.yml) | **macOS** 桌面端 | `macos-14` (ARM64) | Node.js 24, Rust Universal targets, lipo | `bolt-macos-dmg`, `bolt-macos-app`, `bolt-macos-cli`, `bolt-macos-dist` |
 | [`.github/workflows/build-linux.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-linux.yml) | **Linux** 桌面端 | `ubuntu-latest` | Node.js 24, WebKit2GTK, patchelf, rpm | `bolt-linux-dist` (包含 AppImage, DEB, RPM, CLI) |
 | [`.github/workflows/build-android.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-android.yml) | **Android** 移动端 | `ubuntu-latest` | Java 21, Android SDK, NDK r26+, cargo-ndk | `bolt-android-release-apk`, `bolt-android-debug-apk`, `bolt-android-jniLibs`, `bolt-android-dist` |
-| [`.github/workflows/build-ios.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-ios.yml) | **iOS** 移动端 | `macos-14` (ARM64) | Xcode 15+, iOS SDK, Rust iOS targets | `bolt-ios-ipa` (包含 `bolt-ios-0.1.0.ipa`), `bolt-engine-xcframework`, `bolt-ios-xcarchive`, `bolt-ios-dist` |
+| [`.github/workflows/build-ios.yml`](file:///e:/AIProjects/bolt/.github/workflows/build-ios.yml) | **iOS** 移动端 | `macos-14` (ARM64) | Xcode 15+, iOS SDK, Rust iOS targets | `bolt-ios-ipa` (包含 `bolt-v0.1.0-ios-arm64.ipa`), `bolt-engine-xcframework`, `bolt-ios-xcarchive`, `bolt-ios-dist` |
 
 ---
 
@@ -149,8 +149,8 @@ git push origin v0.1.0
   3. 调用 `scripts/build_macos_dist.sh -m release -t universal-apple-darwin`；
   4. 通过 `lipo` 与 Tauri Universal 打包机制，编译出原生支持 Apple Silicon（M1/M2/M3/M4）与 Intel Mac 的双架构通用安装包：
      - `.dmg` 拖拽式安装镜像；
-     - `.app` 应用程序目录与 `.app.zip` 分发包；
-     - `-cli` 通用控制台二进制。
+     - `.app` 应用程序目录与 `bolt-v0.1.0-macos-universal-portable.zip` 免安装便携包；
+     - `bolt-cli-v0.1.0-macos-universal.tar.gz` 通用控制台压缩包。
 
 ### 3.3 Linux 构建流水线 (`build-linux.yml`)
 
@@ -176,7 +176,7 @@ git push origin v0.1.0
   1. 在 `macos-14` 环境中跨编译真机（`aarch64-apple-ios`）与模拟器（`aarch64-apple-ios-sim` / `x86_64-apple-ios`）底层静态库；
   2. 打包生成 `BoltEngine.xcframework`；
   3. 调用 `xcodebuild archive` 编译 SwiftUI 原生工程；
-  4. 产出免越狱侧载直接可装的标准 `bolt-ios-0.1.0.ipa`（及 `Bolt.ipa` 兼容别名）以及 Xcode 归档 `Bolt.xcarchive`。
+  4. 产出免越狱侧载直接可装的标准 `bolt-v0.1.0-ios-arm64.ipa` 以及 Xcode 归档 `Bolt.xcarchive`。
 
 ---
 
@@ -201,13 +201,14 @@ git push origin v0.1.0
 ### 4.2 各平台安装与使用步骤
 
 #### 🪟 Windows 端
-- **便携版 (`bolt-windows-0.1.0-x64-portable.exe`)**：解压后直接双击即可启动，无需安装，不向系统注册表或开机项写入多余内容。
-- **向导安装版 (`bolt-windows-0.1.0-x64-setup.exe`)**：双击运行向导，可自定义安装路径并自动创建桌面图标和开始菜单快捷方式。
+- **便携版 (`bolt-v0.1.0-windows-amd64-portable.zip`)**：解压后直接双击运行其中的 `bolt.exe`，无需安装，不向系统注册表或开机项写入多余内容。
+- **向导安装版 (`bolt-v0.1.0-windows-amd64-setup.exe`)**：双击运行向导，可自定义安装路径并自动创建桌面图标和开始菜单快捷方式。
+- **企业部署版 (`bolt-v0.1.0-windows-amd64.msi`)**：支持 Windows Installer 命令行静默部署。
 - **防火墙配置**：首次运行如弹出 Windows Defender 防火墙拦截提示，请务必勾选 **「专用网络（局域网）」** 并点击允许。
 
 #### 🍏 macOS 端
-1. 解压下载的 `bolt-macos-dmg.zip`，双击挂载其中的 `bolt-macos-0.1.0-universal.dmg`；
-2. 将 **Bolt** 图标直接拖拽至 **Applications (应用程序)** 快捷方式文件夹即可完成安装；
+1. **DMG 安装镜像**：双击挂载 `bolt-v0.1.0-macos-universal.dmg`，将 **Bolt** 图标直接拖拽至 **Applications (应用程序)** 快捷方式文件夹即可完成安装；
+2. **免安装绿色版**：下载解压 `bolt-v0.1.0-macos-universal-portable.zip`，解压后直接双击运行 `Bolt.app`；
 3. **初次打开安全提示**：由于开源软件未购买商业苹果开发者公证证书，首次启动可能会提示“无法打开，因为来自无法确认的开发者”：
    - 解决方法 1：在访达（Finder）的「应用程序」中找到 Bolt，**按住 Control 键并点击图标**（或右键），选择 **「打开」**，在弹出警告框中点击 **「打开」** 即可。
    - 解决方法 2：前往「系统设置」→「隐私与安全性」，滚动到下方找到“已阻止使用 Bolt”，点击「仍要打开」。
@@ -216,27 +217,27 @@ git push origin v0.1.0
 - **AppImage 单文件版**：
   ```bash
   unzip bolt-linux-dist.zip
-  chmod +x dist/linux/release/appimage/bolt-linux-0.1.0-amd64.AppImage
-  ./dist/linux/release/appimage/bolt-linux-0.1.0-amd64.AppImage
+  chmod +x dist/release/bolt-v0.1.0-linux-amd64.AppImage
+  ./dist/release/bolt-v0.1.0-linux-amd64.AppImage
   ```
 - **Debian / Ubuntu / Deepin / UOS 安装**：
   ```bash
-  sudo dpkg -i dist/linux/release/deb/bolt-linux-0.1.0-amd64.deb
+  sudo dpkg -i dist/release/bolt-v0.1.0-linux-amd64.deb
   ```
 - **Fedora / RHEL 安装**：
   ```bash
-  sudo rpm -ivh dist/linux/release/rpm/bolt-linux-0.1.0-1.x86_64.rpm
+  sudo rpm -ivh dist/release/bolt-v0.1.0-linux-amd64.rpm
   ```
 
 #### 📱 Android 端
-1. 将下载的 `bolt-android-0.1.0-universal.apk` 传输至手机（或手机浏览器直接下载）；
+1. 将下载的 `bolt-v0.1.0-android-universal.apk`（或针对 64 位设备的 `bolt-v0.1.0-android-arm64.apk`）传输至手机；
 2. 点击 APK 文件进行安装，根据系统提示开启“允许安装来自此来源的应用”；
 3. 启动应用，授予局域网发现与必要存储权限即可使用。
 
 #### 🍎 iOS 端
 - **方式一：通过 AltStore / SideStore / TrollStore / Sideloadly 侧载安装**：
-  1. 下载解压出 `bolt-ios-0.1.0.ipa`（或 `Bolt.ipa`）；
-  2. 使用电脑上的 Sideloadly 或手机上的 TrollStore / AltStore，导入 `bolt-ios-0.1.0.ipa` 进行免费个人证书签名并安装到 iPhone/iPad；
+  1. 下载解压出 `bolt-v0.1.0-ios-arm64.ipa`；
+  2. 使用电脑上的 Sideloadly 或手机上的 TrollStore / AltStore，导入 `bolt-v0.1.0-ios-arm64.ipa` 进行免费个人证书签名并安装到 iPhone/iPad；
   3. 前往 iOS「设置」→「通用」→「VPN 与设备管理」，信任您的个人证书即可运行。
 - **方式二：Mac 开发者本地编译安装**：
   - 下载 `bolt-engine-xcframework` 放入 `ios_app/Frameworks/`，使用 Xcode 打开 `ios_app/Bolt.xcodeproj`，连接真机按 `⌘R` 运行。

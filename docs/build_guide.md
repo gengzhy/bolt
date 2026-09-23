@@ -69,39 +69,40 @@ bash scripts/smoke_loopback.sh
 
 ## 💻 3. Windows 桌面端编译与打包
 
-### 产物结构规范 (`dist/windows/[release|debug]/`)
-Windows 端打包脚本将生成四类标准形态，归档于对应模式目录下：
+### 产物结构规范 (`dist/[release|debug]/`)
+Windows 端打包脚本将生成五类标准形态，全部平铺输出至 `dist/[release|debug]/` 目录下：
 ```text
-dist/windows/[release|debug]/
-├── portable/ -> bolt-windows-0.1.0-x64-portable.exe   # 单文件绿色便携版（免安装，即开即用）
-├── cli/      -> bolt-windows-0.1.0-x64-cli.exe        # 命令行联调工具（终端交互与自动化测试）
-├── nsis/     -> bolt-windows-0.1.0-x64-setup.exe      # NSIS 安装引导程序（含创建快捷方式与卸载）
-└── msi/      -> bolt-windows-0.1.0-x64-zh-CN.msi      # WiX MSI 企业级静默部署包
+dist/[release|debug]/
+├── bolt-v0.1.0-windows-amd64-portable.zip   # 绿色便携压缩包（解压即开即用 bolt.exe）
+├── bolt-cli-v0.1.0-windows-amd64.zip        # 命令行工具压缩包（解压即用 bolt-cli.exe）
+├── bolt-v0.1.0-windows-amd64-setup.exe      # NSIS 安装引导程序（含创建快捷方式与卸载）
+├── bolt-v0.1.0-windows-amd64.msi            # WiX MSI 企业级静默部署包
+└── bolt-v0.1.0-windows-amd64.msix           # 微软应用商店 Microsoft Store 专用发布包
 ```
 
 ### 一键全量打包（推荐）
-Bolt 提供了全自动化打包脚本，自动构建上述四类形态并归档至 `dist/windows/[release|debug]/`：
+Bolt 提供了全自动化打包脚本，自动构建上述各类形态并直接平铺归档至 `dist/[release|debug]/`：
 
-```powershell
-# 1. 构建 Release 正式发布包（带 strip/LTO/z 压缩优化）
+```cmd
+# 1. 鼠标双击或终端运行一键打包批处理脚本
+scripts\build_windows_dist.bat
+
+# 2. 或通过 PowerShell 运行（可灵活指定参数）：
 powershell.exe -ExecutionPolicy Bypass -File scripts\build_windows_dist.ps1 -Mode release
-# 或在 tauri_app 目录下执行：
-cd tauri_app && npm run build:all
 
-# 2. 构建 Debug 调试包（保留符号信息，快速迭代）
-powershell.exe -ExecutionPolicy Bypass -File scripts\build_windows_dist.ps1 -Mode debug
-# 或在 tauri_app 目录下执行：
-cd tauri_app && npm run build:debug
+# 3. 或在 tauri_app 目录下执行：
+cd tauri_app && npm run build:all
 ```
 
 ### 单独打包指定产物
 如果仅需产出特定形态，可进入 `tauri_app` 目录执行指定命令：
 ```bash
 cd tauri_app
-npm run build:portable    # 仅打包绿色便携版 -> bundle/portable/bolt-windows-0.1.0-x64-portable.exe
-npm run build:cli         # 仅编译命令行工具 -> bundle/cli/bolt-windows-0.1.0-x64-cli.exe
-npm run build:nsis        # 仅打包 NSIS 安装包 -> bundle/nsis/bolt-windows-0.1.0-x64-setup.exe
-npm run build:msi         # 仅打包 MSI 安装包 -> bundle/msi/bolt-windows-0.1.0-x64-zh-CN.msi
+npm run build:portable    # 仅打包绿色便携版
+npm run build:cli         # 仅编译命令行工具
+npm run build:nsis        # 仅打包 NSIS 安装包
+npm run build:msi         # 仅打包 MSI 安装包
+npm run build:msix        # 仅打包微软商店 MSIX 安装包
 ```
 
 ### 本地开发与实时调试
@@ -121,14 +122,15 @@ scripts\build_rust_lib.bat
 
 ## 📱 4. Android 移动端编译与打包
 
-### 产物结构规范 (`dist/android/[release|debug]/`)
-Android 端产物归档于对应模式目录下，遵循跨端统一规范 `bolt-android-<版本号>-<架构/变体>.<扩展名>`：
+### 产物结构规范 (`dist/[release|debug]/`)
+Android 端产物平铺归档于对应模式根目录下，遵循跨端统一规范 `bolt-v<版本号>-android-<架构/变体>.<扩展名>`：
 ```text
 dist/android/
 ├── release/
-│   └── bolt-android-0.1.0-universal.apk           # Release 发布包（R8 深度优化代码与资源，体积约 16 MB）
+│   ├── bolt-v0.1.0-android-universal.apk         # Release 通用架构发布包（R8 深度优化代码与资源，体积约 16 MB）
+│   └── bolt-v0.1.0-android-arm64.apk             # Release 64位独立包（针对主流设备深度轻量化）
 └── debug/
-    └── bolt-android-0.1.0-universal-debug.apk     # Debug 调试包（含调试日志与符号表，体积约 27 MB）
+    └── bolt-v0.1.0-android-universal-debug.apk   # Debug 调试包（含调试日志与符号表，体积约 27 MB）
 ```
 
 ### 一键全量打包（推荐）
@@ -151,28 +153,28 @@ powershell.exe -ExecutionPolicy Bypass -File scripts\build_android_lib.ps1
 # 步骤 2：构建 Release APK
 cd android_app
 ./gradlew.bat assembleRelease
-# 输出：android_app/app/build/outputs/apk/release/bolt-android-0.1.0-universal.apk
+# 输出：android_app/app/build/outputs/apk/release/bolt-v0.1.0-android-universal.apk
 
 # 步骤 3：（可选）构建 Debug APK
 ./gradlew.bat assembleDebug
-# 输出：android_app/app/build/outputs/apk/debug/bolt-android-0.1.0-universal-debug.apk
+# 输出：android_app/app/build/outputs/apk/debug/bolt-v0.1.0-android-universal-debug.apk
 
 # 步骤 4：通过 ADB 安装到真机或模拟器
-adb install -r ./app/build/outputs/apk/release/bolt-android-0.1.0-universal.apk
+adb install -r ./app/build/outputs/apk/release/bolt-v0.1.0-android-universal.apk
 ```
 
 ---
 
 ## 🐧 5. Linux 桌面端与控制台编译打包
 
-### 产物结构规范 (`dist/linux/[release|debug]/`)
-Linux 端打包脚本将生成四类标准形态，归档于对应模式目录下：
+### 产物结构规范 (`dist/[release|debug]/`)
+Linux 端打包脚本将生成四类标准形态，直接平铺归档于 `dist/[release|debug]/` 目录下：
 ```text
-dist/linux/[release|debug]/
-├── appimage/ -> bolt-linux-0.1.0-amd64.AppImage     # 单文件免安装通用绿色版（主流发行版双击即跑）
-├── cli/      -> bolt-linux-0.1.0-amd64-cli          # 命令行独立控制台工具（适用于无界面服务器与 NAS）
-├── deb/      -> bolt-linux-0.1.0-amd64.deb          # Debian / Ubuntu / Deepin / UOS 安装包
-└── rpm/      -> bolt-linux-0.1.0-1.x86_64.rpm       # Fedora / RHEL / openSUSE 安装包
+dist/[release|debug]/
+├── bolt-v0.1.0-linux-amd64.AppImage     # 单文件免安装通用绿色版（主流发行版双击即跑）
+├── bolt-cli-v0.1.0-linux-amd64.tar.gz   # 命令行独立控制台工具压缩包（解压为纯净 bolt-cli）
+├── bolt-v0.1.0-linux-amd64.deb          # Debian / Ubuntu / Deepin / UOS 安装包
+└── bolt-v0.1.0-linux-amd64.rpm          # Fedora / RHEL / openSUSE 安装包
 ```
 
 ### Linux 编译环境准备（Ubuntu / Debian 示例）
@@ -192,7 +194,7 @@ sudo apt-get update && sudo apt-get install -y \
 ```
 
 ### 一键全量打包（推荐）
-Bolt 提供了全自动化打包脚本，自动构建上述四类形态并归档至 `dist/linux/[release|debug]/`：
+Bolt 提供了全自动化打包脚本，自动构建上述四类形态并平铺归档至 `dist/[release|debug]/`：
 
 ```bash
 # 1. 构建 Release 正式发布包（带符号剥离与尺寸优化）
@@ -209,17 +211,17 @@ bash scripts/build_linux_dist.sh -m debug
 
 ## 🍏 6. macOS 桌面端与控制台编译打包
 
-### 产物结构规范 (`dist/macos/[release|debug]/`)
-macOS 端打包脚本将生成三大标准形态，归档于对应模式目录下：
+### 产物结构规范 (`dist/[release|debug]/`)
+macOS 端打包脚本将生成标准形态，直接平铺归档于 `dist/[release|debug]/` 目录下：
 ```text
-dist/macos/[release|debug]/
-├── dmg/ -> bolt-macos-0.1.0-universal.dmg               # 免安装拖拽磁盘镜像（标准 DMG，双击直接拖拽至 Applications）
-├── app/ -> Bolt.app & bolt-macos-0.1.0-universal.app.zip # 独立应用程序 Bundle 与便于分发的 ZIP 压缩包
-└── cli/ -> bolt-macos-0.1.0-universal-cli              # 命令行独立终端工具（原生支持 M 系列与 Intel 芯片）
+dist/[release|debug]/
+├── bolt-v0.1.0-macos-universal.dmg                 # 原生拖拽磁盘镜像（标准 DMG，双击直接拖拽至 Applications）
+├── bolt-v0.1.0-macos-universal-portable.zip        # 免安装绿色压缩包（解压即开即用 Bolt.app）
+└── bolt-cli-v0.1.0-macos-amd64.tar.gz (及 arm64)   # 命令行独立终端工具压缩包（解压为纯净 bolt-cli）
 ```
 
 ### 一键全量打包（推荐）
-Bolt 提供了全自动化打包脚本，自动构建上述三大形态并归档至 `dist/macos/[release|debug]/`：
+Bolt 提供了全自动化打包脚本，自动构建上述形态并平铺归档至 `dist/[release|debug]/`：
 
 ```bash
 # 1. 构建 Release 正式发布包（Universal 双架构，通用支持 Apple Silicon 与 Intel Mac）
@@ -235,7 +237,7 @@ bash scripts/build_macos_dist.sh -m debug
 ### CI/CD 自动化构建
 项目内置 GitHub Actions 工作流（`.github/workflows/build-macos.yml`），运行于原生 `macos-14`（Apple Silicon）虚拟环境：
 - 触发机制：推送代码至 main/master、发布 `v*` Release 标签、或手动触发 `workflow_dispatch`；
-- 产出构建：自动跨编译 Universal 双架构二进制并组装 `.dmg`、`.app.zip` 与 `-cli` 文件；
+- 产出构建：自动跨编译 Universal 双架构二进制并组装 `.dmg`、`-portable.zip` 与 `.tar.gz` 命令行工具；
 - 无 Mac 设备的开发者可直接在 GitHub Actions Artifacts 页面点击一键下载完整的 macOS 发行包。
 
 ---
@@ -247,13 +249,12 @@ bash scripts/build_macos_dist.sh -m debug
 - **上层原生应用**：位于 `ios_app/`，使用 Swift 5.9+ 与 SwiftUI 原生编写，通过系统原生 Bonjour 协议进行局域网 `_bolt._udp.` 服务发现与广播。
 - **文件沙盒集成**：开启 `UIFileSharingEnabled`，接收文件直通 iOS 系统自带的「文件」(Files) 应用，支持相册 `PhotosPicker` 高速原图原视频发送。
 
-### 产物结构规范 (`dist/ios/[release|debug]/`)
-iOS 端打包脚本将生成标准侧载 IPA 安装包与 Xcode 归档工程，归档于对应模式目录下：
+### 产物结构规范 (`dist/[release|debug]/`)
+iOS 端打包脚本将生成标准侧载 IPA 安装包与 Xcode 归档工程，直接平铺归档于 `dist/[release|debug]/` 目录下：
 ```text
-dist/ios/[release|debug]/
-├── bolt-ios-0.1.0.ipa      # 免越狱侧载安装包 (通过 Sideloadly / AltStore / TrollStore 直接安装)
-├── Bolt.ipa                # 兼容性短文件名别名
-└── Bolt.xcarchive          # Xcode 标准归档目录 (可导入 Xcode Organizer 或分发 App Store)
+dist/[release|debug]/
+├── bolt-v0.1.0-ios-arm64.ipa   # 免越狱侧载安装包 (通过 Sideloadly / AltStore / TrollStore 直接安装)
+└── Bolt.xcarchive              # Xcode 标准归档目录 (可导入 Xcode Organizer 或分发 App Store)
 ```
 
 ### 步骤一：编译底层静态库与 XCFramework
@@ -277,7 +278,7 @@ bash scripts/build_ios_lib.sh release
 
 #### 方式 B：自动化构建脚本（推荐）
 ```bash
-# 1. 一键生成 Release 正式发布包 (包含 bolt-ios-0.1.0.ipa 与 Bolt.xcarchive)
+# 1. 一键生成 Release 正式发布包 (包含 bolt-v0.1.0-ios-arm64.ipa 与 Bolt.xcarchive)
 bash scripts/build_ios_dist.sh -m release
 
 # 2. 一键生成 Debug 调试安装包

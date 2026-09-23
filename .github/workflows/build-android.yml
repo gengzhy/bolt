@@ -44,21 +44,21 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bolt-android-dist
-          path: dist/android/**
+          path: dist/**
           if-no-files-found: warn
 
       - name: Upload Release APK
         uses: actions/upload-artifact@v4
         with:
           name: bolt-android-release-apk
-          path: dist/android/release/*.apk
+          path: dist/release/*.apk
           if-no-files-found: warn
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: bolt-android-debug-apk
-          path: dist/android/debug/*.apk
+          path: dist/debug/*.apk
           if-no-files-found: warn
 
       - name: Upload JNI Libraries

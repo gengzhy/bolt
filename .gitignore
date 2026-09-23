@@ -6,7 +6,8 @@
 node_modules/
 dist/
 tauri_app/src-tauri/target/
-tauri_app/src-tauri/gen/
+tauri_app/src-tauri/gen/*
+!tauri_app/src-tauri/gen/windows/
 
 # Android / Gradle
 android_app/.gradle/

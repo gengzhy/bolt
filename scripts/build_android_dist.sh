@@ -102,8 +102,8 @@ echo ""
 echo "================================================="
 echo "            Android Packaging Summary            "
 echo "================================================="
-DIST_ANDROID="$ROOT_DIR/dist/android"
-if [ -d "$DIST_ANDROID" ]; then
-  find "$DIST_ANDROID" -name "*.apk" -exec ls -lh {} +
+DIST_DIR="$ROOT_DIR/dist"
+if [ -d "$DIST_DIR" ]; then
+  find "$DIST_DIR" -name "*android*.apk" -exec ls -lh {} +
 fi
-echo "Android APK 构建完成！归档目录: $DIST_ANDROID"
+echo "Android APK 构建完成！归档目录: $DIST_DIR"

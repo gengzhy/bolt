@@ -30,26 +30,26 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: bolt-macos-dist
-          path: dist/macos/**
+          path: dist/**
           if-no-files-found: warn
 
       - name: Upload Bolt DMG
         uses: actions/upload-artifact@v4
         with:
           name: bolt-macos-dmg
-          path: dist/macos/release/dmg/*.dmg
+          path: dist/release/*.dmg
           if-no-files-found: warn
 
-      - name: Upload Bolt APP Zip
+      - name: Upload Bolt APP Portable Zip
         uses: actions/upload-artifact@v4
         with:
           name: bolt-macos-app
-          path: dist/macos/release/app/*.app.zip
+          path: dist/release/*-macos-*-portable.zip
           if-no-files-found: warn
 
-      - name: Upload Bolt CLI
+      - name: Upload Bolt CLI Tar.gz
         uses: actions/upload-artifact@v4
         with:
           name: bolt-macos-cli
-          path: dist/macos/release/cli/*-cli
+          path: dist/release/bolt-cli-*-macos-*.tar.gz
           if-no-files-found: warn

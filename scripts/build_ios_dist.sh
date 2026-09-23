@@ -6,10 +6,9 @@
 #   bash scripts/build_ios_dist.sh [-m release|debug]
 #
 # 产物输出目录规范:
-#   dist/ios/[debug|release]/
-#   ├── bolt-ios-{ver}[-debug].ipa  -> 免越狱侧载直接可装包
-#   ├── bolt.ipa / Bolt.ipa         -> 兼容别名
-#   └── Bolt.xcarchive              -> Xcode 标准归档包
+#   dist/[debug|release]/
+#   ├── bolt-v{ver}-ios-arm64[-debug].ipa  -> 免越狱侧载直接可装包
+#   └── Bolt.xcarchive                     -> Xcode 标准归档包
 # ==============================================================================
 
 set -euo pipefail
@@ -53,18 +52,19 @@ else
 fi
 
 # 1. 提取版本号 (与 Windows / Android / macOS 端对齐)
-VERSION=$(grep -m1 '^version = ' "$ROOT_DIR/Cargo.toml" | sed -E 's/version = "(.*)"/\1/')
-if [ -z "$VERSION" ]; then
-  VERSION="0.1.0"
+RAW_VERSION=$(grep -m1 '^version = ' "$ROOT_DIR/Cargo.toml" | sed -E 's/version = "(.*)"/\1/')
+if [ -z "$RAW_VERSION" ]; then
+  RAW_VERSION="0.1.0"
 fi
+VERSION="${RAW_VERSION#v}"
 
-# 2. 统一输出目录：dist/ios/[release|debug]/
-DIST_DIR="${ROOT_DIR}/dist/ios/${MODE_LOWER}"
+# 2. 统一输出目录：dist/[release|debug]/
+DIST_DIR="${ROOT_DIR}/dist/${MODE_LOWER}"
 mkdir -p "${DIST_DIR}"
 
 echo "============================================================"
 echo "Bolt iOS 应用构建与打包"
-echo "模式: ${MODE_LOWER} (Xcode Configuration: ${CONFIGURATION}) | 版本: ${VERSION}"
+echo "模式: ${MODE_LOWER} (Xcode Configuration: ${CONFIGURATION}) | 版本: v${VERSION}"
 echo "============================================================"
 
 # 3. 确保底层核心 XCFramework 库就绪
@@ -92,7 +92,7 @@ PAYLOAD_DIR="${DIST_DIR}/Payload"
 rm -rf "${PAYLOAD_DIR}"
 mkdir -p "${PAYLOAD_DIR}"
 
-IPA_NAME="bolt-ios-${VERSION}${IPA_SUFFIX}.ipa"
+IPA_NAME="bolt-v${VERSION}-ios-arm64${IPA_SUFFIX}.ipa"
 IPA_PATH="${DIST_DIR}/${IPA_NAME}"
 rm -f "${IPA_PATH}"
 
@@ -100,14 +100,6 @@ if [ -d "${ARCHIVE_PATH}/Products/Applications/Bolt.app" ]; then
     cp -r "${ARCHIVE_PATH}/Products/Applications/Bolt.app" "${PAYLOAD_DIR}/"
     (cd "${DIST_DIR}" && zip -qr "${IPA_NAME}" "Payload")
     rm -rf "${PAYLOAD_DIR}"
-    
-    # 建立同目录下兼容别名
-    cp "${IPA_PATH}" "${DIST_DIR}/bolt.ipa"
-    cp "${IPA_PATH}" "${DIST_DIR}/Bolt.ipa"
-    cp "${IPA_PATH}" "${DIST_DIR}/bolt_${VERSION}_ios${IPA_SUFFIX}.ipa"
-    # 向前兼容旧版根 dist/ios/ 路径
-    mkdir -p "${ROOT_DIR}/dist/ios"
-    cp "${IPA_PATH}" "${ROOT_DIR}/dist/ios/Bolt.ipa" 2>/dev/null || true
     
     echo "  -> IPA 打包完成: ${IPA_PATH}"
 else
@@ -117,6 +109,5 @@ fi
 echo "============================================================"
 echo "Bolt iOS 打包完成！产物归档于: ${DIST_DIR}"
 echo "  - 标准 IPA 安装包: ${IPA_PATH}"
-echo "  - 兼容格式别名:   ${DIST_DIR}/Bolt.ipa"
 echo "  - Xcode 归档:      ${ARCHIVE_PATH}"
 echo "============================================================"

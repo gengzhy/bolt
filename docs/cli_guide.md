@@ -39,10 +39,11 @@ cargo build --release -p bolt-cli
 ```
 
 ### 方式 C：直接使用打包产物
-在 GitHub Actions 自动化构建产物（Artifacts）或发行包中，可直接获取各平台的预编译二进制：
-* Windows: `bolt-windows-cli` (`bolt-windows-<ver>-x64-cli.exe`)
-* macOS: `bolt-macos-cli` (`bolt-macos-<ver>-universal-cli`)
-* Linux: `bolt-linux-cli` (`bolt-linux-<ver>-amd64-cli`)
+在 GitHub Actions 自动化构建产物（Artifacts）或 GitHub Releases 中，可直接下载各平台的官方预编译压缩包（解压即为纯净命令行工具，可直接加入系统 PATH）：
+* **Windows**: `bolt-cli-v<ver>-windows-amd64.zip`（解压为 `bolt-cli.exe`）
+* **macOS**: `bolt-cli-v<ver>-macos-amd64.tar.gz` / `bolt-cli-v<ver>-macos-arm64.tar.gz`（解压为 `bolt-cli`）
+* **Linux**: `bolt-cli-v<ver>-linux-amd64.tar.gz`（解压为 `bolt-cli`）
+  *(注：亦提供针对嵌入式/容器的静态编译版 `bolt-cli-v<ver>-linux-amd64-musl.tar.gz`)*
 
 ---
 

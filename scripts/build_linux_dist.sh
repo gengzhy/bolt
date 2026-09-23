@@ -6,11 +6,11 @@
 #   bash scripts/build_linux_dist.sh [-m release|debug]
 #
 # 产物输出目录规范:
-#   dist/linux/[debug|release]/
-#   ├── appimage/ -> bolt-linux-{ver}-amd64.AppImage
-#   ├── deb/      -> bolt-linux-{ver}-amd64.deb
-#   ├── rpm/      -> bolt-linux-{ver}-1.x86_64.rpm
-#   └── cli/      -> bolt-linux-{ver}-amd64-cli
+#   dist/[debug|release]/
+#   ├── bolt-v{ver}-linux-amd64.AppImage
+#   ├── bolt-v{ver}-linux-amd64.deb
+#   ├── bolt-v{ver}-linux-amd64.rpm
+#   └── bolt-cli-v{ver}-linux-amd64.tar.gz
 # ==============================================================================
 
 set -euo pipefail
@@ -49,21 +49,17 @@ echo " Bolt Linux 全量编译打包流程启动 (模式: $MODE)"
 echo "=================================================================="
 
 # 1. 提取版本号
-VERSION=$(grep -m1 '^version = ' "$ROOT_DIR/Cargo.toml" | sed -E 's/version = "(.*)"/\1/')
-if [ -z "$VERSION" ]; then
-  VERSION="0.1.0"
+RAW_VERSION=$(grep -m1 '^version = ' "$ROOT_DIR/Cargo.toml" | sed -E 's/version = "(.*)"/\1/')
+if [ -z "$RAW_VERSION" ]; then
+  RAW_VERSION="0.1.0"
 fi
-echo "[1/5] 当前工程版本号: $VERSION"
+VERSION="${RAW_VERSION#v}"
+echo "[1/5] 当前工程版本号: v$VERSION"
 
 # 2. 准备输出目录
-DIST_LINUX_DIR="$ROOT_DIR/dist/linux/$MODE"
-APPIMAGE_DIR="$DIST_LINUX_DIR/appimage"
-DEB_DIR="$DIST_LINUX_DIR/deb"
-RPM_DIR="$DIST_LINUX_DIR/rpm"
-CLI_DIR="$DIST_LINUX_DIR/cli"
-
-mkdir -p "$APPIMAGE_DIR" "$DEB_DIR" "$RPM_DIR" "$CLI_DIR"
-echo "[2/5] 输出目录初始化完成: $DIST_LINUX_DIR"
+DIST_DIR="$ROOT_DIR/dist/$MODE"
+mkdir -p "$DIST_DIR"
+echo "[2/5] 输出目录初始化完成: $DIST_DIR"
 
 CARGO_FLAGS=""
 TAURI_FLAGS=""
@@ -76,23 +72,25 @@ else
   CARGO_FLAGS="--release"
 fi
 
-# 3. 编译命令行独立调试工具 (bolt-cli)
+# 3. 编译命令行独立调试工具 (bolt-cli) 并压缩为 tar.gz
 echo "[3/5] 编译控制台独立工具 bolt-cli..."
 cd "$ROOT_DIR"
 cargo build $CARGO_FLAGS -p bolt-cli
 
 CLI_SRC="$ROOT_DIR/target/$TARGET_SUBDIR/bolt-cli"
-CLI_TARGET="$CLI_DIR/bolt-linux-${VERSION}-amd64-cli"
+CLI_TAR_TARGET="$DIST_DIR/bolt-cli-v${VERSION}-linux-amd64.tar.gz"
 
 if [ -f "$CLI_SRC" ]; then
-  cp "$CLI_SRC" "$CLI_TARGET"
-  chmod +x "$CLI_TARGET"
+  CLI_TMP_DIR=$(mktemp -d)
+  cp "$CLI_SRC" "$CLI_TMP_DIR/bolt-cli"
+  chmod +x "$CLI_TMP_DIR/bolt-cli"
   if [ "$MODE" = "release" ] && command -v strip >/dev/null 2>&1; then
-    strip "$CLI_TARGET" || true
+    strip "$CLI_TMP_DIR/bolt-cli" || true
   fi
-  # 兼容旧命名别名
-  cp "$CLI_TARGET" "$CLI_DIR/bolt_${VERSION}_amd64-cli"
-  echo "  -> CLI 产物已生成: $CLI_TARGET"
+  # 打包规范 tar.gz 压缩包（内含纯净 bolt-cli 二进制）
+  (cd "$CLI_TMP_DIR" && tar -czf "$CLI_TAR_TARGET" bolt-cli)
+  rm -rf "$CLI_TMP_DIR"
+  echo "  -> CLI 压缩包已生成: $CLI_TAR_TARGET"
 else
   echo "  [警告] 未找到生成的 CLI 二进制: $CLI_SRC"
 fi
@@ -117,8 +115,8 @@ else
   }
 fi
 
-# 5. 归档与规范化重命名产物
-echo "[5/5] 归档整理产物至 $DIST_LINUX_DIR..."
+# 5. 归档与规范化重命名产物 (平铺直出至 dist/$MODE/)
+echo "[5/5] 归档整理产物至 $DIST_DIR..."
 
 TAURI_BUNDLE_DIR="$ROOT_DIR/tauri_app/src-tauri/target/$TARGET_SUBDIR/bundle"
 
@@ -126,10 +124,9 @@ TAURI_BUNDLE_DIR="$ROOT_DIR/tauri_app/src-tauri/target/$TARGET_SUBDIR/bundle"
 if [ -d "$TAURI_BUNDLE_DIR/appimage" ]; then
   FOUND_APPIMAGE=$(find "$TAURI_BUNDLE_DIR/appimage" -name "*.AppImage" | head -n 1)
   if [ -n "$FOUND_APPIMAGE" ] && [ -f "$FOUND_APPIMAGE" ]; then
-    cp "$FOUND_APPIMAGE" "$APPIMAGE_DIR/bolt-linux-${VERSION}-amd64.AppImage"
-    cp "$FOUND_APPIMAGE" "$APPIMAGE_DIR/bolt_${VERSION}_amd64.AppImage"
-    chmod +x "$APPIMAGE_DIR/bolt-linux-${VERSION}-amd64.AppImage"
-    echo "  -> AppImage 归档成功: $APPIMAGE_DIR/bolt-linux-${VERSION}-amd64.AppImage"
+    cp "$FOUND_APPIMAGE" "$DIST_DIR/bolt-v${VERSION}-linux-amd64.AppImage"
+    chmod +x "$DIST_DIR/bolt-v${VERSION}-linux-amd64.AppImage"
+    echo "  -> AppImage 归档成功: $DIST_DIR/bolt-v${VERSION}-linux-amd64.AppImage"
   fi
 fi
 
@@ -137,9 +134,8 @@ fi
 if [ -d "$TAURI_BUNDLE_DIR/deb" ]; then
   FOUND_DEB=$(find "$TAURI_BUNDLE_DIR/deb" -name "*.deb" | head -n 1)
   if [ -n "$FOUND_DEB" ] && [ -f "$FOUND_DEB" ]; then
-    cp "$FOUND_DEB" "$DEB_DIR/bolt-linux-${VERSION}-amd64.deb"
-    cp "$FOUND_DEB" "$DEB_DIR/bolt_${VERSION}_amd64.deb"
-    echo "  -> DEB 归档成功: $DEB_DIR/bolt-linux-${VERSION}-amd64.deb"
+    cp "$FOUND_DEB" "$DIST_DIR/bolt-v${VERSION}-linux-amd64.deb"
+    echo "  -> DEB 归档成功: $DIST_DIR/bolt-v${VERSION}-linux-amd64.deb"
   fi
 fi
 
@@ -147,17 +143,13 @@ fi
 if [ -d "$TAURI_BUNDLE_DIR/rpm" ]; then
   FOUND_RPM=$(find "$TAURI_BUNDLE_DIR/rpm" -name "*.rpm" | head -n 1)
   if [ -n "$FOUND_RPM" ] && [ -f "$FOUND_RPM" ]; then
-    cp "$FOUND_RPM" "$RPM_DIR/bolt-linux-${VERSION}-1.x86_64.rpm"
-    cp "$FOUND_RPM" "$RPM_DIR/bolt-${VERSION}-1.x86_64.rpm"
-    echo "  -> RPM 归档成功: $RPM_DIR/bolt-linux-${VERSION}-1.x86_64.rpm"
+    cp "$FOUND_RPM" "$DIST_DIR/bolt-v${VERSION}-linux-amd64.rpm"
+    echo "  -> RPM 归档成功: $DIST_DIR/bolt-v${VERSION}-linux-amd64.rpm"
   fi
 fi
 
 echo "=================================================================="
-echo " Bolt Linux 全量打包完成！产物清单:"
+echo " Bolt Linux 全量打包完成！产物清单 ($DIST_DIR):"
 echo "=================================================================="
-ls -lh "$APPIMAGE_DIR" 2>/dev/null || true
-ls -lh "$DEB_DIR" 2>/dev/null || true
-ls -lh "$RPM_DIR" 2>/dev/null || true
-ls -lh "$CLI_DIR" 2>/dev/null || true
+ls -lh "$DIST_DIR" 2>/dev/null || true
 echo "=================================================================="

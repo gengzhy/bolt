@@ -114,9 +114,9 @@ macOS 端支持原生交通灯按钮自适应与 Universal 双架构（Apple Sil
 
 ```bash
 cd android_app
-./gradlew.bat :app:assembleDebug            # 产物 app/build/outputs/apk/debug/bolt.apk
+./gradlew.bat :app:assembleDebug            # 产物 app/build/outputs/apk/debug/bolt-v0.1.0-android-universal-debug.apk
 # 真机安装：
-"$ANDROID_HOME/platform-tools/adb.exe" install -r app/build/outputs/apk/debug/bolt.apk
+"$ANDROID_HOME/platform-tools/adb.exe" install -r app/build/outputs/apk/debug/bolt-v0.1.0-android-universal-debug.apk
 ```
 
 - Gradle wrapper 锁定 **8.7**（AGP 8.5 与 Gradle 9 不兼容；wrapper 已随仓库提交，
@@ -140,7 +140,7 @@ cd android_app
    # 或执行一键全自动化打包：
    bash scripts/build_ios_dist.sh -m release
    ```
-   产物归档于 `dist/ios/release/bolt-ios-0.1.0.ipa` 与 `dist/ios/release/Bolt.xcarchive`（同时保留兼容别名 `dist/ios/Bolt.ipa`）。
+   产物归档于 `dist/release/bolt-v0.1.0-ios-arm64.ipa` 与 `dist/release/Bolt.xcarchive`。
 4. iOS 上设备发现走系统原生 Bonjour（`NetService`），文件访问走系统 Files 沙盒与 `PhotosPicker`。
 
 ## 测试约定
