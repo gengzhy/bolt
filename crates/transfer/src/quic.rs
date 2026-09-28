@@ -45,8 +45,8 @@ fn udp_socket(addr: SocketAddr) -> BtResult<std::net::UdpSocket> {
 ///
 /// 局域网极致性能与稳定性优化（RFC 9000 & Quinn 0.11 生产标准）：
 /// - 连接级流控解禁：receive_window 设为 VarInt::MAX，避免整连接总传输量（27MB~32MB）触顶诱发 FLOW_CONTROL_ERROR 强制断连。
-/// - 流级窗口扩容：stream_receive_window 提至 32MB（5x 千兆 BDP），跑满 1Gbps 吞吐并杜绝流水线饥饿。
-/// - 发送缓冲扩容：send_window 提至 64MB，提供充裕的未确认缓冲与快速重传空间。
+/// - 流级窗口安全约束：stream_receive_window 设为 2MB（QUIC_STREAM_FLOW_CONTROL_WINDOW），严格受限于 Quinn 底层 MAX_CHUNKS=1024 乱序包上限，杜绝弱网丢包时 INTERNAL_ERROR 崩溃。
+/// - 发送缓冲扩容：send_window 提至 16MB，提供充裕的未确认缓冲消除协程停等。
 /// - MTU 安全探测：RFC 9000 标准 initial_mtu 设为 1200，启用 DPLPMTUD（RFC 8899）自动向上探测至 1472/1500，杜绝移动 Wi-Fi 黑洞丢包。
 /// - 并发与心跳：双向/单向流上限 64，保活 10s，空闲超时 90s，CUBIC 拥塞控制。
 fn tune_transport(transport: &mut quinn::TransportConfig) {
@@ -56,10 +56,9 @@ fn tune_transport(transport: &mut quinn::TransportConfig) {
     transport.max_concurrent_uni_streams(64u32.into());
     transport.stream_receive_window((QUIC_STREAM_FLOW_CONTROL_WINDOW as u32).into());
     transport.receive_window(quinn::VarInt::MAX);
-    transport.send_window(4 * 1024 * 1024);
+    transport.send_window(16 * 1024 * 1024);
     transport.initial_mtu(1200);
     transport.mtu_discovery_config(Some(quinn::MtuDiscoveryConfig::default()));
-    transport.congestion_controller_factory(Arc::new(quinn::congestion::BbrConfig::default()));
 }
 
 /// 构造 QUIC 服务端 Endpoint（绑定 addr，UDP 缓冲已加大）。

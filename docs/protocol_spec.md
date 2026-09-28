@@ -108,7 +108,7 @@
 | `ACK_THRESHOLD_BYTES` | 256 KB | 接收端累积 ACK 触发阈值 |
 | `DEFAULT_CHUNK_SIZE` | 256 KB | 文件分片大小 |
 | `DEFAULT_CONCURRENCY` | 4 | 默认并行文件传输流数 |
-| `QUIC_STREAM_FLOW_CONTROL_WINDOW` | 1 MB | 单流流控窗口（Quinn MAX_CHUNKS 安全限制） |
+| `QUIC_STREAM_FLOW_CONTROL_WINDOW` | 2 MB | 单流流控窗口（Quinn MAX_CHUNKS 安全限制：2MB/1200B ≈ 1740包，最坏碎片数 870 < 1024） |
 | `QUIC_CONN_FLOW_CONTROL_WINDOW` | 64 MB | 连接级流控窗口 |
 | `TIMEOUT_FILE_DONE_ACK` | 300s | 文件校验等待超时 |
 | `TIMEOUT_TRANSFER_REQ` | 60s | 传输请求应答超时 |

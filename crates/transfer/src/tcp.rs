@@ -120,7 +120,11 @@ fn bump_buffers(stream: &TcpStream) {
 }
 
 #[cfg(unix)]
-fn socket2_set(_stream: &TcpStream, _buf: u32) {}
+fn socket2_set(stream: &TcpStream, buf: u32) {
+    let sock = socket2::SockRef::from(stream);
+    let _ = sock.set_recv_buffer_size(buf as usize);
+    let _ = sock.set_send_buffer_size(buf as usize);
+}
 
 #[cfg(windows)]
 fn socket2_set(stream: &TcpStream, buf: u32) {

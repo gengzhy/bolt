@@ -6,6 +6,10 @@
 //! 任务取消或校验失败时立即删除临时文件，保证零磁盘脏数据残留。
 
 use std::collections::HashMap;
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::mpsc::{channel, Sender};
+use std::sync::{Arc, Mutex};
+use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
 
 use file::writer::FileWriter;
@@ -56,7 +60,7 @@ impl RecvTask {
         let active: u64 = self
             .files
             .values()
-            .map(|rf| rf.writer.written_bytes())
+            .map(|rf| rf.written_bytes.load(Ordering::Acquire))
             .sum();
         self.completed_files_bytes
             .saturating_add(active)
@@ -121,18 +125,28 @@ impl RecvTask {
 impl Drop for RecvTask {
     fn drop(&mut self) {
         let files = std::mem::take(&mut self.files);
-        for (_, rf) in files {
-            rf.writer.discard();
+        for (_, mut rf) in files {
+            rf.discard();
         }
     }
 }
 
-/// 单个入站文件状态。
+/// 投递给异步写入 Worker 的分片写入消息
+pub struct WriteChunkItem {
+    pub offset: u64,
+    pub data: bytes::Bytes,
+}
+
+/// 单个入站文件状态（网络路由与后台磁盘写解耦）。
 pub struct RecvFile {
     pub ident: FileIdentity,
     pub chunk_size: u32,
     pub pipe_id: u64,
-    pub writer: FileWriter,
+    pub writer_tx: Option<Sender<WriteChunkItem>>,
+    pub written_bytes: Arc<AtomicU64>,
+    pub write_error: Arc<Mutex<Option<BtError>>>,
+    pub cancel_flag: Arc<AtomicBool>,
+    pub worker_handle: Option<JoinHandle<BtResult<FileWriter>>>,
     pub received: u64,
     pub ack_prefix: u64,
     pub ack_bytes_since: u64,
@@ -140,6 +154,18 @@ pub struct RecvFile {
     pub last_progress: Instant,
     pub rate_bytes_last: u64,
     pub rate_time_last: Instant,
+}
+
+impl RecvFile {
+    pub fn discard(&mut self) {
+        self.cancel_flag.store(true, Ordering::SeqCst);
+        self.writer_tx.take();
+        if let Some(handle) = self.worker_handle.take() {
+            if let Ok(Ok(writer)) = handle.join() {
+                writer.discard();
+            }
+        }
+    }
 }
 
 #[allow(clippy::too_many_arguments)]
@@ -202,11 +228,68 @@ pub fn on_file_meta(
         }
     };
 
+    let (tx, rx) = channel::<WriteChunkItem>();
+    let written_bytes = Arc::new(AtomicU64::new(0));
+    let written_bytes_clone = written_bytes.clone();
+    let write_error = Arc::new(Mutex::new(None));
+    let write_error_clone = write_error.clone();
+    let cancel_flag = Arc::new(AtomicBool::new(false));
+    let cancel_flag_clone = cancel_flag.clone();
+
+    let worker_handle = match std::thread::Builder::new()
+        .name(format!("bt-writer-{}", file_seq))
+        .spawn(move || {
+            let mut writer = writer;
+            while let Ok(item) = rx.recv() {
+                if cancel_flag_clone.load(Ordering::Relaxed) {
+                    writer.discard();
+                    return Err(BtError::Cancelled);
+                }
+                if let Err(e) = writer.write_chunk(item.offset, &item.data) {
+                    *write_error_clone.lock().unwrap() = Some(e.clone());
+                    writer.discard();
+                    return Err(e);
+                }
+                written_bytes_clone.store(writer.written_bytes(), Ordering::Release);
+            }
+            if cancel_flag_clone.load(Ordering::Relaxed) {
+                writer.discard();
+                return Err(BtError::Cancelled);
+            }
+            Ok(writer)
+        }) {
+        Ok(h) => h,
+        Err(e) => {
+            let _ = session.send_file(
+                pipe_id,
+                task_session,
+                Message::FileMetaAck {
+                    file_seq,
+                    accept: false,
+                    ranges: vec![],
+                },
+            );
+            session.emit(EngineEvent::Error {
+                conn_id: session.id,
+                task_id: Some(task_session),
+                incoming: true,
+                code: BtError::Internal.code(),
+                message: format!("无法创建写入工作线程：{rel_path} ({e})"),
+            });
+            task.failed += 1;
+            return;
+        }
+    };
+
     let rf = RecvFile {
         ident,
         chunk_size,
         pipe_id,
-        writer,
+        writer_tx: Some(tx),
+        written_bytes,
+        write_error,
+        cancel_flag,
+        worker_handle: Some(worker_handle),
         received: 0,
         ack_prefix: 0,
         ack_bytes_since: 0,
@@ -248,36 +331,47 @@ pub fn on_data(
     if rf.pipe_id != pipe_id {
         return;
     }
-    let rel_path = Some(rf.ident.rel_path.clone());
 
-    let len = payload.len() as u64;
-    let offset = chunk_seq * rf.chunk_size as u64;
-    if let Err(e) = rf.writer.write_chunk(offset, &payload) {
+    // 检查后台写入是否已报错（如磁盘满）
+    if let Some(e) = rf.write_error.lock().unwrap().clone() {
         session.emit(EngineEvent::Error {
             conn_id: session.id,
             task_id: Some(task_session),
             incoming: true,
             code: e.code(),
-            message: format!("写入分片失败：offset={offset}, len={len}"),
+            message: format!("写入分片失败：{e}"),
         });
         return;
     }
-    rf.received = rf.writer.written_bytes();
+
+    let rel_path = Some(rf.ident.rel_path.clone());
+    let len = payload.len() as u64;
+    let offset = chunk_seq * rf.chunk_size as u64;
+
+    if let Some(tx) = &rf.writer_tx {
+        if tx.send(WriteChunkItem { offset, data: payload }).is_err() {
+            return;
+        }
+    }
+
+    let end_offset = offset + len;
+    if end_offset > rf.received {
+        rf.received = end_offset;
+    }
     rf.ack_bytes_since += len;
     task.received_bytes += len;
 
-    // 即时累积确认：累计达 2MB 时立即回传 ACK
-    let written = rf.writer.written_bytes();
-    if written > rf.ack_prefix && rf.ack_bytes_since >= ACK_THRESHOLD_BYTES {
+    // 即时累积确认：网络分发已安全接收并投递写入队列，累计达 ACK_THRESHOLD_BYTES 时立即回传 ACK 滑动发送端流水线
+    if rf.received > rf.ack_prefix && rf.ack_bytes_since >= ACK_THRESHOLD_BYTES {
         let _ = session.send_file(
             rf.pipe_id,
             task_session,
             Message::Ack {
                 file_seq,
-                acked_offset: written,
+                acked_offset: rf.received,
             },
         );
-        rf.ack_prefix = written;
+        rf.ack_prefix = rf.received;
         rf.ack_bytes_since = 0;
         rf.ack_last = Instant::now();
     }
@@ -289,19 +383,18 @@ pub fn on_data(
 pub fn flush_acks(session: &std::sync::Arc<Session>, recv_tasks: &mut HashMap<u64, RecvTask>) {
     for (task_session, task) in recv_tasks.iter_mut() {
         for (seq, rf) in task.files.iter_mut() {
-            let written = rf.writer.written_bytes();
-            let due_time = rf.ack_last.elapsed() >= Duration::from_millis(100);
+            let due_time = rf.ack_last.elapsed() >= Duration::from_millis(50);
             let due_bytes = rf.ack_bytes_since >= ACK_THRESHOLD_BYTES;
-            if written > rf.ack_prefix && (due_time || due_bytes) {
+            if rf.received > rf.ack_prefix && (due_time || due_bytes) {
                 let _ = session.send_file(
                     rf.pipe_id,
                     *task_session,
                     Message::Ack {
                         file_seq: *seq,
-                        acked_offset: written,
+                        acked_offset: rf.received,
                     },
                 );
-                rf.ack_prefix = written;
+                rf.ack_prefix = rf.received;
                 rf.ack_bytes_since = 0;
                 rf.ack_last = Instant::now();
             }
@@ -328,17 +421,12 @@ pub fn on_file_done(
     if rf.pipe_id != pipe_id {
         return;
     }
-    if !rf.writer.is_complete() {
-        let _ = session.send_file(
-            rf.pipe_id,
-            task_session,
-            Message::FileDoneAck {
-                file_seq,
-                ok: false,
-            },
-        );
-        return;
-    }
+
+    // 关闭写通道并取出 worker_handle，等待排队中的所有分片写盘完毕
+    rf.writer_tx.take();
+    let mut rf = task.files.remove(&file_seq).expect("checked above");
+    let worker_handle = rf.worker_handle.take();
+
     // 收尾确认，让发送端进度到达 100%
     let _ = session.send_file(
         rf.pipe_id,
@@ -349,7 +437,6 @@ pub fn on_file_done(
         },
     );
 
-    let rf = task.files.remove(&file_seq).expect("checked above");
     let rel = rf.ident.rel_path.clone();
     let rel_for_event = rel.clone();
     let file_size = rf.ident.size;
@@ -359,8 +446,19 @@ pub fn on_file_done(
     tokio::spawn(async move {
         let start = Instant::now();
         let result = tokio::task::spawn_blocking(move || {
-            rf.writer
-                .verify_and_place(&hash, &save_dir, &rel, collision)
+            let writer = match worker_handle {
+                Some(handle) => match handle.join() {
+                    Ok(Ok(w)) => w,
+                    Ok(Err(e)) => return Err(e),
+                    Err(_) => return Err(BtError::Internal),
+                },
+                None => return Err(BtError::Internal),
+            };
+            if !writer.is_complete() {
+                writer.discard();
+                return Err(BtError::Internal);
+            }
+            writer.verify_and_place(&hash, &save_dir, &rel, collision)
         })
         .await
         .map_err(|_| BtError::Internal)
@@ -486,8 +584,8 @@ pub fn on_cancel(
 ) {
     if let Some(mut task) = recv_tasks.remove(&task_session) {
         let files = std::mem::take(&mut task.files);
-        for (_, rf) in files {
-            rf.writer.discard();
+        for (_, mut rf) in files {
+            rf.discard();
         }
         let uid_hex: String = task
             .req

@@ -12,16 +12,16 @@ pub const CANCEL_REASON_USER: u32 = 1;
 pub const CANCEL_REASON_ERROR: u32 = 2;
 
 // ---------------- 传输窗口与流控尺寸 ----------------
-/// 在途（已发未确认）字节窗口：4MB，平滑流水线
-pub const IN_FLIGHT_WINDOW_BYTES: u64 = 4 * 1024 * 1024;
+/// 在途（已发未确认）字节窗口：16MB，消除协程往返调度时钟片停等
+pub const IN_FLIGHT_WINDOW_BYTES: u64 = 16 * 1024 * 1024;
 /// 接收端累积 ACK 触发阈值：256KB，高频回传，消除发送端流水线停等
 pub const ACK_THRESHOLD_BYTES: u64 = 256 * 1024;
 /// 默认文件分片大小：256KB
 pub const DEFAULT_CHUNK_SIZE: usize = 256 * 1024;
 /// 默认并行文件传输流数
 pub const DEFAULT_CONCURRENCY: usize = 4;
-/// QUIC 单流流控窗口：1MB（严格约束在 Quinn 1024 乱序包上限内，杜绝 gaps 超限）
-pub const QUIC_STREAM_FLOW_CONTROL_WINDOW: u64 = 1024 * 1024;
+/// QUIC 单流流控窗口：2MB（严格约束在 Quinn 1024 乱序包上限内：2MB/1200B ≈ 1740包，极端交替丢包碎片最大为 870 < 1024，杜绝 gaps 超限断连）
+pub const QUIC_STREAM_FLOW_CONTROL_WINDOW: u64 = 2 * 1024 * 1024;
 /// QUIC 连接级流控窗口：64MB
 pub const QUIC_CONN_FLOW_CONTROL_WINDOW: u64 = 64 * 1024 * 1024;
 

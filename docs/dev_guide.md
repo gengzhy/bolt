@@ -67,13 +67,12 @@ cargo run -p bolt-cli -- discover
 | `DEFAULT_CHUNK_SIZE` | 256KB | 文件分片大小 |
 | `IN_FLIGHT_WINDOW_BYTES` | 4MB | 发送端在途窗口 |
 | `ACK_THRESHOLD_BYTES` | 256KB | 接收端累积确认阈值 |
-| `QUIC_STREAM_FLOW_CONTROL_WINDOW` | 1MB | QUIC 单流流控窗口 |
+| `QUIC_STREAM_FLOW_CONTROL_WINDOW` | 2MB | QUIC 单流流控窗口 |
 | `DEFAULT_CONCURRENCY` | 4 | 默认并行文件传输流数 |
 
-> **⚠️ 重要**：`QUIC_STREAM_FLOW_CONTROL_WINDOW` 不可随意增大。Quinn 内部
+> **⚠️ 重要**：`QUIC_STREAM_FLOW_CONTROL_WINDOW` 不可随意盲目增大至数十兆。Quinn 内部
 > `Assembler` 硬限制 `MAX_CHUNKS=1024`，大窗口 + 丢包场景会导致乱序碎片数
-> 超限，触发 `INTERNAL_ERROR` 强制断连。当前 1MB 窗口 + 256KB 分片是经过
-> 生产验证的安全组合。
+> 超限，触发 `INTERNAL_ERROR` 强制断连。当前 2MB 窗口（最坏碎片上限 870 < 1024）+ 256KB 分片是兼顾高吞吐与绝对安全的上限组合。
 
 ## 新增功能检查单
 
