@@ -113,6 +113,7 @@ export function useBt() {
     switch (ev.id) {
       case 1: // EVT_DEVICE_LIST
         void refreshDevices();
+        void refreshLocalInfo();
         break;
       case 2: {
         // EVT_CONN_STATE：uuid → 连接状态/传输通道
@@ -316,6 +317,8 @@ export function useBt() {
   }
   function probeNetwork() {
     void invoke("probe_network");
+    void refreshLocalInfo();
+    void refreshDevices();
     showToast("正在扫描局域网…");
   }
   async function addManualDevice(ip: string, port: number): Promise<boolean> {

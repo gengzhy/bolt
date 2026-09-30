@@ -98,7 +98,11 @@ object NsdHelper {
             }
             override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {}
         }
-        nsdManager?.discoverServices(BROWSE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+        try {
+            nsdManager?.discoverServices(BROWSE_TYPE, NsdManager.PROTOCOL_DNS_SD, discoveryListener)
+        } catch (e: Exception) {
+            Log.w(TAG, "启动 discoverServices 失败: $e")
+        }
 
         registrationListener = object : NsdManager.RegistrationListener {
             override fun onServiceRegistered(info: NsdServiceInfo) {
@@ -134,7 +138,11 @@ object NsdHelper {
         if (discoveryStarted) return
         val manager = nsdManager ?: return
         val listener = discoveryListener ?: return
-        manager.discoverServices(BROWSE_TYPE, NsdManager.PROTOCOL_DNS_SD, listener)
+        try {
+            manager.discoverServices(BROWSE_TYPE, NsdManager.PROTOCOL_DNS_SD, listener)
+        } catch (e: Exception) {
+            Log.w(TAG, "ensureDiscovery 失败: $e")
+        }
     }
 
     /**
@@ -142,7 +150,8 @@ object NsdHelper {
      * （ stealth_mode=true 时不出现在对方设备列表，但仍可被直连。）
      */
     @Synchronized
-    fun applyStealth() {        val manager = nsdManager ?: return
+    fun applyStealth() {
+        val manager = nsdManager ?: return
         val info = try {
             JSONObject(Native.btGetLocalInfo())
         } catch (_: Exception) {
@@ -151,7 +160,11 @@ object NsdHelper {
         val stealth = info.optBoolean("stealth")
         if (stealth) {
             if (registered) {
-                registrationListener?.let(manager::unregisterService)
+                try {
+                    registrationListener?.let(manager::unregisterService)
+                } catch (e: Exception) {
+                    Log.w(TAG, "注销 NSD 服务失败: $e")
+                }
                 registered = false
             }
             return
@@ -173,7 +186,11 @@ object NsdHelper {
             setAttribute("stealth", "0")
             setAttribute("ptcp", if (info.optBoolean("ptcp")) "1" else "0")
         }
-        manager.registerService(svc, NsdManager.PROTOCOL_DNS_SD, registrationListener)
+        try {
+            manager.registerService(svc, NsdManager.PROTOCOL_DNS_SD, registrationListener)
+        } catch (e: Exception) {
+            Log.w(TAG, "注册 NSD 服务失败: $e")
+        }
     }
 
     /**
@@ -184,11 +201,15 @@ object NsdHelper {
     fun reregister() {
         val manager = nsdManager ?: return
         if (registered) {
-            registrationListener?.let(manager::unregisterService)
+            try {
+                registrationListener?.let(manager::unregisterService)
+            } catch (e: Exception) {
+                Log.w(TAG, "注销 NSD 服务失败: $e")
+            }
             registered = false
         }
         scope.launch {
-            delay(300)
+            delay(500)
             applyStealth()
         }
     }

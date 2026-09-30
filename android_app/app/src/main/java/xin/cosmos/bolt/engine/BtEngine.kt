@@ -3,6 +3,10 @@ package xin.cosmos.bolt.engine
 import android.content.Context
 import android.content.Intent
 import android.media.MediaScannerConnection
+import android.net.ConnectivityManager
+import android.net.LinkProperties
+import android.net.Network
+import android.net.NetworkRequest
 import android.os.Environment
 import android.util.Log
 import androidx.core.content.ContextCompat
@@ -61,6 +65,9 @@ object BtEngine {
     /** 「刷新」扫描进度条的自动熄灭任务（重复点击时重置）。 */
     private var scanStopJob: Job? = null
 
+    /** 网络状态变更的防抖触发任务。 */
+    private var networkChangeJob: Job? = null
+
     private lateinit var appContext: Context
     private var initialized = false
 
@@ -105,6 +112,7 @@ object BtEngine {
         syncTasks()
         Native.btStartDiscovery()
         NsdHelper.start(appContext)
+        registerNetworkCallback(appContext)
         _uiState.value = _uiState.value.copy(engineReady = true)
     }
 
@@ -139,7 +147,7 @@ object BtEngine {
         Native.btSetConfig(JSONObject().put("device_name", target).toString())
     }
 
-    private fun refreshStaticInfo() {
+    fun refreshStaticInfo() {
         val cfgJson = Native.btGetConfig()
         val info = try {
             JSONObject(Native.btGetLocalInfo())
@@ -219,7 +227,10 @@ object BtEngine {
 
     private fun handleEvent(eventId: Int, payload: String) {
         when (eventId) {
-            Native.EVT_DEVICE_LIST -> refreshDevices()
+            Native.EVT_DEVICE_LIST -> {
+                refreshDevices()
+                refreshStaticInfo()
+            }
 
             Native.EVT_CONN_STATE -> {
                 val p = try { JSONObject(payload) } catch (_: Exception) { return }
@@ -401,6 +412,7 @@ object BtEngine {
     }
 
     fun probeNetwork() {
+        refreshStaticInfo()
         Native.btProbeNetwork()
         // Android 主发现通道是 NSD：启动时若因权限未起发现则在此重试，
         // 并立即重注入已知服务，避免列表被 10s 过期清扫清空
@@ -612,4 +624,46 @@ object BtEngine {
             Log.w(TAG, "scanReceivedDirectory 失败: $e")
         }
     }
+
+    private fun registerNetworkCallback(context: Context) {
+        val cm = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        val callback = object : ConnectivityManager.NetworkCallback() {
+            override fun onAvailable(network: Network) {
+                scheduleNetworkRefresh()
+            }
+            override fun onLost(network: Network) {
+                scheduleNetworkRefresh()
+            }
+            override fun onLinkPropertiesChanged(network: Network, linkProperties: LinkProperties) {
+                scheduleNetworkRefresh()
+            }
+        }
+        try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                cm.registerDefaultNetworkCallback(callback)
+            } else {
+                val request = NetworkRequest.Builder().build()
+                cm.registerNetworkCallback(request, callback)
+            }
+            Log.i(TAG, "注册系统网络变更监听成功")
+        } catch (e: Exception) {
+            Log.w(TAG, "注册系统网络变更监听失败: ${e.message}")
+        }
+    }
+
+    private fun scheduleNetworkRefresh() {
+        networkChangeJob?.cancel()
+        networkChangeJob = scope.launch {
+            try {
+                delay(600)
+                Log.i(TAG, "检测到网络变更，自动刷新本机信息与服务发现")
+                refreshStaticInfo()
+                Native.btProbeNetwork()
+            } catch (e: Exception) {
+                Log.w(TAG, "网络变更刷新异常: ${e.message}")
+            }
+        }
+    }
 }
+
+

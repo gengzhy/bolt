@@ -114,7 +114,7 @@ impl DeviceList {
         self.notify();
     }
 
-    fn notify(&self) {
+    pub fn notify(&self) {
         let devices = self.snapshot();
         if let Some(cb) = self.on_change.lock().unwrap().as_ref() {
             cb(&devices);

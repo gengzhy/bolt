@@ -47,7 +47,7 @@ impl Default for DiscoveryConfig {
             stealth: false,
             use_mdns: true,
             use_udp_probe: true,
-            ttl_secs: 10,
+            ttl_secs: 25,
             broadcast_secs: 3,
         }
     }
@@ -60,6 +60,9 @@ struct Running {
     probe: Option<Arc<UdpProbe>>,
     /// 本机 UUID（探测广播携带，供对端过滤）。
     own_uuid: String,
+    announce: AnnounceInfo,
+    mdns: Option<Arc<Mutex<Option<MdnsChannel>>>>,
+    last_nets: Arc<Mutex<Vec<(std::net::Ipv4Addr, std::net::Ipv4Addr)>>>,
 }
 
 /// 发现管理器。
@@ -100,9 +103,10 @@ impl DiscoveryManager {
         } else {
             local_nets.iter().map(|(ip, _)| *ip).collect()
         };
-        let local_ip = local_ips[0];
+        let last_nets = Arc::new(Mutex::new(local_nets.clone()));
 
         // ---- mDNS 通道 ----
+        let mut mdns_handle: Option<Arc<Mutex<Option<MdnsChannel>>>> = None;
         if cfg.use_mdns {
             let mut channel = MdnsChannel::new()?;
             if !cfg.stealth {
@@ -114,6 +118,8 @@ impl DiscoveryManager {
                 Ok(receiver) => {
                     let devices = self.devices.clone();
                     let stop_c = stop.clone();
+                    let channel_cell = Arc::new(Mutex::new(Some(channel)));
+                    mdns_handle = Some(channel_cell.clone());
                     handles.push(thread::Builder::new().name("bt-mdns-browse".into()).spawn(
                         move || {
                             crate::mdns::browse_loop(
@@ -123,12 +129,14 @@ impl DiscoveryManager {
                                     devices.upsert(dev);
                                 },
                                 move |uuid| {
-                                    // 仅当该设备没有其他通道维护时才移除（简化：直接移除，
-                                    // 另一通道若仍在线会在下个刷新周期补回）
                                     tracing::debug!(%uuid, "mdns service removed");
                                 },
                             );
-                            channel.shutdown();
+                            if let Ok(mut g) = channel_cell.lock() {
+                                if let Some(ch) = g.take() {
+                                    ch.shutdown();
+                                }
+                            }
                         },
                     )?);
                 }
@@ -139,7 +147,7 @@ impl DiscoveryManager {
         // ---- UDP 探测通道 ----
         let mut probe_handle: Option<Arc<UdpProbe>> = None;
         if cfg.use_udp_probe {
-            let probe = Arc::new(UdpProbe::new(&local_ips)?);
+            let probe = Arc::new(UdpProbe::new(&local_nets)?);
             probe_handle = Some(probe.clone());
             let stealth = cfg.stealth;
             let announce = cfg.announce.clone();
@@ -147,7 +155,6 @@ impl DiscoveryManager {
             let stop_c = stop.clone();
             let probe_c = probe.clone();
             let listen_uuid = own_uuid.clone();
-            let nets_c = local_nets.clone();
             handles.push(
                 thread::Builder::new()
                     .name("bt-udp-probe".into())
@@ -159,9 +166,11 @@ impl DiscoveryManager {
                                 if stealth {
                                     return None; // 隐身：不响应探测
                                 }
-                                // 多网卡主机按对端子网挑选应答 IP
-                                let reply_ip = utils::net::pick_ip_for_peer(&nets_c, from.ip())
-                                    .unwrap_or(local_ip);
+                                // 多网卡主机按对端子网挑选应答 IP（动态获取最新网卡）
+                                let current_nets = utils::net::local_ipv4_nets();
+                                let reply_ip = utils::net::pick_ip_for_peer(&current_nets, from.ip())
+                                    .or_else(|| current_nets.first().map(|(ip, _)| *ip))
+                                    .unwrap_or(std::net::Ipv4Addr::new(127, 0, 0, 1));
                                 Some(Device {
                                     uuid: announce.uuid.clone(),
                                     name: announce.name.clone(),
@@ -174,7 +183,7 @@ impl DiscoveryManager {
                                     prefer_tcp: announce.prefer_tcp,
                                     source: "udp_probe".into(),
                                     last_seen_unix: Device::now_unix(),
-                                })
+                                    })
                             },
                             move |dev| {
                                 devices_in.upsert(dev);
@@ -189,10 +198,55 @@ impl DiscoveryManager {
                 let stop_c = stop.clone();
                 let probe_c = probe.clone();
                 let uuid = own_uuid.clone();
+                let ann = cfg.announce.clone();
+                let mdns_c = mdns_handle.clone();
+                let nets_tracker = last_nets.clone();
+                let devices_in_bcast = self.devices.clone();
                 handles.push(thread::Builder::new().name("bt-udp-bcast".into()).spawn(
                     move || {
                         while !stop_c.load(Ordering::Relaxed) {
-                            let _ = probe_c.send_probe(&uuid);
+                            // 1. 动态网卡接口感知与自愈
+                            let current_nets = utils::net::local_ipv4_nets();
+                            probe_c.update_interfaces(&current_nets);
+
+                            // 若网卡有增删变动，重新 announce mDNS（桌面端）并通知前端更新本地 IP
+                            let mut tracker = nets_tracker.lock().unwrap();
+                            if *tracker != current_nets {
+                                *tracker = current_nets.clone();
+                                if let Some(ref mdns_mutex) = mdns_c {
+                                    if let Ok(mut guard) = mdns_mutex.lock() {
+                                        if let Some(ch) = guard.as_mut() {
+                                            let ips: Vec<_> = current_nets.iter().map(|(ip, _)| *ip).collect();
+                                            ch.stop_announce();
+                                            let _ = ch.announce(&ann, &ips);
+                                        }
+                                    }
+                                }
+                                devices_in_bcast.notify();
+                            }
+                            drop(tracker);
+
+                            // 2. 构造当前最新本地 Device 信息并发送广播
+                            let best_ip = current_nets
+                                .first()
+                                .map(|(ip, _)| *ip)
+                                .unwrap_or(std::net::Ipv4Addr::new(127, 0, 0, 1));
+                            let me_dev = Device {
+                                uuid: uuid.clone(),
+                                name: ann.name.clone(),
+                                device_type: ann.device_type,
+                                ip: best_ip.to_string(),
+                                quic_port: ann.quic_port,
+                                tcp_port: ann.tcp_port,
+                                proto_ver: ann.proto_ver,
+                                stealth: false,
+                                prefer_tcp: ann.prefer_tcp,
+                                source: "udp_probe".into(),
+                                last_seen_unix: Device::now_unix(),
+                            };
+
+                            let _ = probe_c.send_probe(&uuid, Some(&me_dev));
+
                             // 分片睡眠以便及时响应停止
                             let mut waited = Duration::ZERO;
                             while waited < interval && !stop_c.load(Ordering::Relaxed) {
@@ -230,6 +284,9 @@ impl DiscoveryManager {
             handles,
             probe: probe_handle,
             own_uuid,
+            announce: cfg.announce,
+            mdns: mdns_handle,
+            last_nets,
         });
         Ok(())
     }
@@ -245,15 +302,52 @@ impl DiscoveryManager {
         }
     }
 
-    /// 即时探测一次（不重启通道）：立刻广播一轮 UDP 探测包。
+    /// 即时探测一次（不重启通道）：动态刷新网卡并立刻广播一轮 UDP 探测包。
     ///
     /// 供「刷新」按钮使用——绝不可用 stop+start 实现（join 线程可达数秒，
-    /// 在 UI 线程调用会 ANR）。mDNS/NSD 通道常驻持续浏览，无需重启。
+    /// 在 UI 线程调用会 ANR）。
     pub fn probe_now(&self) {
         let guard = self.running.lock().unwrap();
         if let Some(r) = guard.as_ref() {
             if let Some(probe) = &r.probe {
-                let _ = probe.send_probe(&r.own_uuid);
+                let current_nets = utils::net::local_ipv4_nets();
+                probe.update_interfaces(&current_nets);
+
+                let mut tracker = r.last_nets.lock().unwrap();
+                if *tracker != current_nets {
+                    *tracker = current_nets.clone();
+                    if let Some(ref mdns_mutex) = r.mdns {
+                        if let Ok(mut g) = mdns_mutex.lock() {
+                            if let Some(ch) = g.as_mut() {
+                                let ips: Vec<_> = current_nets.iter().map(|(ip, _)| *ip).collect();
+                                ch.stop_announce();
+                                let _ = ch.announce(&r.announce, &ips);
+                            }
+                        }
+                    }
+                    self.devices.notify();
+                }
+                drop(tracker);
+
+                let best_ip = current_nets
+                    .first()
+                    .map(|(ip, _)| *ip)
+                    .unwrap_or(std::net::Ipv4Addr::new(127, 0, 0, 1));
+                let me_dev = Device {
+                    uuid: r.own_uuid.clone(),
+                    name: r.announce.name.clone(),
+                    device_type: r.announce.device_type,
+                    ip: best_ip.to_string(),
+                    quic_port: r.announce.quic_port,
+                    tcp_port: r.announce.tcp_port,
+                    proto_ver: r.announce.proto_ver,
+                    stealth: r.announce.stealth,
+                    prefer_tcp: r.announce.prefer_tcp,
+                    source: "udp_probe".into(),
+                    last_seen_unix: Device::now_unix(),
+                };
+
+                let _ = probe.send_probe(&r.own_uuid, Some(&me_dev));
             }
         }
     }

@@ -43,8 +43,8 @@ Write-Host "  Version: v$version | Mode: $Mode | Target: $Target" -ForegroundCol
 Write-Host "=================================================" -ForegroundColor Cyan
 
 # Terminate running bolt / bolt-cli processes to avoid Windows file locks
-Get-Process bolt -ErrorAction SilentlyContinue | Stop-Process -Force
-Get-Process bolt-cli -ErrorAction SilentlyContinue | Stop-Process -Force
+Get-Process bolt -ErrorAction SilentlyContinue | ForEach-Object { try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch {} }
+Get-Process bolt-cli -ErrorAction SilentlyContinue | ForEach-Object { try { Stop-Process -Id $_.Id -Force -ErrorAction SilentlyContinue } catch {} }
 
 function Build-And-Package([string]$buildMode) {
     Write-Host "`n>>> Processing [$buildMode] Mode Pipeline..." -ForegroundColor Magenta

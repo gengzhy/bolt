@@ -75,6 +75,10 @@ fun SettingsScreen(modifier: Modifier) {
     val state by BtEngine.uiState.collectAsState()
     var showPrivacyPolicyDialog by remember { mutableStateOf(false) }
 
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        BtEngine.refreshStaticInfo()
+    }
+
     Column(
         modifier
             .fillMaxSize()

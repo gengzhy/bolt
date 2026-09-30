@@ -90,6 +90,7 @@ public final class BoltEngine: ObservableObject {
         switch eventId {
         case BoltNative.EVT_DEVICE_LIST:
             syncDevices()
+            refreshStaticInfo()
 
         case BoltNative.EVT_CONN_STATE:
             handleConnStateEvent(data: data)
@@ -355,10 +356,12 @@ public final class BoltEngine: ObservableObject {
 
     public func probeNetwork() {
         uiState.scanning = true
+        refreshStaticInfo()
         BoltNative.shared.btProbeNetwork()
         DispatchQueue.main.asyncAfter(deadline: .now() + 2.0) { [weak self] in
             self?.uiState.scanning = false
             self?.syncDevices()
+            self?.refreshStaticInfo()
         }
     }
 
@@ -495,7 +498,7 @@ public final class BoltEngine: ObservableObject {
         }
     }
 
-    private func refreshStaticInfo() {
+    public func refreshStaticInfo() {
         uiState.fingerprint = BoltNative.shared.btGetLocalFingerprint()
         uiState.version = BoltNative.shared.btVersion()
         uiState.config = parseConfig(BoltNative.shared.btGetConfig())

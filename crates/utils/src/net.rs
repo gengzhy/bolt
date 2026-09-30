@@ -29,7 +29,43 @@ pub fn tcp_port_free(addr: SocketAddr) -> bool {
     TcpListener::bind(addr).is_ok()
 }
 
-/// 枚举本机非环回 IPv4 地址及子网掩码（多网卡主机按接口分别广播）。
+/// 检查是否为虚拟网卡、VPN、代理 Fake-IP 保留段或蜂窝移动数据网络接口。
+pub fn is_virtual_or_cellular_adapter(name: &str, ip: Ipv4Addr) -> bool {
+    let octets = ip.octets();
+    // 1. 过滤 RFC 2544 基准测试保留段（198.18.0.0/15，Clash/Sing-box/Mihomo 等 TUN 虚拟网卡）
+    if octets[0] == 198 && (octets[1] == 18 || octets[1] == 19) {
+        return true;
+    }
+    // 2. 过滤回环与链路本地地址
+    if ip.is_loopback() || ip.is_link_local() {
+        return true;
+    }
+    // 3. 过滤常见虚拟网卡、VPN 及蜂窝移动网络接口名称（忽略大小写）
+    let n = name.to_ascii_lowercase();
+    if n.contains("vmware")
+        || n.contains("vmnet")
+        || n.contains("virtualbox")
+        || n.contains("vbox")
+        || n.contains("hyper-v")
+        || n.contains("vethernet")
+        || n.contains("wsl")
+        || n.contains("wintun")
+        || n.contains("tap")
+        || n.contains("tun")
+        || n.contains("mihomo")
+        || n.contains("clash")
+        || n.contains("tailscale")
+        || n.contains("zerotier")
+        || n.contains("rmnet")
+        || n.contains("ccmni")
+        || n.contains("pdp")
+    {
+        return true;
+    }
+    false
+}
+
+/// 枚举本机真实物理局域网 IPv4 地址及子网掩码（已过滤虚拟/代理/蜂窝接口）。
 ///
 /// 返回 `(地址, 掩码)` 列表；网卡枚举失败时退化为组播路由探测单地址。
 pub fn local_ipv4_nets() -> Vec<(Ipv4Addr, Ipv4Addr)> {
@@ -37,8 +73,7 @@ pub fn local_ipv4_nets() -> Vec<(Ipv4Addr, Ipv4Addr)> {
     if let Ok(ifs) = if_addrs::get_if_addrs() {
         for i in ifs {
             if let if_addrs::IfAddr::V4(v4) = i.addr {
-                // 跳过环回与 169.254 链路本地地址（不可路由到对端）
-                if !v4.ip.is_loopback() && !v4.ip.is_link_local() {
+                if !is_virtual_or_cellular_adapter(&i.name, v4.ip) {
                     out.push((v4.ip, v4.netmask));
                 }
             }
@@ -46,7 +81,9 @@ pub fn local_ipv4_nets() -> Vec<(Ipv4Addr, Ipv4Addr)> {
     }
     if out.is_empty() {
         if let Some(ip) = probe_egress_ipv4() {
-            out.push((ip, Ipv4Addr::new(255, 255, 255, 0)));
+            if !is_virtual_or_cellular_adapter("", ip) {
+                out.push((ip, Ipv4Addr::new(255, 255, 255, 0)));
+            }
         }
     }
     out
@@ -67,6 +104,13 @@ pub fn pick_ip_for_peer(nets: &[(Ipv4Addr, Ipv4Addr)], peer: IpAddr) -> Option<I
         .find(|(ip, mask)| in_same_subnet(*ip, p, *mask))
         .map(|(ip, _)| *ip)
         .or(fallback)
+}
+
+/// 计算 IPv4 子网定向广播地址（例如 10.192.58.152 / 255.255.255.0 -> 10.192.58.255）。
+pub fn broadcast_addr(ip: Ipv4Addr, mask: Ipv4Addr) -> Ipv4Addr {
+    let ip_u32 = u32::from(ip);
+    let mask_u32 = u32::from(mask);
+    Ipv4Addr::from(ip_u32 | (!mask_u32))
 }
 
 fn in_same_subnet(a: Ipv4Addr, b: Ipv4Addr, mask: Ipv4Addr) -> bool {
@@ -110,6 +154,32 @@ mod tests {
             "192.168.1.5:9000".parse::<SocketAddr>().unwrap()
         );
         assert!(parse_target("not-an-ip", 8899).is_err());
+    }
+
+    #[test]
+    fn calculates_broadcast_addr() {
+        let ip = Ipv4Addr::new(10, 192, 58, 152);
+        let mask = Ipv4Addr::new(255, 255, 255, 0);
+        assert_eq!(broadcast_addr(ip, mask), Ipv4Addr::new(10, 192, 58, 255));
+
+        let ip2 = Ipv4Addr::new(192, 168, 1, 100);
+        let mask2 = Ipv4Addr::new(255, 255, 0, 0);
+        assert_eq!(broadcast_addr(ip2, mask2), Ipv4Addr::new(192, 168, 255, 255));
+    }
+
+    #[test]
+    fn filters_virtual_adapters() {
+        // 198.18.x.x 代理 Fake-IP
+        assert!(is_virtual_or_cellular_adapter("Ethernet", Ipv4Addr::new(198, 18, 0, 1)));
+        assert!(is_virtual_or_cellular_adapter("WLAN", Ipv4Addr::new(198, 19, 254, 1)));
+        // 虚拟网卡名称
+        assert!(is_virtual_or_cellular_adapter("VMware Network Adapter VMnet1", Ipv4Addr::new(192, 168, 88, 1)));
+        assert!(is_virtual_or_cellular_adapter("Mihomo", Ipv4Addr::new(198, 18, 0, 1)));
+        assert!(is_virtual_or_cellular_adapter("rmnet_data0", Ipv4Addr::new(10, 64, 1, 2)));
+        // 真实网卡
+        assert!(!is_virtual_or_cellular_adapter("WLAN", Ipv4Addr::new(10, 132, 77, 152)));
+        assert!(!is_virtual_or_cellular_adapter("以太网", Ipv4Addr::new(192, 168, 3, 249)));
+        assert!(!is_virtual_or_cellular_adapter("wlan0", Ipv4Addr::new(192, 168, 1, 105)));
     }
 
     #[test]
