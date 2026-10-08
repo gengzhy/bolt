@@ -154,32 +154,29 @@ impl UdpProbe {
                 }
             }
         } else {
+            // 对每个物理网卡：仅向该网卡的子网定向广播发送 1 次探测（优先包含 Device 信息的 BTQ2，避免广播冗余）
             for s in &senders {
-                // 逐网卡装配该网卡专属的准确 IP，杜绝跨网卡张冠李戴
-                let btq2_for_sender = me.and_then(|dev| {
+                let subnet_target = SocketAddr::V4(SocketAddrV4::new(s.bcast_addr, PROBE_PORT));
+                let mut sent_subnet = false;
+                if let Some(dev) = me {
                     let mut dev_clone = dev.clone();
                     dev_clone.ip = s.ip.to_string();
-                    serde_json::to_vec(&dev_clone).ok().map(|payload| {
+                    if let Ok(payload) = serde_json::to_vec(&dev_clone) {
                         let mut b = Vec::with_capacity(4 + payload.len());
                         b.extend_from_slice(QUERY_WITH_DEV_MAGIC);
                         b.extend_from_slice(&payload);
-                        b
-                    })
-                });
+                        let _ = s.socket.send_to(&b, subnet_target);
+                        sent_subnet = true;
+                    }
+                }
+                if !sent_subnet {
+                    let _ = s.socket.send_to(&btq1, subnet_target);
+                }
+            }
 
-                let subnet_target = SocketAddr::V4(SocketAddrV4::new(s.bcast_addr, PROBE_PORT));
-                // 1. 定向子网广播（针对该网卡热点子网，穿透 AP 限制）
-                let _ = s.socket.send_to(&btq1, subnet_target);
-                if let Some(ref q2) = btq2_for_sender {
-                    let _ = s.socket.send_to(q2, subnet_target);
-                }
-                // 2. 全局广播
-                if let Err(e) = s.socket.send_to(&btq1, global_target) {
-                    last = Err(e);
-                }
-                if let Some(ref q2) = btq2_for_sender {
-                    let _ = s.socket.send_to(q2, global_target);
-                }
+            // 全局受限广播 255.255.255.255 仅作为单次全局兜底，无需对每张网卡重复打满
+            if let Err(e) = self.socket.send_to(&btq1, global_target) {
+                last = Err(e);
             }
         }
         last
@@ -204,10 +201,6 @@ impl UdpProbe {
                     out.extend_from_slice(PREPLY_MAGIC);
                     out.extend_from_slice(&payload);
                     let _ = sock.send_to(&out, from);
-                    let direct_target = SocketAddr::new(from.ip(), PROBE_PORT);
-                    if direct_target != from {
-                        let _ = sock.send_to(&out, direct_target);
-                    }
                 }
             }
         } else if data.len() > 4 && &data[..4] == QUERY_WITH_DEV_MAGIC {
@@ -222,10 +215,6 @@ impl UdpProbe {
                             out.extend_from_slice(PREPLY_MAGIC);
                             out.extend_from_slice(&payload);
                             let _ = sock.send_to(&out, from);
-                            let direct_target = SocketAddr::new(from.ip(), PROBE_PORT);
-                            if direct_target != from {
-                                let _ = sock.send_to(&out, direct_target);
-                            }
                         }
                     }
                 }

@@ -113,7 +113,6 @@ export function useBt() {
     switch (ev.id) {
       case 1: // EVT_DEVICE_LIST
         void refreshDevices();
-        void refreshLocalInfo();
         break;
       case 2: {
         // EVT_CONN_STATE：uuid → 连接状态/传输通道

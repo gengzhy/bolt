@@ -90,7 +90,6 @@ public final class BoltEngine: ObservableObject {
         switch eventId {
         case BoltNative.EVT_DEVICE_LIST:
             syncDevices()
-            refreshStaticInfo()
 
         case BoltNative.EVT_CONN_STATE:
             handleConnStateEvent(data: data)

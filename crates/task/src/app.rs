@@ -236,6 +236,12 @@ impl App {
             .any(|t| matches!(t.state, TaskState::WaitingAccept | TaskState::Transferring))
     }
 
+    /// 传输期信道独占联动：根据是否有进行中的传输任务，动态联动后台发现雷达的静默状态
+    fn update_transfer_activity(&self) {
+        let busy = self.engine_busy();
+        self.discovery.set_transfer_active(busy);
+    }
+
     fn discovery_config(&self) -> DiscoveryConfig {
         let cfg = self.cfg.lock().unwrap().clone();
         let port = self
@@ -311,6 +317,9 @@ impl App {
     }
 
     fn emit(&self, ev: BtEvent) {
+        if matches!(ev, BtEvent::TaskState { .. } | BtEvent::TaskSummary { .. }) {
+            self.update_transfer_activity();
+        }
         if let Some(sink) = self.sink.lock().unwrap().as_ref() {
             sink(ev);
         }

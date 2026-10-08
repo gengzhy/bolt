@@ -69,6 +69,7 @@ struct Running {
 pub struct DiscoveryManager {
     devices: Arc<DeviceList>,
     running: Mutex<Option<Running>>,
+    transfer_active: Arc<AtomicBool>,
 }
 
 impl DiscoveryManager {
@@ -76,7 +77,17 @@ impl DiscoveryManager {
         DiscoveryManager {
             devices,
             running: Mutex::new(None),
+            transfer_active: Arc::new(AtomicBool::new(false)),
         }
+    }
+
+    /// 设置传输活跃状态：传输期间雷达全面静默，100% 物理信道让给数据流与 ACK
+    pub fn set_transfer_active(&self, active: bool) {
+        self.transfer_active.store(active, Ordering::Relaxed);
+    }
+
+    pub fn is_transfer_active(&self) -> bool {
+        self.transfer_active.load(Ordering::Relaxed)
     }
 
     pub fn devices(&self) -> Arc<DeviceList> {
@@ -202,9 +213,23 @@ impl DiscoveryManager {
                 let mdns_c = mdns_handle.clone();
                 let nets_tracker = last_nets.clone();
                 let devices_in_bcast = self.devices.clone();
+                let is_transfer_active = self.transfer_active.clone();
                 handles.push(thread::Builder::new().name("bt-udp-bcast".into()).spawn(
                     move || {
                         while !stop_c.load(Ordering::Relaxed) {
+                            if is_transfer_active.load(Ordering::Relaxed) {
+                                // 处于高速传输状态：雷达完全静默，0广播、0网卡枚举，100% 物理信道让给数据流与 ACK
+                                let mut waited = Duration::ZERO;
+                                while waited < Duration::from_secs(1)
+                                    && !stop_c.load(Ordering::Relaxed)
+                                    && is_transfer_active.load(Ordering::Relaxed)
+                                {
+                                    thread::sleep(Duration::from_millis(200));
+                                    waited += Duration::from_millis(200);
+                                }
+                                continue;
+                            }
+
                             // 1. 动态网卡接口感知与自愈
                             let current_nets = utils::net::local_ipv4_nets();
                             probe_c.update_interfaces(&current_nets);
@@ -264,6 +289,7 @@ impl DiscoveryManager {
             let devices = self.devices.clone();
             let stop_c = stop.clone();
             let ttl = cfg.ttl_secs;
+            let is_transfer_active_sweep = self.transfer_active.clone();
             handles.push(
                 thread::Builder::new()
                     .name("bt-dev-sweep".into())
@@ -273,7 +299,10 @@ impl DiscoveryManager {
                             if stop_c.load(Ordering::Relaxed) {
                                 break;
                             }
-                            devices.sweep_expired(ttl);
+                            // 传输期间跳过清理，防止正在传输的对端因心跳静默被误剔除
+                            if !is_transfer_active_sweep.load(Ordering::Relaxed) {
+                                devices.sweep_expired(ttl);
+                            }
                         }
                     })?,
             );

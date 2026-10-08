@@ -229,7 +229,6 @@ object BtEngine {
         when (eventId) {
             Native.EVT_DEVICE_LIST -> {
                 refreshDevices()
-                refreshStaticInfo()
             }
 
             Native.EVT_CONN_STATE -> {
